@@ -14,7 +14,7 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
-      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/70 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         CAD: ISO-8942 · 160x160mm
       </div>
 
@@ -23,7 +23,7 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
         viewBox="0 0 360 360"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full relative z-10 select-none"
+        className="w-full h-full relative z-10 select-none overflow-visible"
       >
         <defs>
           <radialGradient id="gearGlow" cx="50%" cy="50%" r="50%">
@@ -35,27 +35,35 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
         {/* Subtle animated radial wash */}
         <circle cx="180" cy="180" r="120" fill="url(#gearGlow)" className="animate-pulse-glow" />
 
-        {/* 4-Point CAD Sparkle Star Top-Left (Animated Float) */}
-        <g stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round" className="animate-float">
-          <path d="M70 60 L85 95 L120 110 L85 125 L70 160 L55 125 L20 110 L55 95 Z" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.05)" />
-          <circle cx="70" cy="110" r="2" fill="#ffffff" />
+        {/* 4-Point CAD Sparkle Star Top-Left */}
+        <g transform="translate(70, 110)">
+          <g className="animate-float" stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round">
+            <path d="M 0 -50 L 15 -15 L 50 0 L 15 15 L 0 50 L -15 15 L -50 0 L -15 -15 Z" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.05)" />
+            <circle cx="0" cy="0" r="2" fill="#ffffff" />
+          </g>
         </g>
 
-        {/* 4-Point CAD Sparkle Star Top-Right (Animated Float Alt) */}
-        <g stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round" className="animate-float-alt">
-          <path d="M280 50 L292 78 L320 90 L292 102 L280 130 L268 102 L240 90 L268 78 Z" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.05)" />
-          <circle cx="280" cy="90" r="1.5" fill="#ffffff" />
+        {/* 4-Point CAD Sparkle Star Top-Right */}
+        <g transform="translate(280, 90)">
+          <g className="animate-float-alt" stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round">
+            <path d="M 0 -40 L 12 -12 L 40 0 L 12 12 L 0 40 L -12 12 L -40 0 L -12 -12 Z" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.05)" />
+            <circle cx="0" cy="0" r="1.5" fill="#ffffff" />
+          </g>
         </g>
 
         {/* 4-Point CAD Sparkle Star Bottom-Left */}
-        <g stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round" className="animate-float-alt">
-          <path d="M60 250 L70 270 L90 280 L70 290 L60 310 L50 290 L30 280 L50 270 Z" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.05)" />
+        <g transform="translate(60, 280)">
+          <g className="animate-float-alt" stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round">
+            <path d="M 0 -30 L 10 -10 L 30 0 L 10 10 L 0 30 L -10 10 L -30 0 L -10 -10 Z" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.05)" />
+          </g>
         </g>
 
         {/* 4-Point CAD Sparkle Star Bottom-Right */}
-        <g stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round" className="animate-float">
-          <path d="M300 240 L312 265 L340 275 L312 285 L300 310 L288 285 L260 275 L288 265 Z" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.05)" />
-          <circle cx="300" cy="275" r="2" fill="#ffffff" />
+        <g transform="translate(300, 275)">
+          <g className="animate-float" stroke="#7089ba" strokeWidth="1.2" strokeLinecap="round">
+            <path d="M 0 -35 L 12 -10 L 40 0 L 12 10 L 0 35 L -12 10 L -40 0 L -12 -10 Z" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.05)" />
+            <circle cx="0" cy="0" r="2" fill="#ffffff" />
+          </g>
         </g>
 
         {/* Isometric Chamfered CAD Chassis Box */}
@@ -150,7 +158,7 @@ export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ clas
     <div className={`relative w-full aspect-square max-w-[420px] rounded-2xl bg-[#1c1c1c] p-6 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
-      <div className="absolute top-3 left-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/70 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 left-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         QUERY_STREAM: ACTIVE · AES-256
       </div>
 
@@ -158,7 +166,7 @@ export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ clas
         viewBox="0 0 360 360"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full relative z-10 select-none"
+        className="w-full h-full relative z-10 select-none overflow-visible"
       >
         <g stroke="#7089ba" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           {/* Base Pedestal (Isometric Plinth) */}
@@ -247,7 +255,7 @@ export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ cl
     <div className={`relative w-full aspect-square max-w-[420px] rounded-2xl bg-[#1c1c1c] p-6 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
-      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/70 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         THRUST: P2P_WEBRTC_STREAM
       </div>
 
@@ -255,7 +263,7 @@ export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ cl
         viewBox="0 0 360 360"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full relative z-10 select-none"
+        className="w-full h-full relative z-10 select-none overflow-visible"
       >
         {/* Isometric Perspective Grid Base Plane */}
         <g stroke="#4d4d4d" strokeWidth="0.8" strokeDasharray="3 3">
@@ -293,42 +301,44 @@ export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ cl
         <circle cx="245" cy="295" r="2" fill="#ffffff" />
         <circle cx="285" cy="275" r="2.5" fill="#ffffff" />
 
-        {/* Isometric Animated CAD Rocket Body */}
-        <g transform="translate(245, 140)" className="animate-float">
-          {/* Main Cone Capsule */}
-          <path
-            d="M 0 -75 C -18 -40 -18 10 -18 35 L 18 35 C 18 10 18 -40 0 -75 Z"
-            stroke="#7089ba"
-            strokeWidth="1.6"
-            strokeDasharray="4 2"
-            fill="rgba(28, 28, 28, 0.9)"
-          />
+        {/* Isometric Animated CAD Rocket Body (Properly Nested Transform) */}
+        <g transform="translate(245, 140)">
+          <g className="animate-float">
+            {/* Main Cone Capsule */}
+            <path
+              d="M 0 -75 C -18 -40 -18 10 -18 35 L 18 35 C 18 10 18 -40 0 -75 Z"
+              stroke="#7089ba"
+              strokeWidth="1.6"
+              strokeDasharray="4 2"
+              fill="rgba(28, 28, 28, 0.9)"
+            />
 
-          {/* Center Porthole Window */}
-          <circle cx="0" cy="-15" r="10" stroke="#ffffff" strokeWidth="1.2" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.2)" />
-          <circle cx="0" cy="-15" r="4" fill="#7089ba" />
+            {/* Center Porthole Window */}
+            <circle cx="0" cy="-15" r="10" stroke="#ffffff" strokeWidth="1.2" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.2)" />
+            <circle cx="0" cy="-15" r="4" fill="#7089ba" />
 
-          {/* Wings */}
-          <path
-            d="M -18 15 L -35 45 L -18 42 Z"
-            stroke="#7089ba"
-            strokeWidth="1.4"
-            strokeDasharray="3 2"
-            fill="rgba(112, 137, 186, 0.1)"
-          />
-          <path
-            d="M 18 15 L 35 45 L 18 42 Z"
-            stroke="#7089ba"
-            strokeWidth="1.4"
-            strokeDasharray="3 2"
-            fill="rgba(112, 137, 186, 0.1)"
-          />
+            {/* Wings */}
+            <path
+              d="M -18 15 L -35 45 L -18 42 Z"
+              stroke="#7089ba"
+              strokeWidth="1.4"
+              strokeDasharray="3 2"
+              fill="rgba(112, 137, 186, 0.1)"
+            />
+            <path
+              d="M 18 15 L 35 45 L 18 42 Z"
+              stroke="#7089ba"
+              strokeWidth="1.4"
+              strokeDasharray="3 2"
+              fill="rgba(112, 137, 186, 0.1)"
+            />
 
-          <line x1="0" y1="5" x2="0" y2="45" stroke="#ffffff" strokeWidth="1.2" strokeDasharray="3 2" />
+            <line x1="0" y1="5" x2="0" y2="45" stroke="#ffffff" strokeWidth="1.2" strokeDasharray="3 2" />
 
-          {/* Thruster Nozzle Ring */}
-          <ellipse cx="0" cy="38" rx="14" ry="4" stroke="#7089ba" strokeWidth="1.4" fill="#141414" />
-          <ellipse cx="0" cy="44" rx="10" ry="3" stroke="#808080" strokeWidth="1" strokeDasharray="2 2" fill="none" />
+            {/* Thruster Nozzle Ring */}
+            <ellipse cx="0" cy="38" rx="14" ry="4" stroke="#7089ba" strokeWidth="1.4" fill="#141414" />
+            <ellipse cx="0" cy="44" rx="10" ry="3" stroke="#808080" strokeWidth="1" strokeDasharray="2 2" fill="none" />
+          </g>
         </g>
 
         {/* CAD Star Accents */}
@@ -349,7 +359,7 @@ export const LaptopWandCadIllustration: React.FC<CadIllustrationProps> = ({ clas
     <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
-      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none">
+      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
         <g stroke="#7089ba" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           {/* Display bezel */}
           <path
@@ -382,25 +392,27 @@ export const LaptopWandCadIllustration: React.FC<CadIllustrationProps> = ({ clas
           <path d="M 50 85 L 50 90 L 115 150 L 115 145 Z" stroke="#4d4d4d" fill="#141414" />
           <path d="M 115 150 L 165 120 L 165 115 L 115 145 Z" stroke="#4d4d4d" fill="#141414" />
 
-          {/* Animated Magic Wand */}
-          <g transform="translate(195, 80)" className="animate-float">
-            <path d="M -40 40 L 0 0" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M -40 40 L 0 0" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="2 2" />
+          {/* Animated Magic Wand (Properly Nested Transform) */}
+          <g transform="translate(195, 80)">
+            <g className="animate-float">
+              <path d="M -40 40 L 0 0" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+              <path d="M -40 40 L 0 0" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="2 2" />
 
-            {/* Star tip */}
-            <path
-              d="M 0 0 L 10 -20 L 30 -30 L 10 -40 L 0 -60 L -10 -40 L -30 -30 L -10 -20 Z"
-              stroke="#7089ba"
-              strokeWidth="1.5"
-              strokeDasharray="3 2"
-              fill="rgba(112, 137, 186, 0.18)"
-            />
-            <circle cx="0" cy="-30" r="3" fill="#ffffff" />
+              {/* Star tip */}
+              <path
+                d="M 0 0 L 10 -20 L 30 -30 L 10 -40 L 0 -60 L -10 -40 L -30 -30 L -10 -20 Z"
+                stroke="#7089ba"
+                strokeWidth="1.5"
+                strokeDasharray="3 2"
+                fill="rgba(112, 137, 186, 0.18)"
+              />
+              <circle cx="0" cy="-30" r="3" fill="#ffffff" />
 
-            <line x1="35" y1="-30" x2="50" y2="-30" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 2" />
-            <line x1="-35" y1="-30" x2="-50" y2="-30" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 2" />
-            <line x1="0" y1="-65" x2="0" y2="-80" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 2" />
-            <circle cx="45" cy="-55" r="1.5" fill="#ffffff" className="animate-ping" />
+              <line x1="35" y1="-30" x2="50" y2="-30" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="-35" y1="-30" x2="-50" y2="-30" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="0" y1="-65" x2="0" y2="-80" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 2" />
+              <circle cx="45" cy="-55" r="1.5" fill="#ffffff" className="animate-ping" />
+            </g>
           </g>
         </g>
       </svg>
@@ -416,7 +428,7 @@ export const PedestalAwardCadIllustration: React.FC<CadIllustrationProps> = ({ c
     <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
-      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none">
+      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
         <g stroke="#7089ba" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           {/* Isometric Stage */}
           <path
@@ -438,13 +450,15 @@ export const PedestalAwardCadIllustration: React.FC<CadIllustrationProps> = ({ c
           <path d="M 100 85 L 100 105 L 140 125 L 140 105 Z" stroke="#7089ba" strokeDasharray="2 2" fill="#121212" />
           <path d="M 140 105 L 140 125 L 180 105 L 180 85 Z" stroke="#4d4d4d" strokeDasharray="2 2" fill="#161616" />
 
-          {/* Animated #1 Medallion */}
-          <g transform="translate(140, 55)" className="animate-float">
-            <circle cx="0" cy="0" r="22" stroke="#7089ba" strokeWidth="1.6" strokeDasharray="4 2" fill="#1c1c1c" />
-            <circle cx="0" cy="0" r="16" stroke="#ffffff" strokeWidth="1" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.15)" />
-            <text x="0" y="5" fill="#ffffff" fontSize="13" fontWeight="bold" fontFamily="Geist Mono" textAnchor="middle">#1</text>
-            <path d="M -8 18 L -14 38 L -4 34 L 0 22 Z" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.1)" />
-            <path d="M 8 18 L 14 38 L 4 34 L 0 22 Z" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.1)" />
+          {/* Animated #1 Medallion (Properly Nested Transform) */}
+          <g transform="translate(140, 55)">
+            <g className="animate-float">
+              <circle cx="0" cy="0" r="22" stroke="#7089ba" strokeWidth="1.6" strokeDasharray="4 2" fill="#1c1c1c" />
+              <circle cx="0" cy="0" r="16" stroke="#ffffff" strokeWidth="1" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.15)" />
+              <text x="0" y="5" fill="#ffffff" fontSize="13" fontWeight="bold" fontFamily="Geist Mono" textAnchor="middle">#1</text>
+              <path d="M -8 18 L -14 38 L -4 34 L 0 22 Z" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.1)" />
+              <path d="M 8 18 L 14 38 L 4 34 L 0 22 Z" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="2 2" fill="rgba(112, 137, 186, 0.1)" />
+            </g>
           </g>
 
           <circle cx="70" cy="40" r="1.5" fill="#ffffff" />
@@ -463,28 +477,30 @@ export const LightningVortexCadIllustration: React.FC<CadIllustrationProps> = ({
     <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
-      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none">
+      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
         <g stroke="#7089ba" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           {/* Orbital Rings */}
           <ellipse cx="140" cy="145" rx="55" ry="16" strokeDasharray="3 3" stroke="#4d4d4d" />
           <ellipse cx="140" cy="115" rx="70" ry="20" strokeDasharray="4 2" stroke="#7089ba" fill="rgba(112, 137, 186, 0.03)" className="animate-dash-flow" />
           <ellipse cx="140" cy="80" rx="60" ry="18" strokeDasharray="3 3" stroke="#7089ba" />
 
-          {/* Animated Lightning Bolt */}
-          <g transform="translate(140, 100)" className="animate-float">
-            <path
-              d="M 8 -65 L -20 -10 L -4 -10 L -18 45 L 20 -8 L 4 -8 Z"
-              stroke="#ffffff"
-              strokeWidth="2"
-              strokeDasharray="4 2"
-              fill="rgba(112, 137, 186, 0.22)"
-            />
-            <path
-              d="M 12 -62 L -14 -8 L 0 -8 L -12 42 L 22 -6 L 8 -6 Z"
-              stroke="#7089ba"
-              strokeWidth="1.2"
-              strokeDasharray="2 2"
-            />
+          {/* Animated Lightning Bolt (Properly Nested Transform) */}
+          <g transform="translate(140, 100)">
+            <g className="animate-float">
+              <path
+                d="M 8 -65 L -20 -10 L -4 -10 L -18 45 L 20 -8 L 4 -8 Z"
+                stroke="#ffffff"
+                strokeWidth="2"
+                strokeDasharray="4 2"
+                fill="rgba(112, 137, 186, 0.22)"
+              />
+              <path
+                d="M 12 -62 L -14 -8 L 0 -8 L -12 42 L 22 -6 L 8 -6 Z"
+                stroke="#7089ba"
+                strokeWidth="1.2"
+                strokeDasharray="2 2"
+              />
+            </g>
           </g>
 
           {/* Orbital Orbit Nodes */}
@@ -506,7 +522,7 @@ export const CoinStacksCadIllustration: React.FC<CadIllustrationProps> = ({ clas
     <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
-      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none">
+      <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
         <g stroke="#7089ba" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
           {/* Base */}
           <path d="M 40 155 L 140 185 L 240 145 L 140 115 Z" stroke="#4d4d4d" strokeWidth="1" strokeDasharray="3 3" />
@@ -533,14 +549,19 @@ export const CoinStacksCadIllustration: React.FC<CadIllustrationProps> = ({ clas
             <text x="0" y="-25" fill="#ffffff" fontSize="13" fontWeight="bold" fontFamily="Geist Mono" textAnchor="middle">$</text>
           </g>
 
-          {/* Animated Floating Coins */}
-          <g transform="translate(195, 60)" className="animate-float">
-            <ellipse cx="0" cy="0" rx="16" ry="10" stroke="#7089ba" strokeWidth="1.4" strokeDasharray="3 2" fill="#1c1c1c" />
-            <text x="0" y="4" fill="#ffffff" fontSize="10" fontFamily="Geist Mono" textAnchor="middle">$</text>
+          {/* Animated Floating Coins (Properly Nested Transform) */}
+          <g transform="translate(195, 60)">
+            <g className="animate-float">
+              <ellipse cx="0" cy="0" rx="16" ry="10" stroke="#7089ba" strokeWidth="1.4" strokeDasharray="3 2" fill="#1c1c1c" />
+              <text x="0" y="4" fill="#ffffff" fontSize="10" fontFamily="Geist Mono" textAnchor="middle">$</text>
+            </g>
           </g>
-          <g transform="translate(95, 65)" className="animate-float-alt">
-            <ellipse cx="0" cy="0" rx="14" ry="9" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="3 2" fill="#1c1c1c" />
-            <text x="0" y="3" fill="#ffffff" fontSize="8" fontFamily="Geist Mono" textAnchor="middle">$</text>
+
+          <g transform="translate(95, 65)">
+            <g className="animate-float-alt">
+              <ellipse cx="0" cy="0" rx="14" ry="9" stroke="#7089ba" strokeWidth="1.2" strokeDasharray="3 2" fill="#1c1c1c" />
+              <text x="0" y="3" fill="#ffffff" fontSize="8" fontFamily="Geist Mono" textAnchor="middle">$</text>
+            </g>
           </g>
         </g>
       </svg>
@@ -554,7 +575,7 @@ export const CoinStacksCadIllustration: React.FC<CadIllustrationProps> = ({ clas
 export const HeroLightBeamStipple: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
     <div className={`w-full max-w-[480px] h-[100px] flex items-center justify-center relative overflow-hidden ${className}`}>
-      <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full opacity-70">
+      <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full opacity-70 overflow-visible">
         <g stroke="#7089ba" strokeWidth="0.8" strokeDasharray="2 4" className="animate-dash-flow">
           <line x1="200" y1="100" x2="60" y2="10" />
           <line x1="200" y1="100" x2="90" y2="5" />
