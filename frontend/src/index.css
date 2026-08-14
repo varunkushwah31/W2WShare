@@ -1,0 +1,240 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* Colors */
+  --color-void: #000000;
+  --color-carbon: #1c1c1c;
+  --color-graphite: #4d4d4d;
+  --color-steel: #808080;
+  --color-ash: #ababab;
+  --color-paper: #ffffff;
+  --color-periwinkle: #7089ba;
+  --color-periwinkle-annotation: #7089ba;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+:root {
+  /* Blueprint Theme Tokens */
+  --color-void: #000000;
+  --color-carbon: #1c1c1c;
+  --color-graphite: #4d4d4d;
+  --color-steel: #808080;
+  --color-ash: #ababab;
+  --color-paper: #ffffff;
+  --color-periwinkle-annotation: #7089ba;
+
+  /* Fonts */
+  --font-raveo-variable: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-geist-mono: 'Geist Mono', 'JetBrains Mono Variable', monospace;
+
+  /* Shadcn / Radix variables mapped to Index Blueprint theme */
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #1c1c1c;
+  --card-foreground: #ffffff;
+  --popover: #1c1c1c;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #ffffff;
+  --muted: #1c1c1c;
+  --muted-foreground: #808080;
+  --accent: #7089ba;
+  --accent-foreground: #ffffff;
+  --destructive: #eb5757;
+  --border: #1c1c1c;
+  --input: #1c1c1c;
+  --ring: #7089ba;
+  --radius: 6px;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #1c1c1c;
+  --card-foreground: #ffffff;
+  --popover: #1c1c1c;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #ffffff;
+  --muted: #1c1c1c;
+  --muted-foreground: #808080;
+  --accent: #7089ba;
+  --accent-foreground: #ffffff;
+  --destructive: #eb5757;
+  --border: #1c1c1c;
+  --input: #1c1c1c;
+  --ring: #7089ba;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--color-void);
+    color: var(--color-paper);
+    font-family: var(--font-raveo-variable);
+    overflow-x: hidden;
+  }
+  
+  /* Signature Raveo 1000 display typography */
+  .font-raveo-1000 {
+    font-family: var(--font-raveo-variable);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.10;
+  }
+  
+  .font-raveo-500 {
+    font-family: var(--font-raveo-variable);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .font-geist-mono {
+    font-family: var(--font-geist-mono);
+    letter-spacing: 0.02em;
+  }
+}
+
+/* Blueprint Drafting Grid and Dashed Containment Utilities */
+.dashed-container {
+  border: 1px dashed #1c1c1c;
+}
+
+.dashed-container-subtle {
+  border: 1px dashed #262626;
+}
+
+.dashed-divider-b {
+  border-bottom: 1px dashed #1c1c1c;
+}
+
+.dashed-divider-t {
+  border-top: 1px dashed #1c1c1c;
+}
+
+/* Drafting Lamp Hero Radial Wash */
+.hero-spotlight {
+  background: radial-gradient(circle at 50% 30%, rgba(28, 28, 28, 0.95) 0%, rgba(16, 22, 38, 0.6) 35%, rgba(0, 0, 0, 0.98) 75%);
+}
+
+.hero-radial-glow {
+  background: radial-gradient(ellipse 65% 50% at 50% 25%, rgba(112, 137, 186, 0.18) 0%, rgba(28, 28, 28, 0.4) 45%, transparent 75%);
+}
+
+/* Stippled Particle Grid Pattern */
+.bg-stipple-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.bg-stipple-dense {
+  background-image: radial-gradient(rgba(112, 137, 186, 0.3) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.bg-stipple-faint {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+/* CAD Isometric Drafting Lines */
+.cad-grid-plane {
+  background-image: 
+    linear-gradient(to right, rgba(112, 137, 186, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(112, 137, 186, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Keyframe Animations */
+@keyframes rotateGearSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes floatGentleAlt {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes dashStream {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes scanlinePulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.animate-gear-spin {
+  animation: rotateGearSlow 28s linear infinite;
+  transform-origin: center;
+}
+
+.animate-float {
+  animation: floatGentle 4.5s ease-in-out infinite;
+}
+
+.animate-float-alt {
+  animation: floatGentleAlt 5.5s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-dash-flow {
+  animation: dashStream 1.2s linear infinite;
+}
+
+.animate-scanline {
+  animation: scanlinePulse 2s ease-in-out infinite;
+}

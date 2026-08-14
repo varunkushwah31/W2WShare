@@ -1,0 +1,116 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Active Transfer Sessions",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "w2w_sessions_active",
+          "legendFormat": "Active Sessions",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "title": "Total Chunks Uploaded",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "w2w_chunks_uploaded_total",
+          "legendFormat": "Uploaded Chunks",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "title": "Total Transferred Volume (Bytes)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "w2w_bytes_transferred_bytes_total",
+          "legendFormat": "Total Bytes",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "title": "Ephemeral Storage Consumed",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "w2w_storage_consumed_bytes",
+          "legendFormat": "Storage Bytes",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "title": "Transfer Throughput Rate (Bytes/sec)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(w2w_bytes_transferred_bytes_total[1m])",
+          "legendFormat": "Transfer Speed",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "title": "JVM Heap Memory Usage (MB)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\"} / 1048576",
+          "legendFormat": "Used Heap",
+          "refId": "A"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{area=\"heap\"} / 1048576",
+          "legendFormat": "Max Heap",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["w2w-share", "spring-boot", "p2p"],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m"]
+  },
+  "timezone": "browser",
+  "title": "W2W Share - Production Observability Dashboard",
+  "version": 1
+}

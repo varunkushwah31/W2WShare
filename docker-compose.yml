@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  w2w-share:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: w2w-share
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-XX:+UseG1GC -Xms256m -Xmx2g
+      - SERVER_PORT=8080
+      - W2W_STORAGE_MAX_QUOTA_BYTES=53687091200
+      - W2W_SESSION_TIMEOUT_SECONDS=600
+    volumes:
+      - w2w_temp_data:/app/temp-w2w-encrypted
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 256M
+
+volumes:
+  w2w_temp_data:
+    driver: local
