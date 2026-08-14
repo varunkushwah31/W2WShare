@@ -5,23 +5,23 @@ export const HowItWorks: React.FC = () => {
   const steps = [
     {
       step: 'STEP 01',
-      title: 'Stage & Encrypt Payload',
+      title: 'Stage & Encrypt',
       description:
-        'Drag & drop files or folders. WebCrypto compresses via Gzip and applies client-side AES-256-GCM encryption with PBKDF2 (100,000 rounds).',
+        'Drag & drop files or folders. Compresses via Gzip and applies client-side AES-256-GCM encryption with PBKDF2.',
       icon: <LockKey className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
     },
     {
       step: 'STEP 02',
-      title: 'Broadcast or Share 6-Digit PIN',
+      title: 'Share 6-Digit PIN',
       description:
-        'Subnet radar automatically broadcasts to nearby devices on local Wi-Fi port 8888, or share the generated 6-digit numeric claim PIN or wireframe QR code.',
+        'Auto-broadcasts to nearby devices on local Wi-Fi port 8888, or share the generated 6-digit numeric claim PIN or wireframe QR code.',
       icon: <Broadcast className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
     },
     {
       step: 'STEP 03',
-      title: 'Stream & Claim Ephemerally',
+      title: 'Stream & Download',
       description:
-        'The receiver decrypts and verifies SHA-256 mathematical hash integrity in real time, with optional single-claim burn-after-reading destruction.',
+        'Decrypts with the shared PIN and verifies mathematical hash integrity in real time, with optional single-claim burn-after-reading destruction.',
       icon: <DownloadSimple className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
     },
   ]
@@ -32,7 +32,7 @@ export const HowItWorks: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
-          <span>ONBOARDING PROTOCOL</span>
+          <span>3 EASY STEPS</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
           Stream files offline in 3 simple steps.

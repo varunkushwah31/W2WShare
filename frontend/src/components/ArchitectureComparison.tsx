@@ -52,10 +52,10 @@ export const ArchitectureComparison: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
-          <span>FORENSIC TECHNICAL AUDIT</span>
+          <span>TECHNICAL SPECIFICATIONS</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
-          Architectural Specifications: Zero Cloud vs Legacy Sharing
+          Zero Cloud vs Legacy Sharing
         </h2>
         <p className="text-sm text-[#808080]">
           Compare security primitives, throughput, and zero-knowledge operational mechanics.

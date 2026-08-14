@@ -57,7 +57,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-[#1c1c1c]/80 backdrop-blur-md mb-8 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-[#7089ba] animate-ping" />
           <span className="font-mono text-[9px] uppercase tracking-[0.04em] text-white font-medium">
-            NEW: W2W SHARE 2.0 · 100% OFFLINE E2EE
+            W2W SHARE 1.0 · 100% OFFLINE E2EE
           </span>
           <div className="w-3.5 h-3.5 rounded-full bg-white text-black flex items-center justify-center group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
             <ArrowUpRight className="w-2.5 h-2.5" weight="bold" />
@@ -66,12 +66,12 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
 
         {/* Display Headline (Raveo 1000 architectural weight) */}
         <h1 className="text-4xl sm:text-6xl md:text-[70px] font-extrabold text-white tracking-[-0.04em] leading-[1.10] mb-6 select-none font-sans">
-          Analytics done for you.
+          File sharing made easy
         </h1>
 
         {/* Subtitle in Steel #808080 */}
         <p className="text-base sm:text-lg text-[#808080] max-w-[580px] mx-auto leading-relaxed mb-8">
-          Subnet peer radar, WebRTC direct P2P streaming, and browser-native AES-256-GCM encryption with zero internet required.
+          Zero-trust, P2P file transfers. Browser-native E2EE, subnet peer discovery, and direct WebRTC streaming with absolutely no cloud required.
         </p>
 
         {/* Outlined / White Pill Action Buttons */}
@@ -81,14 +81,14 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
             className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-none cursor-pointer border border-white flex items-center gap-1.5"
           >
             <Lightning className="w-4 h-4 text-black" weight="fill" />
-            <span>Launch Transfer Studio</span>
+            <span>Start Sharing</span>
           </a>
           <button
             onClick={onOpenDemo}
             className="px-6 py-2.5 rounded-full border border-[#282828] bg-[#1c1c1c]/90 text-white text-sm font-medium hover:border-white hover:bg-[#242424] transition-all cursor-pointer flex items-center gap-1.5"
           >
             <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
-            <span>Join by PIN</span>
+            <span>Join session</span>
           </button>
         </div>
       </div>
@@ -98,7 +98,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         <HeroLightBeamStipple className="mb-4" />
 
         <p className="text-xs text-[#808080] tracking-wide mb-6">
-          Trusted by some of the biggest companies
+          Trusted by some of the biggest names
         </p>
 
         {/* Logo Band */}
@@ -108,7 +108,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
             <div className="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center">
               <div className="w-1.5 h-1.5 rounded-full bg-white" />
             </div>
-            <span>Operate</span>
+            <span>Apple</span>
           </div>
 
           {/* Chatsheet */}

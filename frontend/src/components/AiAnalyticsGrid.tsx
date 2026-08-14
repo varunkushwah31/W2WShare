@@ -10,23 +10,23 @@ import { ShieldCheck } from '@phosphor-icons/react'
 export const AiAnalyticsGrid: React.FC = () => {
   const cards = [
     {
-      title: 'Fast + Direct Stream Sinks',
+      title: 'Fast Stream Sink',
       description: 'Stream 10GB+ files and recursive folder hierarchies with 2MB binary chunk pipelining.',
       illustration: <LaptopWandCadIllustration />,
     },
     {
-      title: 'Zero-Knowledge Ephemeral Burn',
-      description: 'Single-claim auto-destruct protocol that wipes in-memory buffer references upon receiver confirmation.',
+      title: 'One-time Ephemeral Burn',
+      description: 'Auto-destruct protocol that wipes after single claim or receiver confirmation.',
       illustration: <PedestalAwardCadIllustration />,
     },
     {
-      title: 'Subnet Peer Radar (Port 8888)',
-      description: 'Zero-configuration UDP discovery across local Wi-Fi, Ethernet, and hotspots with 0ms cloud latency.',
+      title: 'Subnet Peer Discovery',
+      description: 'Auto-discovery of peers across local Wi-Fi, Ethernet, and hotspots.',
       illustration: <LightningVortexCadIllustration />,
     },
     {
-      title: 'Encrypted Clipboard & Audit Ledger',
-      description: 'End-to-end encrypted token and chat syncing with downloadable signed SHA-256 JSON transaction receipts.',
+      title: 'Secure Token & Audit Ledger',
+      description: 'Sync tokens and data with downloadable signed SHA-256 receipts.',
       illustration: <CoinStacksCadIllustration />,
     },
   ]
@@ -37,10 +37,10 @@ export const AiAnalyticsGrid: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
-          <span>CRYPTOGRAPHIC SYSTEM PRIMITIVES</span>
+          <span>SYSTEM ARCHITECTURE</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
-          Engineered for 100% offline, zero-cloud peer data transit.
+          100% offline, zero-cloud peer data transit.
         </h2>
       </div>
 
