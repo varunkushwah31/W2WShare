@@ -12,17 +12,17 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
 }) => {
   const tiers = [
     {
-      name: 'COMMUNITY CORE',
-      price: '$0',
-      period: 'forever free',
-      description: '100% offline peer sharing for individual engineers, researchers, and local LAN environments.',
+      name: 'OPEN CORE',
+      price: 'FREE',
+      period: 'forever',
+      description: 'Peer-to-peer file sharing for individual engineers, researchers, and local LAN environments.',
       features: [
-        'Zero Internet Required (100% Offline)',
-        'Browser-Native AES-256-GCM + PBKDF2 (100k)',
-        'Subnet Peer Radar UDP Discovery (Port 8888)',
-        'Zero File Size Limits & 2MB Direct Streaming',
-        'Burn-After-Reading Single-Claim Ephemeral Mode',
-        'Signed JSON Cryptographic Audit Receipts',
+        '100% Offline',
+        'AES-256-GCM + PBKDF2 (100k)',
+        'UDP Discovery',
+        'Zero File Size Limits',
+        'Burn-After-Reading',
+        'Cryptographic Audit Receipts',
       ],
       cta: 'Launch Core Studio',
       isPopular: false,
@@ -30,30 +30,29 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
     {
       name: 'ENTERPRISE ON-PREM',
       price: '$49',
-      period: 'per node / month',
+      period: 'per node',
       description: 'Dedicated air-gapped appliances for defense, healthcare, and enterprise compliance teams.',
       features: [
-        'Everything in Community Core, plus:',
-        'Air-Gapped Hardware Appliance Deployment',
+        'Everything in Open Core, plus:',
+        'Air-Gapped Hardware Deployment',
         'SAML 2.0 / OIDC / LDAP Identity Integration',
-        'Centralized Cryptographic Audit SIEM Ingestion',
+        'Centralized Audit Logs & SIEM Ingestion',
         'Custom TLS Certificate Authority Pinning',
-        '99.999% Air-Gapped Network High-Availability SLA',
       ],
       cta: 'Book Enterprise Demo',
       isPopular: true,
     },
     {
-      name: 'OEM EMBEDDED NODE',
+      name: 'OEM',
       price: 'Custom',
-      period: 'annual license',
-      description: 'Custom hardware & firmware embedding for edge routers, tactical radios, and medical equipment.',
+      period: 'annual',
+      description: 'OEM Firmware integration for network appliances, routers, and IoT devices.',
       features: [
-        'Everything in Enterprise, plus:',
-        'Custom Rust / C WebAssembly Core Bindings',
-        'FIPS 140-3 Cryptographic HSM Integration',
-        'Custom Multicast & Mesh Subnet Protocols',
-        'Dedicated 24/7 Cryptographic Support Team',
+        'Everything in Enterprise On-Prem, plus:',
+        'Custom C / WebAssembly API',
+        'FIPS 140-3 HSM Integration',
+        'Custom Mesh & Subnet Protocols',
+        '24/7 Cryptographic Support',
       ],
       cta: 'Contact Engineering',
       isPopular: false,
@@ -69,22 +68,22 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
           <ArrowLeft className="w-4 h-4 text-[#7089ba]" />
-          <span>Return to Studio</span>
+          <span>Return Home</span>
         </button>
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>ZERO CLOUD LICENSING · SPEC 2.0</span>
+          <span>ENTERPRISE SPEC 2.0</span>
         </div>
       </div>
 
       {/* Hero */}
       <div className="text-center max-w-2xl mx-auto space-y-3">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
-          Simple, Transparent Deployment
+          Deployment Options
         </h1>
         <p className="text-sm text-[#808080] leading-relaxed">
-          W2WShare Core is 100% free and open. Upgrade to Enterprise for air-gapped compliance, SIEM integration, and dedicated hardware appliances.
+          Choose the right model for your deployment needs: 100% free Open Core, Enterprise On-Prem for compliance, or custom OEM Firmware integration.
         </p>
       </div>
 
@@ -100,7 +99,7 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
             {t.isPopular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#7089ba] text-white font-mono text-[9px] uppercase tracking-wider font-semibold flex items-center gap-1">
                 <Sparkle className="w-3 h-3" />
-                <span>MOST POPULAR</span>
+                <span>MOST POPULAR DEPLOYMENT</span>
               </div>
             )}
 

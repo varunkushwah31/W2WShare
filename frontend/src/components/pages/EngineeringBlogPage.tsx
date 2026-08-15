@@ -9,33 +9,33 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
   const articles = [
     {
       id: 'webcrypto-streams',
-      title: 'Building 10GB+ In-Browser Direct-to-Disk Streams with Web Crypto & CompressionStream',
+      title: 'How we achieved 10GB+ in-browser direct-to-disk streams using Web Crypto & CompressionStream',
       excerpt:
-        'How we bypassed browser heap memory bottlenecks using 2MB chunk pipelining, CompressionStream gzip transforms, and authenticated AES-256-GCM cipher sinks.',
-      tag: 'SYSTEMS ARCHITECTURE',
-      date: 'August 10, 2026',
+        'We bypassed browser heap memory bottlenecks using 2MB chunk pipelining, CompressionStream gzip transforms, and authenticated AES-256-GCM cipher sinks.',
+      tag: 'ENGINEERING_BLOG',
+      date: 'August 15, 2026',
       readTime: '7 min read',
-      author: 'W2W Cryptographic Team',
+      author: 'W2W Core Team',
     },
     {
       id: 'udp-subnet-radar',
-      title: 'Why Subnet UDP Multicast Beacons Beat Bluetooth LE for Local Offline Discovery',
+      title: 'How to send UDP discovery beacons across local networks using IEEE 802.11 UDP broadcast frames',
       excerpt:
-        'Comparing IEEE 802.11 UDP broadcast frames against Bluetooth GATT service advertisements on latency, cross-platform OS permissions, and Wi-Fi hotspot throughput.',
-      tag: 'NETWORKING',
+        'How we send UDP discovery beacons across local networks using IEEE 802.11 UDP broadcast frames.',
+      tag: 'ENGINEERING_BLOG',
       date: 'July 22, 2026',
       readTime: '5 min read',
-      author: 'Distributed Systems Lab',
+      author: 'W2W Core Team',
     },
     {
       id: 'ephemeral-burn-mechanics',
-      title: 'Zero-Knowledge Ephemeral Burn: Memory Deallocation at the Hardware Edge',
+      title: 'How we achieved Zero-Knowledge Ephemeral Burn with cryptographic zeroization',
       excerpt:
-        'A formal verification of single-claim session destruction, cryptographic zeroization of WebCrypto key handles, and immutable SHA-256 ledger signing.',
-      tag: 'CRYPTOGRAPHY',
+        'How we achieved zero-knowledge ephemeral burn with cryptographic zeroization of WebCrypto key handles.',
+      tag: 'ENGINEERING_BLOG',
       date: 'June 30, 2026',
       readTime: '9 min read',
-      author: 'Security Research Group',
+      author: 'W2W Core Team',
     },
   ]
 
@@ -53,17 +53,17 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
           <BookOpen className="w-3.5 h-3.5" />
-          <span>ENGINEERING DISPATCHES · BLOG</span>
+          <span>W2W BLOG</span>
         </div>
       </div>
 
       {/* Hero */}
       <div className="space-y-3 max-w-2xl">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
-          Engineering & Cryptographic Dispatches
+          W2W Dispatches
         </h1>
         <p className="text-sm text-[#808080] leading-relaxed">
-          Deep dives into local subnet protocols, browser-native cryptographic benchmarks, stream piping, and zero-knowledge threat modeling.
+          W2WShare dispatches contains technical insights and details into the protocol, browser-native cryptographic benchmarks, stream piping, and zero-knowledge threat modeling.
         </p>
       </div>
 

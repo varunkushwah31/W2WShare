@@ -8,66 +8,71 @@ interface ChangelogPageProps {
 export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
   const releases = [
     {
-      version: 'v2.0.4',
-      date: 'August 14, 2026',
+      version: 'v1.0.0',
+      date: 'August 15, 2026',
       tag: 'LATEST_STABLE',
-      headline: 'Subnet UDP Beacon v2 & On-the-Fly Gzip Pre-Compression Engine',
+      headline: 'W2WShare v1',
       items: [
         {
-          type: 'SECURITY',
-          title: 'PBKDF2 Iteration Hardening',
-          desc: 'Increased PBKDF2 salt derivation to 100,000 rounds with random 16-byte cryptographically secure seeds.',
+          type: 'INFO',
+          title: 'W2WShare',
+          desc: 'W2WShare is a file sharing tool that uses zero-knowledge end-to-end encryption to securely transfer files between devices on a local network.',
         },
         {
-          type: 'PERFORMANCE',
-          title: 'Direct-to-Disk Stream Sinks',
-          desc: 'Implemented CompressionStream and DecompressionStream piping directly into WebCrypto AES-GCM-256 cipher blocks.',
+          type: 'FEATURES',
+          title: 'Stream Sinks',
+          desc: 'Transfer large files and folder hierarchies with 2MB binary chunk pipelining.',
         },
         {
-          type: 'PROTOCOL',
-          title: 'Subnet UDP Port 8888 Multicast Radar',
-          desc: 'Sub-second peer discovery across IEEE 802.11 Wi-Fi and direct hotspot networks without internet gateway lookups.',
+          type: 'DISCOVERY',
+          title: 'UDP Discovery Beacon',
+          desc: 'Auto-discover peers across local Wi-Fi, Ethernet, and hotspots.',
         },
       ],
     },
     {
-      version: 'v2.0.0',
+      version: 'v1.0.0',
       date: 'July 28, 2026',
-      tag: 'MAJOR_RELEASE',
-      headline: 'Index Blueprint Wireframe UI & Drafting Table CAD Integration',
+      tag: 'CORE_ARCH',
+      headline: 'W2WShare v1',
       items: [
         {
-          type: 'UI/UX BLUEPRINT',
-          title: 'Drafting Table Visual Architecture',
-          desc: 'Complete wireframe redesign in negative space (#000000 / #1c1c1c) with periwinkle (#7089ba) vector CAD isometric illustrations.',
-        },
-        {
-          type: 'SECURITY',
-          title: 'Zero-Knowledge Ephemeral Burn',
-          desc: 'Added automated single-claim auto-destruct protocol that wipes in-memory buffer references upon receiver acknowledgment.',
+          type: 'INFO',
+          title: 'W2WShare',
+          desc: 'W2WShare is a file sharing tool that uses zero-knowledge end-to-end encryption to securely transfer files between devices on a local network.',
         },
         {
           type: 'FEATURES',
-          title: 'Forensic Cryptographic Audit Receipts',
-          desc: 'Instant generation of downloadable signed SHA-256 JSON transaction receipts for enterprise compliance audits.',
+          title: 'Stream Sinks',
+          desc: 'Transfer large files and folder hierarchies with 2MB binary chunk pipelining.',
+        },
+        {
+          type: 'DISCOVERY',
+          title: 'UDP Discovery Beacon',
+          desc: 'Auto-discover peers across local Wi-Fi, Ethernet, and hotspots.',
         },
       ],
     },
     {
-      version: 'v1.8.5',
+      version: 'v1.0.0',
       date: 'June 12, 2026',
-      tag: 'STABLE',
-      headline: 'Zero-Knowledge Encrypted Clipboard & Ephemeral Local Chat',
+      tag: 'CORE_ARCH',
+      headline: 'W2WShare v1',
       items: [
         {
-          type: 'FEATURES',
-          title: 'E2EE Local Device Clipboard Sync',
-          desc: 'Synchronize API tokens, private keys, and code snippets across local network devices in under 80ms.',
+          type: 'INFO',
+          title: 'W2WShare',
+          desc: 'W2WShare is a file sharing tool that uses zero-knowledge end-to-end encryption to securely transfer files between devices on a local network.',
         },
         {
-          type: 'PROTOCOL',
-          title: 'In-Session Ephemeral Chat Signaling',
-          desc: 'Zero-storage live text ledger supporting Sender and Receiver roles with Web Audio synthesized tone cues.',
+          type: 'FEATURES',
+          title: 'Stream Sinks',
+          desc: 'Transfer large files and folder hierarchies with 2MB binary chunk pipelining.',
+        },
+        {
+          type: 'DISCOVERY',
+          title: 'UDP Discovery Beacon',
+          desc: 'Auto-discover peers across local Wi-Fi, Ethernet, and hotspots.',
         },
       ],
     },
@@ -86,17 +91,17 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
         </button>
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20">
-          SYSTEM_UPDATES · ARCHITECTURAL CHANGELOG
+          SYSTEM_ARCHITECTURAL_CHANGELOG
         </div>
       </div>
 
       {/* Page Title */}
       <div className="space-y-3">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
-          Changelog & System Specifications
+          W2WShare System Updates
         </h1>
         <p className="text-sm text-[#808080] max-w-2xl leading-relaxed">
-          Chronological record of cryptographic enhancements, peer discovery protocols, performance benchmarks, and drafting table design updates.
+          Record of cryptographic enhancements, UDP discovery protocols, performance benchmarks.
         </p>
       </div>
 

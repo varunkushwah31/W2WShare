@@ -25,8 +25,8 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           tag: '100% NO-LOGGING GUARANTEE',
           content: [
             {
-              h: '1. Zero Cloud Data Collection',
-              p: 'W2WShare operates strictly on your local subnet and hardware. We do not operate telemetry collectors, user tracking scripts, third-party analytics pixels, or remote key escrow servers. All binary data transfers stay bounded to your local network interfaces.',
+              h: '1. Zero Data Collection',
+              p: 'W2WShare is an open-source tool that operates strictly on your local subnet and hardware. W2WShare does not operate telemetry collectors, user tracking scripts, third-party analytics pixels, or remote key escrow servers. All binary data transfers stay bounded to your local network interfaces.',
             },
             {
               h: '2. Client-Side Cryptographic Isolation',
@@ -45,21 +45,21 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           content: [
             {
               h: '1. Permitted Use',
-              p: 'W2WShare Core is provided free of charge under the open architecture license for personal, educational, research, and commercial file sharing across private and enterprise networks.',
+              p: 'W2WShare is an open-source tool provided free of charge under the open architecture license for personal, educational, research, and commercial file sharing across private and enterprise networks.',
             },
             {
-              h: '2. Zero Liability for Key Loss',
+              h: '2. No Liability for Key Loss',
               p: 'Because W2WShare uses true zero-knowledge end-to-end encryption without key recovery backdoors, loss of the 6-digit claim PIN or cryptographic salt renders transferred files irrecoverable.',
             },
             {
-              h: '3. Local Network Compliance',
-              p: 'Users are responsible for ensuring compliance with their organization network policies when operating UDP discovery broadcasts on port 8888.',
+              h: '3. Local Network Usage',
+              p: 'Users are responsible for ensuring compliance with their organization network policies when operating W2WShare on their local network.',
             },
           ],
         }
       case 'security':
         return {
-          title: 'Cryptographic Security Standard',
+          title: 'Cryptographic Standards',
           tag: 'FIPS & NIST COMPLIANT PRIMITIVES',
           content: [
             {

@@ -9,29 +9,29 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
   const securitySections = [
     {
       icon: <Key className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
-      title: 'PBKDF2 Key Derivation Function',
-      badge: '100,000 ITERATIONS',
+      title: 'PBKDF2 Key Generation',
+      badge: '100K ITERS',
       description:
-        'User-provided 6-digit numeric PINs and entropy keys are expanded into 256-bit symmetric keys using PBKDF2 (Password-Based Key Derivation Function 2) with HMAC-SHA256 and a cryptographically secure 16-byte random salt generated via crypto.getRandomValues().',
+        'User 6-digit PINs + entropy keys are expanded into 256-bit symmetric keys using PBKDF2 (Password-Based Key Derivation Function 2) with HMAC-SHA256 and a cryptographically secure 16-byte random salt generated via crypto.getRandomValues().',
     },
     {
       icon: <LockKey className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
-      title: 'Authenticated AES-256-GCM Encryption',
-      badge: 'GALOIS COUNTER MODE',
+      title: 'AES-256-GCM Encryption',
+      badge: 'GALOIS MODE',
       description:
-        'All binary chunks (2MB sliding window) are individually encrypted in-browser using WebCrypto AES-GCM-256. Each chunk receives a fresh 12-byte IV (Initialization Vector) and a 128-bit authentication tag, preventing replay, tampering, and ciphertext malleability.',
+        'All 2MB chunks are individually encrypted in-browser using WebCrypto AES-GCM-256. Each chunk receives a fresh 12-byte IV (Initialization Vector) and a 128-bit authentication tag, preventing replay, tampering, and ciphertext malleability.',
     },
     {
       icon: <Cpu className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
-      title: 'Zero-Knowledge Network Boundary',
+      title: 'Zero-Knowledge Network',
       badge: 'AIR-GAPPED READY',
       description:
-        'The Spring Boot orchestrator acts purely as an ephemeral memory buffer without persistent disk caching or decryption keys. At no point are unencrypted buffers or derived secrets transmitted to external internet gateways or cloud hosts.',
+        'The orchestrator acts as an ephemeral memory buffer without persistent disk caching or decryption keys. At no point are unencrypted buffers or derived secrets transmitted to external internet gateways or cloud hosts.',
     },
     {
       icon: <FileCode className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
-      title: 'Cryptographic SHA-256 Integrity Seal',
-      badge: 'FORENSIC AUDIT',
+      title: 'SHA-256 Data Integrity',
+      badge: 'INTEGRITY CHECK',
       description:
         'Before encryption, a SHA-256 message digest of the raw byte stream is calculated. Upon chunk streaming and client-side decryption, the receiving device independently computes the SHA-256 digest to verify mathematical byte-for-byte fidelity before saving to disk.',
     },
