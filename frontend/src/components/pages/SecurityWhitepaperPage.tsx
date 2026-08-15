@@ -42,6 +42,7 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-6">
         <button
+          type="button"
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
@@ -67,9 +68,9 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
 
       {/* Cryptographic Primitives 2x2 Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {securitySections.map((sec, idx) => (
+        {securitySections.map((sec) => (
           <div
-            key={idx}
+            key={sec.title}
             className="p-7 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-4 hover:border-[#2a2a2a] transition-all"
           >
             <div className="flex items-center justify-between">

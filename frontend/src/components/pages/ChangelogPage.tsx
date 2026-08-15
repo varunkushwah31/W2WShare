@@ -83,6 +83,7 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
       {/* Top Breadcrumb Header */}
       <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-6">
         <button
+          type="button"
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
@@ -126,9 +127,9 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {rel.items.map((item, idx) => (
+              {rel.items.map((item) => (
                 <div
-                  key={idx}
+                  key={item.title}
                   className="p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-2.5 hover:border-[#2a2a2a] transition-all"
                 >
                   <div className="flex items-center gap-2 font-mono text-[10px] text-[#7089ba]">

@@ -25,31 +25,31 @@ public class W2WShareApplication {
             List<NetworkDiscoveryService.InterfaceAddressInfo> interfaces = networkDiscoveryService.getAvailableNetworkInterfaces();
             String primaryUrl = networkDiscoveryService.getPrimaryNetworkUrl();
 
-            System.out.println("================================================================================");
-            System.out.println("            W 2 W   S H A R E  -  O F F L I N E   E 2 E E               ");
-            System.out.println("     End-to-End Encrypted Peer File Sharing (Zero Internet Required)    ");
-            System.out.println("================================================================================");
-            System.out.println("  Local Host URL     : http://localhost:8080");
-            System.out.println("  Primary Network URL: " + primaryUrl);
-            System.out.println("--------------------------------------------------------------------------------");
-            System.out.println("  Available Network Interfaces for Receiver Pairing:");
+            log.info("================================================================================");
+            log.info("            W 2 W   S H A R E  -  O F F L I N E   E 2 E E               ");
+            log.info("     End-to-End Encrypted Peer File Sharing (Zero Internet Required)    ");
+            log.info("================================================================================");
+            log.info("  Local Host URL     : http://localhost:8080");
+            log.info("  Primary Network URL: " + primaryUrl);
+            log.info("--------------------------------------------------------------------------------");
+            log.info("  Available Network Interfaces for Receiver Pairing:");
 
             if (interfaces.isEmpty()) {
-                System.out.println("    * No external network interfaces detected (using localhost only)");
+                log.info("    * No external network interfaces detected (using localhost only)");
             } else {
                 for (NetworkDiscoveryService.InterfaceAddressInfo iface : interfaces) {
                     String badge = iface.isWifiOrHotspot() ? "[Wi-Fi / Hotspot]" : (iface.isLoopback() ? "[Loopback]" : "[Ethernet/LAN]");
-                    System.out.printf("    * %-20s %-16s %-18s -> %s%n", iface.getName(), iface.getIp(), badge, iface.getUrl());
+                    log.info("    * %-20s %-16s %-18s -> %s%n", iface.getName(), iface.getIp(), badge, iface.getUrl());
                 }
             }
 
-            System.out.println("================================================================================");
-            System.out.println("  How to transfer files offline:");
-            System.out.println("  1. Connect both devices to the same Wi-Fi router OR start a Mobile Hotspot.");
-            System.out.println("  2. Open the Primary Network URL in browser on both devices (no internet needed).");
-            System.out.println("  3. On Sender: Select a file -> share the 6-digit PIN or QR Code.");
-            System.out.println("  4. On Receiver: Enter PIN or scan QR code -> File decrypts automatically!");
-            System.out.println("================================================================================");
+            log.info("================================================================================");
+            log.info("  How to transfer files offline:");
+            log.info("  1. Connect both devices to the same Wi-Fi router OR start a Mobile Hotspot.");
+            log.info("  2. Open the Primary Network URL in browser on both devices (no internet needed).");
+            log.info("  3. On Sender: Select a file -> share the 6-digit PIN or QR Code.");
+            log.info("  4. On Receiver: Enter PIN or scan QR code -> File decrypts automatically!");
+            log.info("================================================================================");
         };
     }
 }

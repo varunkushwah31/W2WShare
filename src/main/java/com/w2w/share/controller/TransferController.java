@@ -12,8 +12,6 @@ import com.w2w.share.service.ISessionService;
 import com.w2w.share.service.IStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -29,8 +27,6 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/transfer")
 public class TransferController {
-
-    private static final Logger log = LoggerFactory.getLogger(TransferController.class);
 
     private final ISessionService sessionService;
     private final IStorageService storageService;

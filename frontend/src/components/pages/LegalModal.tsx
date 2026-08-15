@@ -113,8 +113,8 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-2 text-xs font-mono">
-          {doc.content.map((sec, idx) => (
-            <div key={idx} className="p-4 rounded-xl bg-[#000000] border border-[#1c1c1c] space-y-1.5">
+          {doc.content.map((sec) => (
+            <div key={sec.h} className="p-4 rounded-xl bg-[#000000] border border-[#1c1c1c] space-y-1.5">
               <h4 className="text-white font-semibold text-sm">{sec.h}</h4>
               <p className="text-[#808080] leading-relaxed font-sans text-xs">{sec.p}</p>
             </div>
@@ -123,6 +123,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
 
         <div className="pt-4 border-t border-[#1c1c1c] flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-5 py-2 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all"
           >

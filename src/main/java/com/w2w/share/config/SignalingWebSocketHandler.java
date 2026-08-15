@@ -5,7 +5,6 @@ import com.w2w.share.model.ChatMessage;
 import com.w2w.share.model.FileMetadata;
 import com.w2w.share.model.SignalMessage;
 import com.w2w.share.model.TransferSession;
-import com.w2w.share.service.IRateLimiterService;
 import com.w2w.share.service.ISessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,16 +23,14 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ISessionService sessionService;
-    private final IRateLimiterService rateLimiterService;
 
     // WebSocket session ID -> W2W session ID
     private final Map<String, String> wsSessionToTransferSession = new ConcurrentHashMap<>();
     // W2W session ID -> Set of WebSocket sessions
     private final Map<String, Set<WebSocketSession>> sessionSockets = new ConcurrentHashMap<>();
 
-    public SignalingWebSocketHandler(ISessionService sessionService, IRateLimiterService rateLimiterService) {
+    public SignalingWebSocketHandler(ISessionService sessionService) {
         this.sessionService = sessionService;
-        this.rateLimiterService = rateLimiterService;
     }
 
     @Override
@@ -58,7 +55,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             case "TRANSFER_CANCELLED" -> handleCancel(session, signal);
             case "TEXT_MESSAGE" -> handleTextMessageRelay(session, signal);
             case "CHAT_MESSAGE" -> handleChatMessage(session, signal);
-            case "WEBRTC_OFFER", "WEBRTC_ANSWER", "WEBRTC_ICE_CANDIDATE" -> handleWebRTCSignaling(session, signal);
+            case "WEBRTC_OFFER", "WEBRTC_ANSWER", "WEBRTC_ICE_CANDIDATE" -> relayToPeer(session, signal);
             default -> log.warn("Unknown signal type: {}", signal.type());
         }
     }
@@ -72,7 +69,10 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private void handleJoinByPin(WebSocketSession session, SignalMessage signal) throws IOException {
         String pin = (String) signal.payload();
-        String clientIp = session.getRemoteAddress() != null ? session.getRemoteAddress().getAddress().getHostAddress() : session.getId();
+        String clientIp = session.getId();
+        if (session.getRemoteAddress() != null && session.getRemoteAddress().getAddress() != null) {
+            clientIp = session.getRemoteAddress().getAddress().getHostAddress();
+        }
 
         try {
             TransferSession transferSession = sessionService.joinSessionWithRateLimit(pin, session.getId(), clientIp);
@@ -139,13 +139,6 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void handleWebRTCSignaling(WebSocketSession session, SignalMessage signal) throws IOException {
-        String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null) {
-            relayToOtherPeers(session, transferSessionId, signal);
-        }
-    }
-
     private void handleCancel(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null) {
@@ -187,20 +180,27 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String transferSessionId = wsSessionToTransferSession.remove(session.getId());
         if (transferSessionId != null) {
-            Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
-            if (sockets != null) {
-                sockets.remove(session);
-                if (sockets.isEmpty()) {
-                    sessionSockets.remove(transferSessionId);
-                } else {
-                    for (WebSocketSession s : sockets) {
-                        try {
-                            sendSignal(s, new SignalMessage("PEER_DISCONNECTED", "Peer connection dropped."));
-                        } catch (IOException ignored) {}
-                    }
-                }
-            }
+            notifyPeersOnDisconnect(session, transferSessionId);
         }
         log.debug("WebSocket client disconnected: {}", session.getId());
+    }
+
+    private void notifyPeersOnDisconnect(WebSocketSession session, String transferSessionId) {
+        Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
+        if (sockets == null) {
+            return;
+        }
+        sockets.remove(session);
+        if (sockets.isEmpty()) {
+            sessionSockets.remove(transferSessionId);
+            return;
+        }
+        for (WebSocketSession s : sockets) {
+            try {
+                sendSignal(s, new SignalMessage("PEER_DISCONNECTED", "Peer connection dropped."));
+            } catch (IOException e) {
+                log.debug("Failed to send disconnect notification: {}", e.getMessage());
+            }
+        }
     }
 }

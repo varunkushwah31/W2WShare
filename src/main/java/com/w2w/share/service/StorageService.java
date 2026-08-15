@@ -21,6 +21,9 @@ import java.util.stream.Stream;
 public class StorageService implements IStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(StorageService.class);
+    private static final String FILE_PREFIX = "file_";
+    private static final String CHUNK_PREFIX = "chunk_";
+    private static final String BIN_EXT = ".bin";
 
     @Value("${w2w.storage.temp-dir:#{systemProperties['java.io.tmpdir'] + '/w2w-share'}}")
     private String tempDirPath;
@@ -55,7 +58,9 @@ public class StorageService implements IStorageService {
                     .forEach(path -> {
                         try {
                             Files.deleteIfExists(path);
-                        } catch (IOException ignored) {}
+                        } catch (IOException e) {
+                            log.trace("Failed to delete path during cleanup: {}", e.getMessage());
+                        }
                     });
         } catch (Exception e) {
             log.warn("Error cleaning up storage directory on shutdown: {}", e.getMessage());
@@ -73,11 +78,11 @@ public class StorageService implements IStorageService {
         }
 
         Path sessionDir = rootStoragePath.resolve(sessionId);
-        Path fileDir = sessionDir.resolve("file_" + fileIndex);
+        Path fileDir = sessionDir.resolve(FILE_PREFIX + fileIndex);
         try {
             Files.createDirectories(fileDir);
-            Path finalChunkPath = fileDir.resolve("chunk_" + chunkIndex + ".bin");
-            Path tempChunkPath = fileDir.resolve("chunk_" + chunkIndex + ".tmp");
+            Path finalChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
+            Path tempChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + ".tmp");
 
             Files.write(tempChunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             Files.move(tempChunkPath, finalChunkPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -95,7 +100,7 @@ public class StorageService implements IStorageService {
 
     @Override
     public byte[] getChunk(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException {
-        Path chunkPath = rootStoragePath.resolve(sessionId).resolve("file_" + fileIndex).resolve("chunk_" + chunkIndex + ".bin");
+        Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
         if (!Files.exists(chunkPath)) {
             throw new NoSuchFileException("Chunk " + chunkIndex + " for file " + fileIndex + " not found in session " + sessionId);
         }
@@ -110,25 +115,25 @@ public class StorageService implements IStorageService {
 
     @Override
     public boolean hasChunk(String sessionId, int fileIndex, int chunkIndex) {
-        Path chunkPath = rootStoragePath.resolve(sessionId).resolve("file_" + fileIndex).resolve("chunk_" + chunkIndex + ".bin");
+        Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
         return Files.exists(chunkPath);
     }
 
     @Override
     public Set<Integer> getExistingChunkIndices(String sessionId, int fileIndex) {
-        Path fileDir = rootStoragePath.resolve(sessionId).resolve("file_" + fileIndex);
+        Path fileDir = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex);
         if (!Files.exists(fileDir)) {
             return Collections.emptySet();
         }
 
         try (Stream<Path> stream = Files.list(fileDir)) {
-            return stream.map(Path::getFileName)
-                    .map(Path::toString)
-                    .filter(name -> name.startsWith("chunk_") && name.endsWith(".bin"))
-                    .map(name -> name.replace("chunk_", "").replace(".bin", ""))
+            return stream.map(p -> p.getFileName().toString())
+                    .filter(name -> name.startsWith(CHUNK_PREFIX) && name.endsWith(BIN_EXT))
+                    .map(name -> name.replace(CHUNK_PREFIX, "").replace(BIN_EXT, ""))
                     .map(Integer::parseInt)
                     .collect(Collectors.toSet());
         } catch (IOException e) {
+            log.debug("Failed to read chunks in directory {}: {}", fileDir, e.getMessage());
             return Collections.emptySet();
         }
     }
@@ -147,7 +152,9 @@ public class StorageService implements IStorageService {
                                 usedStorageBytes.addAndGet(-size);
                             }
                             Files.deleteIfExists(path);
-                        } catch (IOException ignored) {}
+                        } catch (IOException e) {
+                            log.trace("Failed to delete session path: {}", e.getMessage());
+                        }
                     });
             sessionFiles.remove(sessionId);
             log.info("Purged ephemeral storage for session [{}]", sessionId);

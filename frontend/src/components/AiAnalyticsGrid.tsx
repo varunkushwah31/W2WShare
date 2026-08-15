@@ -46,9 +46,9 @@ export const AiAnalyticsGrid: React.FC = () => {
 
       {/* 2x2 Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-        {cards.map((card, index) => (
+        {cards.map((card) => (
           <div
-            key={index}
+            key={card.title}
             className="flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-[#141414] border border-[#1c1c1c] hover:border-[#2a2a2a] transition-all group"
           >
             <div className="w-full mb-6 flex justify-center group-hover:scale-[1.02] transition-transform duration-300">

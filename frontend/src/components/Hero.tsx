@@ -107,6 +107,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
             <span>Start Sharing</span>
           </a>
           <button
+            type="button"
             onClick={onOpenDemo}
             className="px-6 py-2.5 rounded-full border border-[#282828] bg-[#1c1c1c]/90 text-white text-sm font-medium hover:border-white hover:bg-[#242424] transition-all cursor-pointer flex items-center gap-1.5"
           >

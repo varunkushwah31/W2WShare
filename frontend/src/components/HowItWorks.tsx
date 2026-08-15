@@ -41,8 +41,8 @@ export const HowItWorks: React.FC = () => {
 
       {/* 3 Columns */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-        {steps.map((item, index) => (
-          <div key={index} className="flex flex-col items-start space-y-4 p-4">
+        {steps.map((item) => (
+          <div key={item.step} className="flex flex-col items-start space-y-4 p-4">
             {/* Step Icon & Counter */}
             <div className="flex items-center justify-between w-full">
               <div className="w-10 h-10 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center">

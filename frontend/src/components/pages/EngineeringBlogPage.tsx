@@ -44,6 +44,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-6">
         <button
+          type="button"
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >

@@ -64,6 +64,7 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-6">
         <button
+          type="button"
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
@@ -89,9 +90,9 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
 
       {/* Pricing Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {tiers.map((t, idx) => (
+        {tiers.map((t) => (
           <div
-            key={idx}
+            key={t.name}
             className={`p-7 rounded-2xl bg-[#141414] border flex flex-col justify-between space-y-6 relative transition-all ${
               t.isPopular ? 'border-[#7089ba]/40 shadow-xl' : 'border-[#1c1c1c] hover:border-[#2a2a2a]'
             }`}
@@ -116,8 +117,8 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
               </p>
 
               <div className="pt-4 border-t border-[#1c1c1c] space-y-3">
-                {t.features.map((f, fIdx) => (
-                  <div key={fIdx} className="flex items-start gap-2 text-xs text-[#ababab]">
+                {t.features.map((f) => (
+                  <div key={f} className="flex items-start gap-2 text-xs text-[#ababab]">
                     <div className="w-4 h-4 rounded-full bg-[#7089ba]/15 text-[#7089ba] flex items-center justify-center shrink-0 mt-0.5">
                       <CheckIcon className="w-3 h-3" weight="bold" />
                     </div>
@@ -128,6 +129,7 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={() => {
                 if (t.cta.includes('Demo') || t.cta.includes('Contact')) {
                   onOpenDemo()
