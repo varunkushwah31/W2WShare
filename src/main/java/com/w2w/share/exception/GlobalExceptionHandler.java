@@ -109,13 +109,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMaxSize(MaxUploadSizeExceededException ex, HttpServletRequest request) {
         log.warn("Payload too large on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
-                HttpStatus.PAYLOAD_TOO_LARGE.value(),
-                "PAYLOAD_TOO_LARGE",
-                "Payload Too Large",
+                HttpStatus.CONTENT_TOO_LARGE.value(),
+                "CONTENT_TOO_LARGE",
+                "Content Too Large",
                 "The uploaded file or chunk exceeds the maximum permitted size.",
                 request.getRequestURI()
         );
-        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(err);
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(err);
     }
 
     @ExceptionHandler(NoSuchFileException.class)

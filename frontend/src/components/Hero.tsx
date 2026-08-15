@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { ArrowUpRight, Lightning, ShieldCheck } from '@phosphor-icons/react'
+import { ArrowUpRightIcon, LightningIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { HeroLightBeamStipple } from './CadIllustrations'
 
 interface HeroProps {
@@ -83,7 +83,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
             W2W SHARE 1.0 · 100% OFFLINE E2EE
           </span>
           <div className="w-3.5 h-3.5 rounded-full bg-white text-black flex items-center justify-center group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
-            <ArrowUpRight className="w-2.5 h-2.5" weight="bold" />
+            <ArrowUpRightIcon className="w-2.5 h-2.5" weight="bold" />
           </div>
         </div>
 
@@ -103,14 +103,14 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
             href="#workspace"
             className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-none cursor-pointer border border-white flex items-center gap-1.5"
           >
-            <Lightning className="w-4 h-4 text-black" weight="fill" />
+            <LightningIcon className="w-4 h-4 text-black" weight="fill" />
             <span>Start Sharing</span>
           </a>
           <button
             onClick={onOpenDemo}
             className="px-6 py-2.5 rounded-full border border-[#282828] bg-[#1c1c1c]/90 text-white text-sm font-medium hover:border-white hover:bg-[#242424] transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
+            <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
             <span>Join session</span>
           </button>
         </div>

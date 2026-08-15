@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, Check, ShieldCheck, Sparkle } from '@phosphor-icons/react'
+import { ArrowLeftIcon, CheckIcon, ShieldCheckIcon, SparkleIcon } from '@phosphor-icons/react'
 
 interface EnterprisePricingPageProps {
   onBack: () => void
@@ -67,12 +67,12 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
-          <ArrowLeft className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
           <span>Return Home</span>
         </button>
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5" />
+          <ShieldCheckIcon className="w-3.5 h-3.5" />
           <span>ENTERPRISE SPEC 2.0</span>
         </div>
       </div>
@@ -98,7 +98,7 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
           >
             {t.isPopular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#7089ba] text-white font-mono text-[9px] uppercase tracking-wider font-semibold flex items-center gap-1">
-                <Sparkle className="w-3 h-3" />
+                <SparkleIcon className="w-3 h-3" />
                 <span>MOST POPULAR DEPLOYMENT</span>
               </div>
             )}
@@ -119,7 +119,7 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
                 {t.features.map((f, fIdx) => (
                   <div key={fIdx} className="flex items-start gap-2 text-xs text-[#ababab]">
                     <div className="w-4 h-4 rounded-full bg-[#7089ba]/15 text-[#7089ba] flex items-center justify-center shrink-0 mt-0.5">
-                      <Check className="w-3 h-3" weight="bold" />
+                      <CheckIcon className="w-3 h-3" weight="bold" />
                     </div>
                     <span>{f}</span>
                   </div>

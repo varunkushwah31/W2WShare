@@ -5,7 +5,7 @@ import {
   LightningVortexCadIllustration,
   CoinStacksCadIllustration,
 } from './CadIllustrations'
-import { ShieldCheck } from '@phosphor-icons/react'
+import { ShieldCheckIcon } from '@phosphor-icons/react'
 
 export const AiAnalyticsGrid: React.FC = () => {
   const cards = [
@@ -36,7 +36,7 @@ export const AiAnalyticsGrid: React.FC = () => {
       {/* Centered Heading */}
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
+          <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
           <span>SYSTEM ARCHITECTURE</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">

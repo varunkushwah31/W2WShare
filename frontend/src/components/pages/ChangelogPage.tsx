@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, GitCommit, ShieldCheck, Cpu, Sparkle } from '@phosphor-icons/react'
+import { ArrowLeftIcon, GitCommitIcon, ShieldCheckIcon, CpuIcon, SparkleIcon } from '@phosphor-icons/react'
 
 interface ChangelogPageProps {
   onBack: () => void
@@ -86,7 +86,7 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
-          <ArrowLeft className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
           <span>Return to Studio</span>
         </button>
 
@@ -132,10 +132,10 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
                   className="p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-2.5 hover:border-[#2a2a2a] transition-all"
                 >
                   <div className="flex items-center gap-2 font-mono text-[10px] text-[#7089ba]">
-                    {item.type === 'SECURITY' && <ShieldCheck className="w-3.5 h-3.5" />}
-                    {item.type === 'PERFORMANCE' && <Cpu className="w-3.5 h-3.5" />}
-                    {item.type === 'UI/UX BLUEPRINT' && <Sparkle className="w-3.5 h-3.5" />}
-                    {item.type === 'PROTOCOL' && <GitCommit className="w-3.5 h-3.5" />}
+                    {item.type === 'SECURITY' && <ShieldCheckIcon className="w-3.5 h-3.5" />}
+                    {item.type === 'PERFORMANCE' && <CpuIcon className="w-3.5 h-3.5" />}
+                    {item.type === 'UI/UX BLUEPRINT' && <SparkleIcon className="w-3.5 h-3.5" />}
+                    {item.type === 'PROTOCOL' && <GitCommitIcon className="w-3.5 h-3.5" />}
                     <span>{item.type}</span>
                   </div>
                   <h4 className="text-sm font-semibold text-white">{item.title}</h4>

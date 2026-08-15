@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, ShieldCheck, LockKey, Key, Cpu, FileCode } from '@phosphor-icons/react'
+import { ArrowLeftIcon, ShieldCheckIcon, LockKeyIcon, KeyIcon, CpuIcon, FileCodeIcon } from '@phosphor-icons/react'
 
 interface SecurityWhitepaperPageProps {
   onBack: () => void
@@ -8,28 +8,28 @@ interface SecurityWhitepaperPageProps {
 export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ onBack }) => {
   const securitySections = [
     {
-      icon: <Key className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <KeyIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
       title: 'PBKDF2 Key Generation',
       badge: '100K ITERS',
       description:
         'User 6-digit PINs + entropy keys are expanded into 256-bit symmetric keys using PBKDF2 (Password-Based Key Derivation Function 2) with HMAC-SHA256 and a cryptographically secure 16-byte random salt generated via crypto.getRandomValues().',
     },
     {
-      icon: <LockKey className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <LockKeyIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
       title: 'AES-256-GCM Encryption',
       badge: 'GALOIS MODE',
       description:
         'All 2MB chunks are individually encrypted in-browser using WebCrypto AES-GCM-256. Each chunk receives a fresh 12-byte IV (Initialization Vector) and a 128-bit authentication tag, preventing replay, tampering, and ciphertext malleability.',
     },
     {
-      icon: <Cpu className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <CpuIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
       title: 'Zero-Knowledge Network',
       badge: 'AIR-GAPPED READY',
       description:
         'The orchestrator acts as an ephemeral memory buffer without persistent disk caching or decryption keys. At no point are unencrypted buffers or derived secrets transmitted to external internet gateways or cloud hosts.',
     },
     {
-      icon: <FileCode className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <FileCodeIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
       title: 'SHA-256 Data Integrity',
       badge: 'INTEGRITY CHECK',
       description:
@@ -45,12 +45,12 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
           onClick={onBack}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
-          <ArrowLeft className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
           <span>Return to Studio</span>
         </button>
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5" />
+          <ShieldCheckIcon className="w-3.5 h-3.5" />
           <span>CRYPTOGRAPHIC WHITEPAPER · SPEC 2.0</span>
         </div>
       </div>

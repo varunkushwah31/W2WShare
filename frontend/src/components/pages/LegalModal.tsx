@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ShieldCheck, LockKey } from '@phosphor-icons/react'
+import { ShieldCheckIcon, LockKeyIcon } from '@phosphor-icons/react'
 
 export type LegalDocType = 'privacy' | 'terms' | 'security' | 'compliance'
 
@@ -102,12 +102,12 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
         <DialogHeader className="space-y-2 mb-4">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded border border-[#7089ba]/20 flex items-center gap-1">
-              <LockKey className="w-3 h-3" />
+              <LockKeyIcon className="w-3 h-3" />
               <span>{doc.tag}</span>
             </span>
           </div>
           <DialogTitle className="text-xl font-bold font-sans flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-[#7089ba]" />
+            <ShieldCheckIcon className="w-5 h-5 text-[#7089ba]" />
             <span>{doc.title}</span>
           </DialogTitle>
         </DialogHeader>
