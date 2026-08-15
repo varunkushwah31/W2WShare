@@ -54,7 +54,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   ]
 
   return (
-    <section id={id} className="w-full max-w-[1200px] mx-auto px-6 py-12">
+    <section id={id} className="w-full max-w-[1200px] mx-auto px-6 py-8">
       {/* Container with Dashed Containment */}
       <div className="dashed-container rounded-2xl bg-[#000000] p-6 sm:p-10 space-y-8 relative overflow-hidden">
         {/* Top Header & Tab Navigation Bar */}

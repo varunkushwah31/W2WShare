@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { ArrowUpRight, Lightning, ShieldCheck } from '@phosphor-icons/react'
 import { HeroLightBeamStipple } from './CadIllustrations'
 
@@ -7,54 +7,77 @@ interface HeroProps {
 }
 
 export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
-  const [mousePos, setMousePos] = useState({ x: 50, y: 30 })
+  const containerRef = useRef<HTMLElement>(null)
   const [coords, setCoords] = useState({ x: 420.5, y: 188.2 })
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    setMousePos({ x, y })
-    setCoords({
-      x: Number((e.clientX - rect.left).toFixed(1)),
-      y: Number((e.clientY - rect.top).toFixed(1)),
-    })
-  }
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+
+      // Update CSS variables for 60fps hardware-accelerated spotlight
+      containerRef.current.style.setProperty('--mouse-x', `${x}px`)
+      containerRef.current.style.setProperty('--mouse-y', `${y}px`)
+
+      // Update blueprint coordinate readout
+      setCoords({
+        x: Number(Math.max(0, x).toFixed(1)),
+        y: Number(Math.max(0, y).toFixed(1)),
+      })
+    }
+
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove)
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove)
+      }
+    }
+  }, [])
 
   return (
     <section
-      onMouseMove={handleMouseMove}
-      className="relative min-h-[92vh] pt-32 pb-20 flex flex-col items-center justify-between overflow-hidden dashed-divider-b bg-[#000000] cursor-default"
+      ref={containerRef}
+      className="relative pt-28 pb-10 flex flex-col items-center overflow-hidden dashed-divider-b bg-[#000000] cursor-default"
+      style={
+        {
+          '--mouse-x': '50%',
+          '--mouse-y': '38%',
+        } as React.CSSProperties
+      }
     >
       {/* Drafting table spotlight radial wash following mouse */}
       <div
-        className="absolute inset-0 pointer-events-none transition-all duration-300 ease-out"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(28, 28, 28, 0.95) 0%, rgba(16, 22, 38, 0.65) 30%, rgba(0, 0, 0, 0.98) 75%)`,
+          background: `radial-gradient(750px circle at var(--mouse-x) var(--mouse-y), rgba(112, 137, 186, 0.22) 0%, rgba(35, 48, 75, 0.12) 35%, rgba(18, 18, 18, 0.6) 60%, rgba(0, 0, 0, 0.95) 85%)`,
         }}
       />
+      {/* Concentrated periwinkle desk lamp core glow */}
       <div
-        className="absolute w-[800px] h-[500px] pointer-events-none transition-all duration-500 ease-out"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          top: `${mousePos.y * 0.5}%`,
-          left: `${mousePos.x * 0.8}%`,
-          transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(ellipse 65% 50% at 50% 25%, rgba(112, 137, 186, 0.18) 0%, rgba(28, 28, 28, 0.4) 45%, transparent 75%)',
+          background: `radial-gradient(280px circle at var(--mouse-x) var(--mouse-y), rgba(112, 137, 186, 0.25) 0%, rgba(112, 137, 186, 0.08) 50%, transparent 80%)`,
         }}
       />
 
       {/* Floating drafting coordinate watermark */}
-      <div className="hidden lg:block absolute bottom-8 left-8 font-mono text-[10px] text-[#4d4d4d] select-none pointer-events-none">
+      <div className="hidden lg:block absolute bottom-6 left-8 font-mono text-[10px] text-[#4d4d4d] select-none pointer-events-none z-20">
         <div>DRAFTING TABLE: NEGATIVE_SPACE</div>
         <div className="text-[#7089ba]">
           POS_X: {coords.x}mm · POS_Y: {coords.y}mm · SCALE: 1.00
         </div>
       </div>
 
-      {/* Main Hero Content Stack */}
-      <div className="relative z-10 max-w-[840px] mx-auto px-6 text-center flex flex-col items-center my-auto animate-in fade-in duration-700">
+      {/* Main Hero Content Stack (Tight, Balanced Spacing) */}
+      <div className="relative z-10 max-w-[840px] mx-auto px-6 text-center flex flex-col items-center animate-in fade-in duration-700">
         {/* Eyebrow Chip with live beacon */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-[#1c1c1c]/80 backdrop-blur-md mb-8 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-[#1c1c1c]/80 backdrop-blur-md mb-6 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-[#7089ba] animate-ping" />
           <span className="font-mono text-[9px] uppercase tracking-[0.04em] text-white font-medium">
             W2W SHARE 1.0 · 100% OFFLINE E2EE
@@ -65,17 +88,17 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         </div>
 
         {/* Display Headline (Raveo 1000 architectural weight) */}
-        <h1 className="text-4xl sm:text-6xl md:text-[70px] font-extrabold text-white tracking-[-0.04em] leading-[1.10] mb-6 select-none font-sans">
+        <h1 className="text-4xl sm:text-6xl md:text-[68px] font-extrabold text-white tracking-[-0.04em] leading-[1.08] mb-5 select-none font-sans">
           File sharing made easy
         </h1>
 
         {/* Subtitle in Steel #808080 */}
-        <p className="text-base sm:text-lg text-[#808080] max-w-[580px] mx-auto leading-relaxed mb-8">
+        <p className="text-base sm:text-lg text-[#808080] max-w-[580px] mx-auto leading-relaxed mb-7">
           Zero-trust, P2P file transfers. Browser-native E2EE, subnet peer discovery, and direct WebRTC streaming with absolutely no cloud required.
         </p>
 
         {/* Outlined / White Pill Action Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-3.5">
+        <div className="flex flex-wrap items-center justify-center gap-3.5 mb-8">
           <a
             href="#workspace"
             className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-none cursor-pointer border border-white flex items-center gap-1.5"
@@ -94,16 +117,16 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       </div>
 
       {/* Bottom Radial Drafting Wash & Trusted By Logos */}
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 pt-12 flex flex-col items-center">
-        <HeroLightBeamStipple className="mb-4" />
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 pt-2 flex flex-col items-center">
+        <HeroLightBeamStipple className="mb-3" />
 
-        <p className="text-xs text-[#808080] tracking-wide mb-6">
+        <p className="text-xs text-[#808080] tracking-wide mb-4">
           Trusted by some of the biggest names
         </p>
 
         {/* Logo Band */}
         <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-16 opacity-75 hover:opacity-100 transition-opacity">
-          {/* Operate */}
+          {/* Apple */}
           <div className="flex items-center gap-2 text-white font-medium tracking-tight text-base hover:text-[#7089ba] transition-colors cursor-default">
             <div className="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center">
               <div className="w-1.5 h-1.5 rounded-full bg-white" />

@@ -55,7 +55,7 @@ export function App() {
       />
 
       {/* Main Content Router */}
-      <main className="space-y-4">
+      <main className="relative">
         {currentPage === 'home' && (
           <>
             {/* 1. Hero Section */}

@@ -289,11 +289,11 @@ export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ cl
           fill="none"
         />
 
-        {/* Animated Exhaust Trail Streamers */}
+        {/* Animated Continuous Exhaust Trail Streamers (Directly Connected to Nozzle) */}
         <g stroke="#7089ba" strokeWidth="1.4" strokeDasharray="4 3" fill="none" className="animate-dash-flow">
-          <path d="M 235 220 Q 235 270 215 310" />
-          <path d="M 245 220 Q 255 260 245 295" />
-          <path d="M 255 220 Q 275 255 285 275" />
+          <path d="M 237 184 C 235 220 225 260 215 310" />
+          <path d="M 245 188 C 245 225 248 260 245 295" />
+          <path d="M 253 184 C 255 220 270 250 285 275" />
         </g>
 
         {/* Exhaust landing nodes */}
@@ -301,9 +301,25 @@ export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ cl
         <circle cx="245" cy="295" r="2" fill="#ffffff" />
         <circle cx="285" cy="275" r="2.5" fill="#ffffff" />
 
-        {/* Isometric Animated CAD Rocket Body (Properly Nested Transform) */}
+        {/* Isometric Animated CAD Rocket Body with Integrated Luminous Jet Thrust */}
         <g transform="translate(245, 140)">
           <g className="animate-float">
+            {/* Luminous Thruster Flame Plume (Moves with Rocket) */}
+            <path
+              d="M -9 44 Q 0 80 9 44 Z"
+              fill="rgba(112, 137, 186, 0.45)"
+              stroke="#7089ba"
+              strokeWidth="1.2"
+              strokeDasharray="2 2"
+              className="animate-pulse"
+            />
+            <path
+              d="M -4 44 Q 0 65 4 44 Z"
+              fill="#ffffff"
+              opacity="0.9"
+            />
+            <circle cx="0" cy="55" r="1.5" fill="#ffffff" className="animate-ping" />
+
             {/* Main Cone Capsule */}
             <path
               d="M 0 -75 C -18 -40 -18 10 -18 35 L 18 35 C 18 10 18 -40 0 -75 Z"
