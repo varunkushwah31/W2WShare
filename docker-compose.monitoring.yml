@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  w2w-share:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: w2w-share:latest
+    container_name: w2w-share
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "53535:53535/udp"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_THREADS_VIRTUAL_ENABLED=true
+      - W2W_STORAGE_MAX_QUOTA_BYTES=53687091200
+      - W2W_SESSION_TIMEOUT_SECONDS=600
+      - W2W_STORAGE_TEMP_DIR=/app/temp-w2w-encrypted
+      - JAVA_OPTS=-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Xms256m -Xmx2g
+    volumes:
+      - w2w_temp_data:/app/temp-w2w-encrypted
+    networks:
+      - w2w-network
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: w2w-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - w2w-network
+    depends_on:
+      - w2w-share
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: w2w-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - w2w-network
+    depends_on:
+      - prometheus
+
+networks:
+  w2w-network:
+    driver: bridge
+
+volumes:
+  w2w_temp_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

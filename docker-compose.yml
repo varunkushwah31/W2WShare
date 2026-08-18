@@ -5,24 +5,43 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: w2w-share:latest
     container_name: w2w-share
     restart: unless-stopped
     ports:
       - "8080:8080"
+      - "53535:53535/udp"
     environment:
-      - JAVA_OPTS=-XX:+UseG1GC -Xms256m -Xmx2g
       - SERVER_PORT=8080
+      - SPRING_THREADS_VIRTUAL_ENABLED=true
       - W2W_STORAGE_MAX_QUOTA_BYTES=53687091200
       - W2W_SESSION_TIMEOUT_SECONDS=600
+      - W2W_STORAGE_TEMP_DIR=/app/temp-w2w-encrypted
+      - JAVA_OPTS=-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Xms256m -Xmx2g
     volumes:
       - w2w_temp_data:/app/temp-w2w-encrypted
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
+          cpus: '4.0'
           memory: 2048M
         reservations:
+          cpus: '0.5'
           memory: 256M
+    networks:
+      - w2w-network
+
+networks:
+  w2w-network:
+    driver: bridge
 
 volumes:
   w2w_temp_data:
+    name: w2w_temp_data
     driver: local

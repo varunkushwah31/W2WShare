@@ -1,0 +1,31 @@
+# Git & IDE metadata
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Build artifacts & caches
+target/
+build/
+*.jar
+*.war
+*.tmp
+
+# Node.js & Frontend dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ephemeral runtime data
+temp-w2w-encrypted/
+*.bin
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db

@@ -1,37 +1,77 @@
+# syntax=docker/dockerfile:1.7
 # ============================================================================
-# Stage 1: Build W2W-Share application using Maven & Eclipse Temurin Java 25
+# Stage 1: Build Frontend with npm dependency caching
 # ============================================================================
-FROM eclipse-temurin:25-jdk-noble AS builder
+FROM node:22-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+# Copy ONLY package manifests first to leverage Docker layer caching
+COPY frontend/package.json frontend/package-lock.json* ./
+
+# Cache npm download directory across builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
+
+# Copy frontend source code and build static assets
+COPY frontend/ ./
+RUN npm run build
+
+# ============================================================================
+# Stage 2: Build Backend with Maven .m2 dependency caching
+# ============================================================================
+FROM eclipse-temurin:25-jdk-noble AS backend-builder
 WORKDIR /build
 
-# Copy Maven wrapper / POM and cache dependencies
+# Install Maven
+RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
+
+# Copy ONLY pom.xml first to maximize layer caching on git commits
 COPY pom.xml .
+
+# Download dependencies into persistent BuildKit .m2 cache mount
+# This step is completely cached and SKIPPED on every git commit unless pom.xml changes
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn dependency:go-offline -B
+
+# Copy backend source code
 COPY src ./src
 
-# Build production executable JAR
-RUN apt-get update && apt-get install -y maven \
-    && mvn clean package -DskipTests \
+# Integrate frontend production build into Spring Boot static resources
+COPY --from=frontend-builder /app/frontend/dist ./src/main/resources/static
+
+# Build production executable JAR using cached .m2 repository
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn package -DskipTests -B \
     && cp target/w2w-share-1.0.0.jar app.jar
 
 # ============================================================================
-# Stage 2: Minimal Production JRE Runtime Container
+# Stage 3: Minimal Production JRE Runtime Container
 # ============================================================================
 FROM eclipse-temurin:25-jre-noble AS runner
 WORKDIR /app
 
-# Create unprivileged system user for security
+# Install curl for container health check
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+# Create unprivileged system user for maximum security
 RUN groupadd -r w2wgroup && useradd -r -g w2wgroup -m w2wuser \
     && mkdir -p /app/temp-w2w-encrypted && chown -R w2wuser:w2wgroup /app
 
-COPY --from=builder --chown=w2wuser:w2wgroup /build/app.jar app.jar
+# Copy compiled JAR from backend builder stage
+COPY --from=backend-builder --chown=w2wuser:w2wgroup /build/app.jar app.jar
 
+# Switch to unprivileged user
 USER w2wuser
 
-EXPOSE 8080
+# Expose HTTP & WebSocket port (8080) and UDP Subnet Peer Discovery port (53535)
+EXPOSE 8080/tcp
+EXPOSE 53535/udp
 
-ENV JAVA_OPTS="-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Xms256m -Xmx2g"
+# Configure production JVM flags for Java 25 Virtual Threads & G1GC
+ENV JAVA_OPTS="-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Xms256m -Xmx2g -Dspring.threads.virtual.enabled=true"
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+# Define container health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
