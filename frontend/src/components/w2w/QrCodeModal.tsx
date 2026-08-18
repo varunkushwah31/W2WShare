@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Copy, Check } from '@phosphor-icons/react'
+import { CopyIcon, CheckIcon, DownloadSimpleIcon, QrCodeIcon as QrIcon } from '@phosphor-icons/react'
 
 interface QrCodeModalProps {
   isOpen: boolean
@@ -21,7 +21,9 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   pin,
   url,
 }) => {
-  const [copied, setCopied] = React.useState(false)
+  const [copied, setCopied] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError] = useState(false)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url)
@@ -29,39 +31,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Generate a procedural geometric QR matrix for blueprint wireframe aesthetic
-  const matrixSize = 25
-  const cells = React.useMemo(() => {
-    const arr: boolean[][] = []
-    let seed = 0
-    for (let i = 0; i < url.length; i++) {
-      seed = (seed * 31 + url.charCodeAt(i)) & 0xffffff
-    }
-
-    for (let r = 0; r < matrixSize; r++) {
-      const row: boolean[] = []
-      for (let c = 0; c < matrixSize; c++) {
-        // Corner Position Detection Patterns (Finder Patterns)
-        const inTopLeft = r < 7 && c < 7
-        const inTopRight = r < 7 && c >= matrixSize - 7
-        const inBottomLeft = r >= matrixSize - 7 && c < 7
-
-        if (inTopLeft || inTopRight || inBottomLeft) {
-          const lr = r < 7 ? r : r - (matrixSize - 7)
-          const lc = c < 7 ? c : c - (matrixSize - 7)
-          const isBorder = lr === 0 || lr === 6 || lc === 0 || lc === 6
-          const isCenter = lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4
-          row.push(isBorder || isCenter)
-        } else {
-          // Deterministic pseudorandom pseudo-code based on seed & coordinates
-          const val = Math.sin(seed + r * 13 + c * 37) * 10000
-          row.push(val - Math.floor(val) > 0.45)
-        }
-      }
-      arr.push(row)
-    }
-    return arr
-  }, [url])
+  const qrImageUrl = `/api/transfer/qr?text=${encodeURIComponent(url)}&size=400`
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -74,44 +44,49 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             Direct Peer Scan
           </DialogTitle>
           <DialogDescription className="text-xs text-[#808080]">
-            Point any phone camera or tablet on the same Wi-Fi to join immediately.
+            Point any phone camera, tablet, or QR scanner to join and claim files immediately.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Blueprint Wireframe QR Code Box */}
-        <div className="my-4 p-4 rounded-xl bg-[#000000] border border-[#1c1c1c] flex flex-col items-center justify-center relative overflow-hidden">
+        {/* High-Contrast QR Code Card */}
+        <div className="my-4 p-5 rounded-2xl bg-[#000000] border border-[#1c1c1c] flex flex-col items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
-          {/* SVG QR Code */}
-          <svg
-            viewBox={`0 0 ${matrixSize} ${matrixSize}`}
-            className="w-48 h-48 relative z-10"
-            shapeRendering="crispEdges"
-          >
-            {cells.map((row, r) =>
-              row.map((active, c) =>
-                active ? (
-                  <rect
-                    key={`${r}-${c}`}
-                    x={c}
-                    y={r}
-                    width="1"
-                    height="1"
-                    fill={
-                      (r < 7 && c < 7) ||
-                      (r < 7 && c >= matrixSize - 7) ||
-                      (r >= matrixSize - 7 && c < 7)
-                        ? '#7089ba'
-                        : '#ffffff'
-                    }
-                  />
-                ) : null
-              )
+          {/* White container for maximum optical contrast & quiet zone */}
+          <div className="p-3.5 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-[200px] min-h-[200px]">
+            {!imgLoaded && !imgError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-xl text-neutral-400">
+                <QrIcon className="w-10 h-10 animate-pulse text-[#7089ba]" />
+                <span className="text-[10px] font-mono mt-1 text-neutral-500">Generating QR...</span>
+              </div>
             )}
-          </svg>
+
+            {imgError ? (
+              <div className="text-center p-4 text-neutral-600 text-xs font-mono">
+                Unable to load QR image
+              </div>
+            ) : (
+              <img
+                src={qrImageUrl}
+                alt={`QR code for PIN ${pin}`}
+                width={200}
+                height={200}
+                className={`w-48 h-48 block object-contain transition-opacity duration-200 ${
+                  imgLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => setImgLoaded(true)}
+                onError={() => setImgError(true)}
+              />
+            )}
+          </div>
+
+          {/* Encoded URL Preview */}
+          <div className="mt-3 text-[10px] font-mono text-[#7089ba] max-w-[240px] truncate text-center bg-[#141414] px-2.5 py-1 rounded-md border border-[#222]">
+            {url}
+          </div>
 
           {/* Center 6-Digit PIN Banner */}
-          <div className="mt-4 pt-3 border-t border-[#1c1c1c] w-full flex items-center justify-between text-xs">
+          <div className="mt-3 pt-3 border-t border-[#1c1c1c] w-full flex items-center justify-between text-xs">
             <span className="text-[#808080] font-mono">ENCRYPTED PIN:</span>
             <span className="font-mono text-base font-bold text-white tracking-widest bg-[#1c1c1c] px-3 py-1 rounded border border-[#282828]">
               {pin}
@@ -119,24 +94,39 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           </div>
         </div>
 
-        {/* Copy Link Button */}
-        <button
-          onClick={handleCopy}
-          className="w-full py-2 px-4 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 flex items-center justify-center gap-2 transition-all"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-black" weight="bold" />
-              <span>Link Copied to Clipboard</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5 text-black" />
-              <span>Copy Direct Transfer Link</span>
-            </>
-          )}
-        </button>
+        {/* Action Buttons */}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="w-full py-2.5 px-4 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 flex items-center justify-center gap-2 transition-all"
+          >
+            {copied ? (
+              <>
+                <CheckIcon className="w-3.5 h-3.5 text-black" weight="bold" />
+                <span>Link Copied to Clipboard</span>
+              </>
+            ) : (
+              <>
+                <CopyIcon className="w-3.5 h-3.5 text-black" />
+                <span>Copy Direct Transfer Link</span>
+              </>
+            )}
+          </button>
+
+          <a
+            href={qrImageUrl}
+            download={`w2w-qr-${pin}.png`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2 px-4 rounded-full bg-[#1c1c1c] border border-[#282828] text-neutral-300 font-medium text-xs hover:text-white hover:border-neutral-500 flex items-center justify-center gap-2 transition-all"
+          >
+            <DownloadSimpleIcon className="w-3.5 h-3.5" />
+            <span>Download QR Code Image</span>
+          </a>
+        </div>
       </DialogContent>
     </Dialog>
   )
 }
+

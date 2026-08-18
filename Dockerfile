@@ -50,11 +50,10 @@ RUN --mount=type=cache,target=/root/.m2 \
 FROM eclipse-temurin:25-jre-noble AS runner
 WORKDIR /app
 
-# Install curl for container health check
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-
-# Create unprivileged system user for maximum security
-RUN groupadd -r w2wgroup && useradd -r -g w2wgroup -m w2wuser \
+# Install curl for container health check and create unprivileged system user for maximum security
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r w2wgroup && useradd -r -g w2wgroup -m w2wuser \
     && mkdir -p /app/temp-w2w-encrypted && chown -R w2wuser:w2wgroup /app
 
 # Copy compiled JAR from backend builder stage

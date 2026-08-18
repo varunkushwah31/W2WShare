@@ -5,17 +5,17 @@ import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
 import { QrCodeModal } from './QrCodeModal'
 import {
-  UploadSimple,
-  FolderSimple,
-  File as FileIcon,
-  Trash,
-  QrCode,
-  Copy,
-  Check,
-  Flame,
-  ShieldCheck,
-  ArrowsClockwise,
-  CheckCircle,
+  UploadSimpleIcon,
+  FolderSimpleIcon,
+  FileIcon,
+  TrashIcon,
+  QrCodeIcon,
+  CopyIcon,
+  CheckIcon,
+  FlameIcon,
+  ShieldCheckIcon,
+  ArrowsClockwiseIcon,
+  CheckCircleIcon,
 } from '@phosphor-icons/react'
 
 interface SelectedFileItem {
@@ -24,7 +24,68 @@ interface SelectedFileItem {
   size: number
 }
 
+interface PreparedFile {
+  rawBuffer: ArrayBuffer
+  encryptedBuffer: Uint8Array
+  metadata: FileMetadata
+}
+
 const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunking
+
+const resolveJoinUrl = (sessionJoinUrl: string, pin: string): string => {
+  if (typeof window === 'undefined') return sessionJoinUrl
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  if (!isLocal && window.location.origin) {
+    return `${window.location.origin}/?pin=${pin}`
+  }
+  return sessionJoinUrl || `${window.location.origin}/?pin=${pin}`
+}
+
+const prepareSingleFile = async (
+  item: SelectedFileItem,
+  pin: string,
+  burnAfter: boolean,
+  enableCompression: boolean
+): Promise<PreparedFile> => {
+  let rawBuffer = await item.file.arrayBuffer()
+  let isCompressed = false
+
+  if (enableCompression && compressor.shouldCompress(item.file.name, item.file.type)) {
+    const compBuffer = await compressor.compressBuffer(rawBuffer)
+    if (compBuffer.byteLength < rawBuffer.byteLength) {
+      rawBuffer = compBuffer
+      isCompressed = true
+    }
+  }
+
+  const salt = cryptoEngine.generateSalt(16)
+  const iv = cryptoEngine.generateIv(12)
+  const sha256 = await cryptoEngine.calculateSha256(rawBuffer)
+  const keyObj = await cryptoEngine.deriveKey(pin, salt)
+
+  const encryptedBytes = await cryptoEngine.encrypt(rawBuffer, keyObj, iv)
+  const totalChunks = Math.ceil(encryptedBytes.length / CHUNK_SIZE) || 1
+
+  const metadata: FileMetadata = {
+    fileName: item.file.name,
+    relativePath: item.relativePath,
+    fileSize: rawBuffer.byteLength,
+    mimeType: item.file.type || 'application/octet-stream',
+    totalChunks,
+    chunkSize: CHUNK_SIZE,
+    iv,
+    salt,
+    sha256,
+    burnAfterReading: burnAfter,
+    isCompressed,
+  }
+
+  return {
+    rawBuffer,
+    encryptedBuffer: encryptedBytes,
+    metadata,
+  }
+}
 
 export const SendPanel: React.FC = () => {
   const [files, setFiles] = useState<SelectedFileItem[]>([])
@@ -104,6 +165,47 @@ export const SendPanel: React.FC = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
   }
 
+  const streamPreparedFiles = async (
+    targetSessionId: string,
+    preparedFiles: PreparedFile[]
+  ) => {
+    let uploadedBytesTotal = 0
+    const totalEncryptedBytes = preparedFiles.reduce(
+      (acc, p) => acc + p.encryptedBuffer.length,
+      0
+    )
+    const startTime = Date.now()
+
+    for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
+      const prep = preparedFiles[fIdx]
+      setCurrentFileName(prep.metadata.fileName)
+      const totalChunks = prep.metadata.totalChunks
+
+      for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
+        setCurrentChunkInfo({ current: cIdx + 1, total: totalChunks })
+        const start = cIdx * CHUNK_SIZE
+        const end = Math.min(start + CHUNK_SIZE, prep.encryptedBuffer.length)
+        const chunkData = prep.encryptedBuffer.subarray(start, end)
+
+        await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
+
+        uploadedBytesTotal += chunkData.length
+        const elapsedSec = (Date.now() - startTime) / 1000
+        if (elapsedSec > 0) {
+          const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
+          setTransferSpeedMbps(speed)
+        }
+
+        const percent = Math.min(
+          99,
+          Math.round((uploadedBytesTotal / totalEncryptedBytes) * 100)
+        )
+        setProgressPercent(percent)
+        setStatusMessage(`Streaming chunk ${cIdx + 1}/${totalChunks}`)
+      }
+    }
+  }
+
   const startTransfer = async () => {
     if (files.length === 0) return
     setIsTransferring(true)
@@ -119,106 +221,28 @@ export const SendPanel: React.FC = () => {
       })
       setSessionId(sessionRes.sessionId)
       setPin(sessionRes.pin)
-      setJoinUrl(sessionRes.joinUrl)
+      setJoinUrl(resolveJoinUrl(sessionRes.joinUrl, sessionRes.pin))
 
       soundEngine.peerConnect()
       setStatusMessage('Deriving AES-256 keys & processing batch...')
 
-      // 2. Process and Encrypt File Batch
+      // 2. Encrypt File Batch
       const batchMetadata: FileMetadata[] = []
-      const preparedFiles: {
-        rawBuffer: ArrayBuffer
-        encryptedBuffer: Uint8Array
-        metadata: FileMetadata
-      }[] = []
+      const preparedFiles: PreparedFile[] = []
 
-      for (let i = 0; i < files.length; i++) {
-        const item = files[i]
+      for (const item of files) {
         setCurrentFileName(item.relativePath)
         setStatusMessage(`Hashing & encrypting: ${item.relativePath}`)
-
-        let rawBuffer = await item.file.arrayBuffer()
-        let isCompressed = false
-
-        // Optional Pre-compression
-        if (enableCompression && compressor.shouldCompress(item.file.name, item.file.type)) {
-          const compBuffer = await compressor.compressBuffer(rawBuffer)
-          if (compBuffer.byteLength < rawBuffer.byteLength) {
-            rawBuffer = compBuffer
-            isCompressed = true
-          }
-        }
-
-        const salt = cryptoEngine.generateSalt(16)
-        const iv = cryptoEngine.generateIv(12)
-        const sha256 = await cryptoEngine.calculateSha256(rawBuffer)
-        const keyObj = await cryptoEngine.deriveKey(sessionRes.pin, salt)
-
-        // Encrypt entire buffer
-        const encryptedBytes = await cryptoEngine.encrypt(rawBuffer, keyObj, iv)
-        const totalChunks = Math.ceil(encryptedBytes.length / CHUNK_SIZE) || 1
-
-        const meta: FileMetadata = {
-          fileName: item.file.name,
-          relativePath: item.relativePath,
-          fileSize: rawBuffer.byteLength,
-          mimeType: item.file.type || 'application/octet-stream',
-          totalChunks,
-          chunkSize: CHUNK_SIZE,
-          iv,
-          salt,
-          sha256,
-          burnAfterReading: burnAfter,
-          isCompressed,
-        }
-
-        batchMetadata.push(meta)
-        preparedFiles.push({
-          rawBuffer,
-          encryptedBuffer: encryptedBytes,
-          metadata: meta,
-        })
+        const prepared = await prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression)
+        batchMetadata.push(prepared.metadata)
+        preparedFiles.push(prepared)
       }
 
       // 3. Register batch offer
       await api.offerBatch(sessionRes.sessionId, batchMetadata)
 
-      // 4. Upload Chunks
-      let uploadedBytesTotal = 0
-      const totalEncryptedBytes = preparedFiles.reduce(
-        (acc, p) => acc + p.encryptedBuffer.length,
-        0
-      )
-      const startTime = Date.now()
-
-      for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
-        const prep = preparedFiles[fIdx]
-        setCurrentFileName(prep.metadata.fileName)
-        const totalChunks = prep.metadata.totalChunks
-
-        for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
-          setCurrentChunkInfo({ current: cIdx + 1, total: totalChunks })
-          const start = cIdx * CHUNK_SIZE
-          const end = Math.min(start + CHUNK_SIZE, prep.encryptedBuffer.length)
-          const chunkData = prep.encryptedBuffer.subarray(start, end)
-
-          await api.uploadFileChunk(sessionRes.sessionId, fIdx, cIdx, chunkData)
-
-          uploadedBytesTotal += chunkData.length
-          const elapsedSec = (Date.now() - startTime) / 1000
-          if (elapsedSec > 0) {
-            const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
-            setTransferSpeedMbps(speed)
-          }
-
-          const percent = Math.min(
-            99,
-            Math.round((uploadedBytesTotal / totalEncryptedBytes) * 100)
-          )
-          setProgressPercent(percent)
-          setStatusMessage(`Streaming chunk ${cIdx + 1}/${totalChunks}`)
-        }
-      }
+      // 4. Stream Chunks to Backend
+      await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
 
       setProgressPercent(100)
       setIsTransferring(false)
@@ -266,7 +290,7 @@ export const SendPanel: React.FC = () => {
 
           <div className="relative z-10 flex flex-col items-center space-y-4">
             <div className="w-14 h-14 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:scale-105 transition-transform">
-              <UploadSimple className="w-7 h-7" weight="duotone" />
+              <UploadSimpleIcon className="w-7 h-7" weight="duotone" />
             </div>
 
             <div>
@@ -292,7 +316,7 @@ export const SendPanel: React.FC = () => {
                 onClick={() => folderInputRef.current?.click()}
                 className="px-4 py-2 rounded-full border border-[#282828] bg-[#1c1c1c] text-white font-semibold text-xs hover:bg-[#242424] transition-all flex items-center gap-1.5"
               >
-                <FolderSimple className="w-3.5 h-3.5 text-[#7089ba]" />
+                <FolderSimpleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 <span>Select Folder</span>
               </button>
 
@@ -306,9 +330,8 @@ export const SendPanel: React.FC = () => {
               <input
                 ref={folderInputRef}
                 type="file"
-                // @ts-expect-error directory attribute
+                // @ts-expect-error non-standard webkitdirectory attribute
                 webkitdirectory=""
-                directory=""
                 onChange={handleFolderInput}
                 className="hidden"
               />
@@ -330,6 +353,7 @@ export const SendPanel: React.FC = () => {
               </span>
             </div>
             <button
+              type="button"
               onClick={clearFiles}
               className="text-xs text-[#808080] hover:text-[#eb5757] transition-colors"
             >
@@ -340,7 +364,7 @@ export const SendPanel: React.FC = () => {
           <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
             {files.map((item, idx) => (
               <div
-                key={idx}
+                key={`${item.relativePath}-${item.size}-${idx}`}
                 className="flex items-center justify-between p-2 rounded bg-[#1c1c1c] border border-[#242424] text-xs"
               >
                 <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -350,10 +374,11 @@ export const SendPanel: React.FC = () => {
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-[#808080] font-mono">{formatBytes(item.size)}</span>
                   <button
+                    type="button"
                     onClick={() => removeFile(idx)}
                     className="text-[#808080] hover:text-white"
                   >
-                    <Trash className="w-3.5 h-3.5" />
+                    <TrashIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -370,7 +395,7 @@ export const SendPanel: React.FC = () => {
                 className="accent-[#7089ba] rounded"
               />
               <span className="flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-[#7089ba]" />
+                <FlameIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 Burn After Reading
               </span>
             </label>
@@ -402,11 +427,12 @@ export const SendPanel: React.FC = () => {
 
           {/* Action Trigger */}
           <button
+            type="button"
             onClick={startTransfer}
             disabled={isTransferring}
             className="w-full py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2"
           >
-            <ShieldCheck className="w-4 h-4" />
+            <ShieldCheckIcon className="w-4 h-4" />
             <span>Generate Encrypted Transfer Vault</span>
           </button>
         </div>
@@ -428,24 +454,26 @@ export const SendPanel: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => setQrModalOpen(true)}
                 className="p-2.5 rounded-full bg-[#1c1c1c] border border-[#282828] text-white hover:border-white transition-colors"
                 title="Show QR Code"
               >
-                <QrCode className="w-5 h-5" />
+                <QrCodeIcon className="w-5 h-5" />
               </button>
               <button
+                type="button"
                 onClick={copyLink}
                 className="px-3.5 py-2 rounded-full bg-[#1c1c1c] border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5"
               >
                 {linkCopied ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-[#7089ba]" weight="bold" />
+                    <CheckIcon className="w-3.5 h-3.5 text-[#7089ba]" weight="bold" />
                     <span>Copied</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <CopyIcon className="w-3.5 h-3.5" />
                     <span>Copy Link</span>
                   </>
                 )}
@@ -481,17 +509,18 @@ export const SendPanel: React.FC = () => {
           <div className="flex items-center justify-between pt-2">
             {transferDone ? (
               <div className="flex items-center gap-2 text-xs text-[#7089ba] font-mono">
-                <CheckCircle className="w-4 h-4" weight="bold" />
+                <CheckCircleIcon className="w-4 h-4" weight="bold" />
                 <span>Payload ready on local network. Receiver can claim PIN.</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-xs text-[#808080] font-mono">
-                <ArrowsClockwise className="w-4 h-4 animate-spin text-[#7089ba]" />
+                <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-[#7089ba]" />
                 <span>Encrypting & streaming payload...</span>
               </div>
             )}
 
             <button
+              type="button"
               onClick={cancelSession}
               className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-[#808080] hover:text-white transition-colors"
             >
