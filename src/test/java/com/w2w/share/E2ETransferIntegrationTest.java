@@ -6,6 +6,7 @@ import com.w2w.share.exception.GlobalExceptionHandler;
 import com.w2w.share.metrics.TransferMetricsService;
 import com.w2w.share.model.FileMetadata;
 import com.w2w.share.service.NetworkDiscoveryService;
+import com.w2w.share.service.QrCodeService;
 import com.w2w.share.service.RateLimiterService;
 import com.w2w.share.service.SessionService;
 import com.w2w.share.service.StorageService;
@@ -47,8 +48,9 @@ class E2ETransferIntegrationTest {
         sessionService = new SessionService(storageService, rateLimiterService, metricsService);
         networkDiscoveryService = new NetworkDiscoveryService();
         ReflectionTestUtils.setField(networkDiscoveryService, "serverPort", 8080);
+        QrCodeService qrCodeService = new QrCodeService();
 
-        TransferController transferController = new TransferController(sessionService, storageService, networkDiscoveryService, metricsService);
+        TransferController transferController = new TransferController(sessionService, storageService, networkDiscoveryService, metricsService, qrCodeService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(transferController)
                 .setControllerAdvice(new GlobalExceptionHandler())

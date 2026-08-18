@@ -20,15 +20,20 @@ public class RateLimiterService implements IRateLimiterService {
         long lockedUntilEpochMs = 0;
     }
 
+    private String sanitizeIp(String clientIp) {
+        return (clientIp != null && !clientIp.isBlank()) ? clientIp.trim() : "unknown-ip";
+    }
+
     @Override
     public boolean checkAllowed(String clientIp) {
-        ClientAttempt attempt = attempts.get(clientIp);
+        String ipKey = sanitizeIp(clientIp);
+        ClientAttempt attempt = attempts.get(ipKey);
         if (attempt == null) return true;
 
         long now = System.currentTimeMillis();
         if (attempt.lockedUntilEpochMs > now) {
             long remaining = (attempt.lockedUntilEpochMs - now) / 1000;
-            log.warn("Rate limit exceeded for client [{}]. Locked for {}s more.", clientIp, remaining);
+            log.warn("Rate limit exceeded for client [{}]. Locked for {}s more.", ipKey, remaining);
             return false;
         }
 
@@ -37,7 +42,8 @@ public class RateLimiterService implements IRateLimiterService {
 
     @Override
     public void recordFailedAttempt(String clientIp) {
-        attempts.compute(clientIp, (ip, attempt) -> {
+        String ipKey = sanitizeIp(clientIp);
+        attempts.compute(ipKey, (ip, attempt) -> {
             if (attempt == null) {
                 attempt = new ClientAttempt();
             }
@@ -45,7 +51,7 @@ public class RateLimiterService implements IRateLimiterService {
             if (attempt.failureCount >= AppConstants.RATE_LIMIT_MAX_ATTEMPTS) {
                 attempt.lockedUntilEpochMs = System.currentTimeMillis() + (AppConstants.RATE_LIMIT_LOCKOUT_SECONDS * 1000);
                 log.warn("Client [{}] locked out for {} seconds due to {} failed attempts",
-                        clientIp, AppConstants.RATE_LIMIT_LOCKOUT_SECONDS, attempt.failureCount);
+                        ipKey, AppConstants.RATE_LIMIT_LOCKOUT_SECONDS, attempt.failureCount);
             }
             return attempt;
         });
@@ -53,12 +59,12 @@ public class RateLimiterService implements IRateLimiterService {
 
     @Override
     public void reset(String clientIp) {
-        attempts.remove(clientIp);
+        attempts.remove(sanitizeIp(clientIp));
     }
 
     @Override
     public long getRemainingLockoutSeconds(String clientIp) {
-        ClientAttempt attempt = attempts.get(clientIp);
+        ClientAttempt attempt = attempts.get(sanitizeIp(clientIp));
         if (attempt == null) return 0;
         long diff = attempt.lockedUntilEpochMs - System.currentTimeMillis();
         return diff > 0 ? (diff / 1000) : 0;

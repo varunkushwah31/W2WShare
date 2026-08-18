@@ -39,7 +39,7 @@ public class W2WShareApplication {
             } else {
                 for (NetworkDiscoveryService.InterfaceAddressInfo iface : interfaces) {
                     String badge = iface.isWifiOrHotspot() ? "[Wi-Fi / Hotspot]" : (iface.isLoopback() ? "[Loopback]" : "[Ethernet/LAN]");
-                    log.info("    * %-20s %-16s %-18s -> %s%n", iface.getName(), iface.getIp(), badge, iface.getUrl());
+                    log.info(String.format("    * %-20s %-16s %-18s -> %s", iface.getName(), iface.getIp(), badge, iface.getUrl()));
                 }
             }
 

@@ -154,6 +154,97 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.warn("Malformed JSON or unreadable request body on {}: {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "MALFORMED_REQUEST_BODY",
+                "Malformed Request Body",
+                "The request body is malformed, missing, or cannot be parsed: " + ex.getMostSpecificCause().getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        log.warn("Method argument type mismatch on {}: parameter '{}' with value '{}'", request.getRequestURI(), ex.getName(), ex.getValue());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "INVALID_PARAMETER_TYPE",
+                "Invalid Parameter Type",
+                "Parameter '" + ex.getName() + "' must be of valid type.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException ex, HttpServletRequest request) {
+        log.warn("Missing required parameter on {}: {}", request.getRequestURI(), ex.getParameterName());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "MISSING_PARAMETER",
+                "Missing Required Parameter",
+                "Required parameter '" + ex.getParameterName() + "' of type '" + ex.getParameterType() + "' is missing.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        log.warn("HTTP method not supported on {}: {}", request.getRequestURI(), ex.getMethod());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.METHOD_NOT_ALLOWED.value(),
+                "METHOD_NOT_ALLOWED",
+                "HTTP Method Not Supported",
+                "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(err);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(org.springframework.web.HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+        log.warn("Media type not supported on {}: {}", request.getRequestURI(), ex.getContentType());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                "UNSUPPORTED_MEDIA_TYPE",
+                "Unsupported Media Type",
+                "Content-Type '" + ex.getContentType() + "' is not supported.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(err);
+    }
+
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ErrorResponse> handleNullPointer(NullPointerException ex, HttpServletRequest request) {
+        log.error("Null pointer encounter on path {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "NULL_POINTER_EXCEPTION",
+                "Internal Null Reference",
+                "A null reference occurred while processing the request.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+    }
+
+    @ExceptionHandler(W2WException.class)
+    public ResponseEntity<ErrorResponse> handleW2WBase(W2WException ex, HttpServletRequest request) {
+        log.warn("W2W domain exception on {}: {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getErrorCode(),
+                "W2W Error",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
+    }
+
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ErrorResponse> handleIllegal(RuntimeException ex, HttpServletRequest request) {
         log.warn("Illegal argument/state on {}: {}", request.getRequestURI(), ex.getMessage());

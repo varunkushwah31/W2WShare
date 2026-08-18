@@ -73,6 +73,9 @@ public class SessionService implements ISessionService {
 
     @Override
     public Optional<TransferSession> getSession(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return Optional.empty();
+        }
         TransferSession session = activeSessions.get(sessionId);
         if (session != null) {
             session.touch();
@@ -88,7 +91,10 @@ public class SessionService implements ISessionService {
 
     @Override
     public Optional<TransferSession> getSessionByPin(String pin) {
-        String sessionId = pinToSessionId.get(pin);
+        if (pin == null || pin.isBlank()) {
+            return Optional.empty();
+        }
+        String sessionId = pinToSessionId.get(pin.trim());
         if (sessionId == null) {
             return Optional.empty();
         }
@@ -97,10 +103,13 @@ public class SessionService implements ISessionService {
 
     @Override
     public TransferSession joinSession(String pin, String receiverId) {
-        TransferSession session = getSessionByPin(pin)
+        if (pin == null || pin.isBlank()) {
+            throw new InvalidPinException("PIN cannot be empty or blank.");
+        }
+        TransferSession session = getSessionByPin(pin.trim())
                 .orElseThrow(() -> new InvalidPinException("No active session with PIN: " + pin));
 
-        session.setReceiverId(receiverId);
+        session.setReceiverId(receiverId != null && !receiverId.isBlank() ? receiverId : "receiver-" + System.currentTimeMillis());
         session.setStatus(TransferSession.SessionStatus.PAIRED);
         session.touch();
 
@@ -110,17 +119,18 @@ public class SessionService implements ISessionService {
 
     @Override
     public TransferSession joinSessionWithRateLimit(String pin, String receiverId, String clientIp) {
-        if (!rateLimiterService.checkAllowed(clientIp)) {
-            long remaining = rateLimiterService.getRemainingLockoutSeconds(clientIp);
-            throw new RateLimitExceededException("Too many failed attempts from IP " + clientIp + ". Locked out for " + remaining + " seconds.", remaining);
+        String effectiveIp = (clientIp != null && !clientIp.isBlank()) ? clientIp : "unknown-ip";
+        if (!rateLimiterService.checkAllowed(effectiveIp)) {
+            long remaining = rateLimiterService.getRemainingLockoutSeconds(effectiveIp);
+            throw new RateLimitExceededException("Too many failed attempts from IP " + effectiveIp + ". Locked out for " + remaining + " seconds.", remaining);
         }
 
         try {
             TransferSession session = joinSession(pin, receiverId);
-            rateLimiterService.reset(clientIp);
+            rateLimiterService.reset(effectiveIp);
             return session;
         } catch (InvalidPinException e) {
-            rateLimiterService.recordFailedAttempt(clientIp);
+            rateLimiterService.recordFailedAttempt(effectiveIp);
             throw e;
         }
     }
@@ -128,6 +138,9 @@ public class SessionService implements ISessionService {
     @Override
     public void setFileOffer(String sessionId, FileMetadata metadata) {
         TransferSession session = getRequiredSession(sessionId);
+        if (metadata == null) {
+            throw new IllegalArgumentException("File metadata cannot be null");
+        }
         session.setFileMetadata(metadata);
         session.setStatus(TransferSession.SessionStatus.READY);
         log.info("Registered single file offer [{}] for session [{}]", metadata.fileName(), sessionId);
@@ -136,6 +149,9 @@ public class SessionService implements ISessionService {
     @Override
     public void setFileBatchOffer(String sessionId, List<FileMetadata> batch) {
         TransferSession session = getRequiredSession(sessionId);
+        if (batch == null || batch.isEmpty()) {
+            throw new IllegalArgumentException("File batch cannot be null or empty");
+        }
         session.setFileBatch(batch);
         session.setStatus(TransferSession.SessionStatus.READY);
         log.info("Registered multi-file batch offer ({} files) for session [{}]", batch.size(), sessionId);
@@ -144,13 +160,16 @@ public class SessionService implements ISessionService {
     @Override
     public void setEncryptedClipboardText(String sessionId, String text) {
         TransferSession session = getRequiredSession(sessionId);
-        session.setEncryptedClipboardText(text);
+        session.setEncryptedClipboardText(text != null ? text : "");
         log.info("Updated encrypted clipboard note for session [{}]", sessionId);
     }
 
     @Override
     public void addChatMessage(String sessionId, ChatMessage message) {
         TransferSession session = getRequiredSession(sessionId);
+        if (message == null) {
+            throw new IllegalArgumentException("Chat message cannot be null");
+        }
         session.addChatMessage(message);
     }
 

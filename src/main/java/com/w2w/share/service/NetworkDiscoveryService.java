@@ -58,15 +58,18 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
                     if (addr instanceof Inet4Address) {
                         String ip = addr.getHostAddress();
                         boolean isLoopback = addr.isLoopbackAddress();
-                        boolean isWifi = iface.getName().toLowerCase().contains("wlan")
-                                || iface.getName().toLowerCase().contains("wi-fi")
-                                || iface.getDisplayName().toLowerCase().contains("wireless")
-                                || iface.getDisplayName().toLowerCase().contains("wi-fi")
-                                || iface.getName().toLowerCase().contains("ap");
+                        String ifaceName = iface.getName() != null ? iface.getName() : "eth";
+                        String ifaceDisplayName = iface.getDisplayName() != null ? iface.getDisplayName() : ifaceName;
+
+                        boolean isWifi = ifaceName.toLowerCase().contains("wlan")
+                                || ifaceName.toLowerCase().contains("wi-fi")
+                                || ifaceDisplayName.toLowerCase().contains("wireless")
+                                || ifaceDisplayName.toLowerCase().contains("wi-fi")
+                                || ifaceName.toLowerCase().contains("ap");
 
                         result.add(new InterfaceAddressInfo(
-                                iface.getName(),
-                                iface.getDisplayName(),
+                                ifaceName,
+                                ifaceDisplayName,
                                 ip,
                                 serverPort,
                                 isLoopback,
@@ -84,7 +87,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
             if (!a.isWifiOrHotspot() && b.isWifiOrHotspot()) return 1;
             if (!a.isLoopback() && b.isLoopback()) return -1;
             if (a.isLoopback() && !b.isLoopback()) return 1;
-            return a.getName().compareTo(b.getName());
+            return Objects.toString(a.getName(), "").compareTo(Objects.toString(b.getName(), ""));
         });
 
         return result;

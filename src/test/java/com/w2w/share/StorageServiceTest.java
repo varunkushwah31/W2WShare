@@ -50,4 +50,18 @@ class StorageServiceTest {
     void testGetNonExistentChunkThrowsException() {
         assertThrows(NoSuchFileException.class, () -> storageService.getChunk("non-existent-session", 0, 99));
     }
+
+    @Test
+    void testPathTraversalRejection() {
+        assertThrows(Exception.class, () -> storageService.saveChunk("../../etc", 0, 0, "dummy".getBytes()));
+        assertThrows(Exception.class, () -> storageService.getChunk("..\\windows", 0, 0));
+    }
+
+    @Test
+    void testInvalidChunkParameters() {
+        assertThrows(Exception.class, () -> storageService.saveChunk("session-1", -1, 0, "dummy".getBytes()));
+        assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, -1, "dummy".getBytes()));
+        assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, 0, null));
+        assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, 0, new byte[0]));
+    }
 }

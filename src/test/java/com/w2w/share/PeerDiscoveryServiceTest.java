@@ -30,5 +30,13 @@ class PeerDiscoveryServiceTest {
         // Trigger broadcast and evict cycles without exception
         assertDoesNotThrow(() -> peerDiscoveryService.broadcastAnnouncement());
         assertDoesNotThrow(() -> peerDiscoveryService.evictStalePeers());
+
+        PeerDiscoveryService.DiscoveredPeer peer = new PeerDiscoveryService.DiscoveredPeer(
+                "device-1", "node-1", "MacBook-Pro", "192.168.1.50", 8080, "macOS", "http://192.168.1.50:8080", System.currentTimeMillis()
+        );
+        assertEquals("device-1", peer.deviceId());
+        assertEquals("node-1", peer.nodeId());
+        assertEquals("macOS", peer.os());
+        assertEquals("MacBook-Pro", peer.deviceName());
     }
 }

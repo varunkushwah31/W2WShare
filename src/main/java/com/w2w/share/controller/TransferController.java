@@ -8,6 +8,7 @@ import com.w2w.share.model.ChatMessage;
 import com.w2w.share.model.FileMetadata;
 import com.w2w.share.model.TransferSession;
 import com.w2w.share.service.INetworkDiscoveryService;
+import com.w2w.share.service.IQrCodeService;
 import com.w2w.share.service.ISessionService;
 import com.w2w.share.service.IStorageService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,15 +33,18 @@ public class TransferController {
     private final IStorageService storageService;
     private final INetworkDiscoveryService networkDiscoveryService;
     private final ITransferMetricsService metricsService;
+    private final IQrCodeService qrCodeService;
 
     public TransferController(ISessionService sessionService,
                               IStorageService storageService,
                               INetworkDiscoveryService networkDiscoveryService,
-                              ITransferMetricsService metricsService) {
+                              ITransferMetricsService metricsService,
+                              IQrCodeService qrCodeService) {
         this.sessionService = sessionService;
         this.storageService = storageService;
         this.networkDiscoveryService = networkDiscoveryService;
         this.metricsService = metricsService;
+        this.qrCodeService = qrCodeService;
     }
 
     @PostMapping("/session/create")
@@ -66,21 +70,9 @@ public class TransferController {
     }
 
     @GetMapping("/session/{sessionId}")
-    public ResponseEntity<Map<String, Object>> getSession(@PathVariable String sessionId) {
+    public ResponseEntity<TransferSessionDetailsResponse> getSession(@PathVariable String sessionId) {
         TransferSession session = sessionService.getRequiredSession(sessionId);
-
-        return ResponseEntity.ok(Map.of(
-                "sessionId", session.getSessionId(),
-                "pin", session.getPin(),
-                "status", session.getStatus().name(),
-                "fileMetadata", session.getFileMetadata() != null ? session.getFileMetadata() : Map.of(),
-                "fileBatch", session.getFileBatch(),
-                "activeFileIndex", session.getActiveFileIndex(),
-                "uploadedChunks", session.getUploadedChunks(),
-                "downloadedChunks", session.getDownloadedChunks(),
-                "burnAfterReading", session.isBurnAfterReading(),
-                "hasClipboard", session.getEncryptedClipboardText() != null
-        ));
+        return ResponseEntity.ok(TransferSessionDetailsResponse.from(session));
     }
 
     @GetMapping("/session/{sessionId}/status")
@@ -108,19 +100,11 @@ public class TransferController {
     }
 
     @GetMapping("/session/by-pin/{pin}")
-    public ResponseEntity<Map<String, Object>> getSessionByPin(@PathVariable String pin) {
+    public ResponseEntity<TransferSessionDetailsResponse> getSessionByPin(@PathVariable String pin) {
         TransferSession session = sessionService.getSessionByPin(pin)
                 .orElseThrow(() -> new SessionNotFoundException("No active session with PIN: " + pin));
 
-        return ResponseEntity.ok(Map.of(
-                "sessionId", session.getSessionId(),
-                "pin", session.getPin(),
-                "status", session.getStatus().name(),
-                "fileMetadata", session.getFileMetadata() != null ? session.getFileMetadata() : Map.of(),
-                "fileBatch", session.getFileBatch(),
-                "activeFileIndex", session.getActiveFileIndex(),
-                "burnAfterReading", session.isBurnAfterReading()
-        ));
+        return ResponseEntity.ok(TransferSessionDetailsResponse.from(session));
     }
 
     @PostMapping("/session/{sessionId}/join")
@@ -150,6 +134,9 @@ public class TransferController {
             @PathVariable String sessionId,
             @RequestBody FileMetadata metadata) {
 
+        if (metadata == null) {
+            throw new IllegalArgumentException("File metadata is required.");
+        }
         sessionService.setFileOffer(sessionId, metadata);
         return ResponseEntity.ok(Map.of("status", "OFFER_REGISTERED", "metadata", metadata));
     }
@@ -159,6 +146,9 @@ public class TransferController {
             @PathVariable String sessionId,
             @RequestBody List<FileMetadata> batch) {
 
+        if (batch == null || batch.isEmpty()) {
+            throw new IllegalArgumentException("File batch cannot be null or empty.");
+        }
         sessionService.setFileBatchOffer(sessionId, batch);
         return ResponseEntity.ok(Map.of("status", "BATCH_REGISTERED", "totalFiles", batch.size()));
     }
@@ -169,6 +159,10 @@ public class TransferController {
             @PathVariable int fileIndex,
             @PathVariable int chunkIndex,
             @RequestBody byte[] data) {
+
+        if (data == null || data.length == 0) {
+            throw new InvalidChunkException("Chunk payload cannot be empty or null.");
+        }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
         storageService.saveChunk(sessionId, fileIndex, chunkIndex, data);
@@ -190,6 +184,10 @@ public class TransferController {
             @PathVariable String sessionId,
             @PathVariable int chunkIndex,
             @RequestParam("file") MultipartFile file) throws IOException {
+
+        if (file == null || file.isEmpty()) {
+            throw new InvalidChunkException("Uploaded file chunk cannot be empty.");
+        }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
         byte[] bytes = file.getBytes();
@@ -255,9 +253,10 @@ public class TransferController {
     @PostMapping("/session/{sessionId}/clipboard")
     public ResponseEntity<Map<String, String>> saveClipboard(
             @PathVariable String sessionId,
-            @RequestBody ClipboardSyncRequest request) {
+            @RequestBody(required = false) ClipboardSyncRequest request) {
 
-        sessionService.setEncryptedClipboardText(sessionId, request.text());
+        String text = (request != null && request.text() != null) ? request.text() : "";
+        sessionService.setEncryptedClipboardText(sessionId, text);
         return ResponseEntity.ok(Map.of("status", "SAVED"));
     }
 
@@ -291,6 +290,33 @@ public class TransferController {
         return ResponseEntity.ok(session.getChatHistory());
     }
 
+    @GetMapping(value = "/session/{sessionId}/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getSessionQrCode(@PathVariable String sessionId,
+                                                   @RequestParam(defaultValue = "300") int size) {
+        int clampedSize = Math.clamp(size, 50, 1000);
+        TransferSession session = sessionService.getRequiredSession(sessionId);
+        String primaryUrl = networkDiscoveryService.getPrimaryNetworkUrl();
+        String joinUrl = primaryUrl + "/?pin=" + session.getPin();
+        byte[] qrBytes = qrCodeService.generateQrCodePng(joinUrl, clampedSize, clampedSize);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"w2w-qr-" + session.getPin() + ".png\"")
+                .contentType(MediaType.IMAGE_PNG)
+                .body(qrBytes);
+    }
+
+    @GetMapping(value = "/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> generateQrCode(@RequestParam String text,
+                                                 @RequestParam(defaultValue = "300") int size) {
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("Parameter 'text' cannot be empty");
+        }
+        int clampedSize = Math.clamp(size, 50, 1000);
+        byte[] qrBytes = qrCodeService.generateQrCodePng(text, clampedSize, clampedSize);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .body(qrBytes);
+    }
     @DeleteMapping("/session/{sessionId}")
     public ResponseEntity<Map<String, String>> cancelSession(@PathVariable String sessionId) {
         sessionService.cancelSession(sessionId);

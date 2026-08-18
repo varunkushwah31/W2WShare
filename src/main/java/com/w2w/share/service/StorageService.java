@@ -67,8 +67,19 @@ public class StorageService implements IStorageService {
         }
     }
 
+    private void validateSessionId(String sessionId) {
+        if (sessionId == null || sessionId.isBlank() || sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
+            throw new StorageException("Invalid or insecure session ID format: " + sessionId);
+        }
+    }
+
     @Override
     public void saveChunk(String sessionId, int fileIndex, int chunkIndex, byte[] data) {
+        validateSessionId(sessionId);
+        if (fileIndex < 0 || chunkIndex < 0) {
+            throw new InvalidChunkException("File index (" + fileIndex + ") and chunk index (" + chunkIndex + ") must be non-negative.");
+        }
+
         if (data == null || data.length == 0) {
             throw new InvalidChunkException("Chunk payload cannot be empty or null.");
         }
@@ -77,8 +88,12 @@ public class StorageService implements IStorageService {
             throw new StorageException("Storage quota of " + (maxQuotaBytes / (1024 * 1024 * 1024)) + " GB exceeded.");
         }
 
-        Path sessionDir = rootStoragePath.resolve(sessionId);
-        Path fileDir = sessionDir.resolve(FILE_PREFIX + fileIndex);
+        Path sessionDir = rootStoragePath.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(rootStoragePath)) {
+            throw new StorageException("Path traversal attempt detected for session: " + sessionId);
+        }
+
+        Path fileDir = sessionDir.resolve(FILE_PREFIX + fileIndex).normalize();
         try {
             Files.createDirectories(fileDir);
             Path finalChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
@@ -94,13 +109,22 @@ public class StorageService implements IStorageService {
 
         } catch (IOException e) {
             log.error("Failed to write chunk {} for file {} in session {}", chunkIndex, fileIndex, sessionId, e);
-            throw new RuntimeException("Failed to save chunk", e);
+            throw new StorageException("Failed to save chunk " + chunkIndex + " for file " + fileIndex, e);
         }
     }
 
     @Override
     public byte[] getChunk(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException {
-        Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
+        validateSessionId(sessionId);
+        if (fileIndex < 0 || chunkIndex < 0) {
+            throw new InvalidChunkException("File index (" + fileIndex + ") and chunk index (" + chunkIndex + ") must be non-negative.");
+        }
+
+        Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT).normalize();
+        if (!chunkPath.startsWith(rootStoragePath)) {
+            throw new StorageException("Path traversal attempt detected for chunk retrieval: " + sessionId);
+        }
+
         if (!Files.exists(chunkPath)) {
             throw new NoSuchFileException("Chunk " + chunkIndex + " for file " + fileIndex + " not found in session " + sessionId);
         }
@@ -109,39 +133,53 @@ public class StorageService implements IStorageService {
             return Files.readAllBytes(chunkPath);
         } catch (IOException e) {
             log.error("Failed to read chunk {} for file {} in session {}", chunkIndex, fileIndex, sessionId, e);
-            throw new RuntimeException("Failed to read chunk", e);
+            throw new StorageException("Failed to read chunk " + chunkIndex + " for file " + fileIndex, e);
         }
     }
 
     @Override
     public boolean hasChunk(String sessionId, int fileIndex, int chunkIndex) {
-        Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
-        return Files.exists(chunkPath);
+        if (sessionId == null || sessionId.isBlank() || fileIndex < 0 || chunkIndex < 0) {
+            return false;
+        }
+        try {
+            Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT).normalize();
+            return chunkPath.startsWith(rootStoragePath) && Files.exists(chunkPath);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
     public Set<Integer> getExistingChunkIndices(String sessionId, int fileIndex) {
-        Path fileDir = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex);
-        if (!Files.exists(fileDir)) {
+        if (sessionId == null || sessionId.isBlank() || fileIndex < 0) {
             return Collections.emptySet();
         }
 
-        try (Stream<Path> stream = Files.list(fileDir)) {
-            return stream.map(p -> p.getFileName().toString())
-                    .filter(name -> name.startsWith(CHUNK_PREFIX) && name.endsWith(BIN_EXT))
-                    .map(name -> name.replace(CHUNK_PREFIX, "").replace(BIN_EXT, ""))
-                    .map(Integer::parseInt)
-                    .collect(Collectors.toSet());
+        try {
+            Path fileDir = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).normalize();
+            if (!fileDir.startsWith(rootStoragePath) || !Files.exists(fileDir)) {
+                return Collections.emptySet();
+            }
+
+            try (Stream<Path> stream = Files.list(fileDir)) {
+                return stream.map(p -> p.getFileName().toString())
+                        .filter(name -> name.startsWith(CHUNK_PREFIX) && name.endsWith(BIN_EXT))
+                        .map(name -> name.replace(CHUNK_PREFIX, "").replace(BIN_EXT, ""))
+                        .map(Integer::parseInt)
+                        .collect(Collectors.toSet());
+            }
         } catch (IOException e) {
-            log.debug("Failed to read chunks in directory {}: {}", fileDir, e.getMessage());
+            log.debug("Failed to read chunks in directory for session {}: {}", sessionId, e.getMessage());
             return Collections.emptySet();
         }
     }
 
     @Override
     public void cleanupSession(String sessionId) {
-        Path sessionDir = rootStoragePath.resolve(sessionId);
-        if (!Files.exists(sessionDir)) return;
+        if (sessionId == null || sessionId.isBlank()) return;
+        Path sessionDir = rootStoragePath.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(rootStoragePath) || !Files.exists(sessionDir)) return;
 
         try (Stream<Path> stream = Files.walk(sessionDir)) {
             stream.sorted(Comparator.reverseOrder())

@@ -39,36 +39,59 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        String payload = message.getPayload();
-        SignalMessage signal = objectMapper.readValue(payload, SignalMessage.class);
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        if (message == null || message.getPayload() == null || message.getPayload().isBlank()) {
+            return;
+        }
 
-        switch (signal.type()) {
-            case "REGISTER_SENDER" -> handleRegisterSender(session, signal);
-            case "JOIN_BY_PIN" -> handleJoinByPin(session, signal);
-            case "FILE_OFFER" -> handleFileOffer(session, signal);
-            case "BATCH_OFFER" -> handleBatchOffer(session, signal);
-            case "FILE_ACCEPT", "BATCH_ACCEPT" -> relayToPeer(session, signal);
-            case "CHUNK_UPLOADED" -> relayToPeer(session, signal);
-            case "TRANSFER_PROGRESS" -> relayToPeer(session, signal);
-            case "TRANSFER_COMPLETE" -> relayToPeer(session, signal);
-            case "TRANSFER_CANCELLED" -> handleCancel(session, signal);
-            case "TEXT_MESSAGE" -> handleTextMessageRelay(session, signal);
-            case "CHAT_MESSAGE" -> handleChatMessage(session, signal);
-            case "WEBRTC_OFFER", "WEBRTC_ANSWER", "WEBRTC_ICE_CANDIDATE" -> relayToPeer(session, signal);
-            default -> log.warn("Unknown signal type: {}", signal.type());
+        try {
+            String payload = message.getPayload();
+            SignalMessage signal = objectMapper.readValue(payload, SignalMessage.class);
+            if (signal == null || signal.type() == null) {
+                log.warn("Received empty or untyped signal from socket {}", session.getId());
+                return;
+            }
+
+            switch (signal.type()) {
+                case "REGISTER_SENDER" -> handleRegisterSender(session, signal);
+                case "JOIN_BY_PIN" -> handleJoinByPin(session, signal);
+                case "FILE_OFFER" -> handleFileOffer(session, signal);
+                case "BATCH_OFFER" -> handleBatchOffer(session, signal);
+                case "FILE_ACCEPT", "BATCH_ACCEPT" -> relayToPeer(session, signal);
+                case "CHUNK_UPLOADED" -> relayToPeer(session, signal);
+                case "TRANSFER_PROGRESS" -> relayToPeer(session, signal);
+                case "TRANSFER_COMPLETE" -> relayToPeer(session, signal);
+                case "TRANSFER_CANCELLED" -> handleCancel(session, signal);
+                case "TEXT_MESSAGE" -> handleTextMessageRelay(session, signal);
+                case "CHAT_MESSAGE" -> handleChatMessage(session, signal);
+                case "WEBRTC_OFFER", "WEBRTC_ANSWER", "WEBRTC_ICE_CANDIDATE" -> relayToPeer(session, signal);
+                default -> log.warn("Unknown signal type: {}", signal.type());
+            }
+        } catch (Exception e) {
+            log.warn("Error processing WebSocket signal from {}: {}", session.getId(), e.getMessage());
+            try {
+                sendSignal(session, new SignalMessage("ERROR", "Failed to process signal: " + e.getMessage()));
+            } catch (IOException ignored) {}
         }
     }
 
     private void handleRegisterSender(WebSocketSession session, SignalMessage signal) throws IOException {
-        String transferSessionId = (String) signal.payload();
+        if (signal.payload() == null) {
+            sendSignal(session, new SignalMessage("ERROR", "Session ID required for sender registration"));
+            return;
+        }
+        String transferSessionId = String.valueOf(signal.payload());
         registerSocketToSession(session, transferSessionId);
         log.info("Sender registered on WebSocket for session: {}", transferSessionId);
         sendSignal(session, new SignalMessage("REGISTERED", "Sender linked successfully"));
     }
 
     private void handleJoinByPin(WebSocketSession session, SignalMessage signal) throws IOException {
-        String pin = (String) signal.payload();
+        if (signal.payload() == null || String.valueOf(signal.payload()).isBlank()) {
+            sendSignal(session, new SignalMessage("ERROR", "PIN is required to join session"));
+            return;
+        }
+        String pin = String.valueOf(signal.payload()).trim();
         String clientIp = session.getId();
         if (session.getRemoteAddress() != null && session.getRemoteAddress().getAddress() != null) {
             clientIp = session.getRemoteAddress().getAddress().getHostAddress();
@@ -91,47 +114,51 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
                     "role", "receiver"
             )));
         } catch (Exception e) {
-            log.warn("Failed join attempt: {}", e.getMessage());
+            log.warn("Failed join attempt on socket {}: {}", session.getId(), e.getMessage());
             sendSignal(session, new SignalMessage("ERROR", e.getMessage()));
         }
     }
 
     private void handleFileOffer(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null) {
+        if (transferSessionId != null && signal.payload() != null) {
             FileMetadata meta = objectMapper.convertValue(signal.payload(), FileMetadata.class);
-            sessionService.setFileOffer(transferSessionId, meta);
-            relayToOtherPeers(session, transferSessionId, signal);
+            if (meta != null) {
+                sessionService.setFileOffer(transferSessionId, meta);
+                relayToOtherPeers(session, transferSessionId, signal);
+            }
         }
     }
 
     private void handleBatchOffer(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null) {
-            List<?> rawList = (List<?>) signal.payload();
+        if (transferSessionId != null && signal.payload() instanceof List<?> rawList) {
             List<FileMetadata> batch = rawList.stream()
                     .map(item -> objectMapper.convertValue(item, FileMetadata.class))
+                    .filter(Objects::nonNull)
                     .toList();
-            sessionService.setFileBatchOffer(transferSessionId, batch);
-            relayToOtherPeers(session, transferSessionId, signal);
+            if (!batch.isEmpty()) {
+                sessionService.setFileBatchOffer(transferSessionId, batch);
+                relayToOtherPeers(session, transferSessionId, signal);
+            }
         }
     }
 
     private void handleTextMessageRelay(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null) {
-            sessionService.setEncryptedClipboardText(transferSessionId, (String) signal.payload());
+        if (transferSessionId != null && signal.payload() != null) {
+            sessionService.setEncryptedClipboardText(transferSessionId, String.valueOf(signal.payload()));
             relayToOtherPeers(session, transferSessionId, signal);
         }
     }
 
     private void handleChatMessage(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null) {
+        if (transferSessionId != null && signal.payload() != null) {
             ChatMessage msg = new ChatMessage(
                     UUID.randomUUID().toString(),
                     session.getId(),
-                    (String) signal.payload(),
+                    String.valueOf(signal.payload()),
                     System.currentTimeMillis()
             );
             sessionService.addChatMessage(transferSessionId, msg);

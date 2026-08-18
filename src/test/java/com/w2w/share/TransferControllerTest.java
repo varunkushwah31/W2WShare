@@ -8,6 +8,7 @@ import com.w2w.share.metrics.TransferMetricsService;
 import com.w2w.share.model.FileMetadata;
 import com.w2w.share.service.NetworkDiscoveryService;
 import com.w2w.share.service.PeerDiscoveryService;
+import com.w2w.share.service.QrCodeService;
 import com.w2w.share.service.RateLimiterService;
 import com.w2w.share.service.SessionService;
 import com.w2w.share.service.StorageService;
@@ -44,8 +45,9 @@ class TransferControllerTest {
         SessionService sessionService = new SessionService(storageService, rateLimiterService, metricsService);
         NetworkDiscoveryService networkDiscoveryService = new NetworkDiscoveryService();
         ReflectionTestUtils.setField(networkDiscoveryService, "serverPort", 8080);
+        QrCodeService qrCodeService = new QrCodeService();
 
-        TransferController transferController = new TransferController(sessionService, storageService, networkDiscoveryService, metricsService);
+        TransferController transferController = new TransferController(sessionService, storageService, networkDiscoveryService, metricsService, qrCodeService);
         PeerDiscoveryService peerDiscoveryService = new PeerDiscoveryService();
         ReflectionTestUtils.setField(peerDiscoveryService, "serverPort", 8080);
         NetworkController networkController = new NetworkController(networkDiscoveryService, peerDiscoveryService);
@@ -56,6 +58,14 @@ class TransferControllerTest {
         networkMockMvc = MockMvcBuilders.standaloneSetup(networkController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void testQrCodeEndpoints() throws Exception {
+        mockMvc.perform(get("/api/transfer/qr").param("text", "http://localhost:8080/?pin=123456"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(content().contentType(MediaType.IMAGE_PNG));
     }
 
     @Test

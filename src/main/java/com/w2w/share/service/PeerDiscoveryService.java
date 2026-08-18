@@ -34,13 +34,19 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
     private Thread listenerThread;
 
     public record DiscoveredPeer(
+            String deviceId,
             String nodeId,
             String deviceName,
             String ip,
             int port,
+            String os,
             String url,
             long lastSeen
-    ) {}
+    ) {
+        public DiscoveredPeer(String nodeId, String deviceName, String ip, int port, String os, String url, long lastSeen) {
+            this(nodeId, nodeId, deviceName, ip, port, os, url, lastSeen);
+        }
+    }
 
     @PostConstruct
     @Override
@@ -82,18 +88,21 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
                 String json = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
                 Map<String, Object> map = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
 
-                String peerNodeId = (String) map.get("nodeId");
+                String peerNodeId = map.containsKey("deviceId") ? String.valueOf(map.get("deviceId")) : (String) map.get("nodeId");
                 if (peerNodeId != null && !peerNodeId.equals(this.nodeId)) {
                     String peerDevice = map.containsKey("deviceName") ? String.valueOf(map.get("deviceName")) : "Unknown Device";
                     String peerIp = packet.getAddress().getHostAddress();
                     int peerPort = map.containsKey("port") ? ((Number) map.get("port")).intValue() : 8080;
+                    String peerOs = map.containsKey("os") ? String.valueOf(map.get("os")) : System.getProperty("os.name", "Unknown");
                     String peerUrl = "http://" + peerIp + ":" + peerPort;
 
                     peers.put(peerNodeId, new DiscoveredPeer(
                             peerNodeId,
+                            peerNodeId,
                             peerDevice,
                             peerIp,
                             peerPort,
+                            peerOs,
                             peerUrl,
                             System.currentTimeMillis()
                     ));
@@ -112,8 +121,10 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
         try {
             Map<String, Object> announcement = Map.of(
                     "service", "w2w-share",
+                    "deviceId", this.nodeId,
                     "nodeId", this.nodeId,
                     "deviceName", this.hostDeviceName,
+                    "os", System.getProperty("os.name", "Host OS"),
                     "port", this.serverPort
             );
 
