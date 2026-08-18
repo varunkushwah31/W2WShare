@@ -1,11 +1,17 @@
 package com.w2w.share.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
+
+@Getter
+@Setter
 public class TransferSession {
 
     public enum SessionStatus {
@@ -47,34 +53,14 @@ public class TransferSession {
         this.lastActivityAt = Instant.now();
     }
 
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public String getPin() {
-        return pin;
-    }
-
-    public String getSenderId() {
-        return senderId;
-    }
-
     public void setSenderId(String senderId) {
         this.senderId = senderId;
         touch();
     }
 
-    public String getReceiverId() {
-        return receiverId;
-    }
-
     public void setReceiverId(String receiverId) {
         this.receiverId = receiverId;
         touch();
-    }
-
-    public SessionStatus getStatus() {
-        return status;
     }
 
     public void setStatus(SessionStatus status) {
@@ -91,7 +77,7 @@ public class TransferSession {
         if (activeFileIndex >= 0 && activeFileIndex < fileBatch.size()) {
             return fileBatch.get(activeFileIndex);
         }
-        return fileBatch.get(0);
+        return fileBatch.getFirst();
     }
 
     public void setFileMetadata(FileMetadata fileMetadata) {
@@ -116,19 +102,11 @@ public class TransferSession {
         touch();
     }
 
-    public int getActiveFileIndex() {
-        return activeFileIndex;
-    }
-
     public void setActiveFileIndex(int activeFileIndex) {
         this.activeFileIndex = activeFileIndex;
         this.uploadedChunks.set(0);
         this.downloadedChunks.set(0);
         touch();
-    }
-
-    public String getEncryptedClipboardText() {
-        return encryptedClipboardText;
     }
 
     public void setEncryptedClipboardText(String encryptedClipboardText) {
@@ -143,14 +121,6 @@ public class TransferSession {
     public void addChatMessage(ChatMessage msg) {
         this.chatHistory.add(msg);
         touch();
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getLastActivityAt() {
-        return lastActivityAt;
     }
 
     public void touch() {
@@ -175,23 +145,11 @@ public class TransferSession {
         return downloadedChunks.get();
     }
 
-    public boolean isBurnAfterReading() {
-        return burnAfterReading;
-    }
-
     public void setBurnAfterReading(boolean burnAfterReading) {
         this.burnAfterReading = burnAfterReading;
         if (burnAfterReading && this.maxDownloads == 0) {
             this.maxDownloads = 1;
         }
-    }
-
-    public int getMaxDownloads() {
-        return maxDownloads;
-    }
-
-    public void setMaxDownloads(int maxDownloads) {
-        this.maxDownloads = maxDownloads;
     }
 
     public int getCompletedDownloads() {
@@ -202,14 +160,6 @@ public class TransferSession {
         int count = completedDownloads.incrementAndGet();
         touch();
         return (burnAfterReading && count >= 1) || (maxDownloads > 0 && count >= maxDownloads);
-    }
-
-    public Long getExpireAtEpochMs() {
-        return expireAtEpochMs;
-    }
-
-    public void setExpireAtEpochMs(Long expireAtEpochMs) {
-        this.expireAtEpochMs = expireAtEpochMs;
     }
 
     public boolean isExpired(long timeoutSeconds) {

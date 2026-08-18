@@ -1,5 +1,10 @@
 package com.w2w.share.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class ChatMessage {
     private String id;
     private String senderRole;
@@ -15,35 +20,4 @@ public class ChatMessage {
         this.timestamp = timestamp;
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getSenderRole() {
-        return senderRole;
-    }
-
-    public void setSenderRole(String senderRole) {
-        this.senderRole = senderRole;
-    }
-
-    public String getEncryptedContent() {
-        return encryptedContent;
-    }
-
-    public void setEncryptedContent(String encryptedContent) {
-        this.encryptedContent = encryptedContent;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
-    }
 }
