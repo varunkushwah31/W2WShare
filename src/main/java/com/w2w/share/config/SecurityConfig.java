@@ -78,7 +78,6 @@ public class SecurityConfig {
         configuration.setExposedHeaders(List.of("Content-Disposition", "Retry-After", "X-W2W-Session-Status"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
