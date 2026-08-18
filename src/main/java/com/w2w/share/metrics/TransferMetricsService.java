@@ -42,8 +42,8 @@ public class TransferMetricsService implements ITransferMetricsService {
                 .baseUnit("bytes")
                 .register(registry);
 
-        registry.gauge("w2w.sessions.active", activeSessionsGauge, AtomicInteger::get);
-        registry.gauge("w2w.storage.consumed", storageConsumedGauge, AtomicLong::get);
+        registry.gauge("w2w.sessions.active", activeSessionsGauge, gauge -> gauge != null ? gauge.get() : 0.0);
+        registry.gauge("w2w.storage.consumed", storageConsumedGauge, gauge -> gauge != null ? gauge.get() : 0.0);
     }
 
     @Override

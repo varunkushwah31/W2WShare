@@ -33,23 +33,22 @@ public class AuditLedgerService implements IAuditLedgerService {
         if (dto == null) {
             throw new IllegalArgumentException("Audit record payload cannot be null");
         }
-        String txId = (dto.id() != null && !dto.id().isBlank())
-                ? dto.id()
-                : "TX-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-
+        String txId = sanitizeField(dto.id(), "TX-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(), 64);
         long timestamp = dto.timestamp() > 0 ? dto.timestamp() : System.currentTimeMillis();
-        String direction = dto.direction() != null ? dto.direction() : "SENT";
-        String cipher = dto.cipher() != null ? dto.cipher() : "AES-256-GCM / PBKDF2 (100k)";
-        String signature = generateCryptographicSignature(txId, dto.fileName(), dto.sha256(), timestamp);
+        String direction = sanitizeField(dto.direction(), "SENT", 16);
+        String fileName = sanitizeField(dto.fileName(), "unnamed_payload", 512);
+        String sha256 = sanitizeField(dto.sha256(), "", 128);
+        String cipher = sanitizeField(dto.cipher(), "AES-256-GCM / PBKDF2 (100k)", 128);
+        String signature = generateCryptographicSignature(txId, fileName, sha256, timestamp);
 
         AuditRecordEntity entity = new AuditRecordEntity(
                 txId,
                 timestamp,
                 direction,
-                dto.fileName() != null ? dto.fileName() : "unnamed_payload",
+                fileName,
                 dto.fileSize(),
                 dto.totalChunks(),
-                dto.sha256() != null ? dto.sha256() : "",
+                sha256,
                 cipher,
                 dto.burned(),
                 dto.isCompressed(),
@@ -59,6 +58,14 @@ public class AuditLedgerService implements IAuditLedgerService {
         AuditRecordEntity saved = repository.save(entity);
         log.info("Persisted cryptographic audit record: [{}] ({})", saved.getTransactionId(), saved.getFileName());
         return AuditRecordDto.fromEntity(saved);
+    }
+
+    private static String sanitizeField(String value, String defaultValue, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > maxLength ? trimmed.substring(0, maxLength) : trimmed;
     }
 
     @Override
@@ -92,7 +99,7 @@ public class AuditLedgerService implements IAuditLedgerService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
             return "SIG_" + HexFormat.of().formatHex(hash).substring(0, 32).toUpperCase();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return "SIG_LOCAL_KEYSTORE_VALID";
         }
     }

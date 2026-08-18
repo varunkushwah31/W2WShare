@@ -24,6 +24,7 @@ public class StorageService implements IStorageService {
     private static final String FILE_PREFIX = "file_";
     private static final String CHUNK_PREFIX = "chunk_";
     private static final String BIN_EXT = ".bin";
+    private static final int MAX_CHUNK_SIZE_BYTES = 64 * 1024 * 1024; // 64 MB chunk ceiling
 
     @Value("${w2w.storage.temp-dir:#{systemProperties['java.io.tmpdir'] + '/w2w-share'}}")
     private String tempDirPath;
@@ -84,6 +85,10 @@ public class StorageService implements IStorageService {
             throw new InvalidChunkException("Chunk payload cannot be empty or null.");
         }
 
+        if (data.length > MAX_CHUNK_SIZE_BYTES) {
+            throw new InvalidChunkException("Chunk payload (" + data.length + " bytes) exceeds maximum allowed chunk size (" + MAX_CHUNK_SIZE_BYTES + " bytes).");
+        }
+
         if (usedStorageBytes.get() + data.length > maxQuotaBytes) {
             throw new StorageException("Storage quota of " + (maxQuotaBytes / (1024 * 1024 * 1024)) + " GB exceeded.");
         }
@@ -138,14 +143,34 @@ public class StorageService implements IStorageService {
     }
 
     @Override
+    public Path getChunkPath(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException {
+        validateSessionId(sessionId);
+        if (fileIndex < 0 || chunkIndex < 0) {
+            throw new InvalidChunkException("File index (" + fileIndex + ") and chunk index (" + chunkIndex + ") must be non-negative.");
+        }
+
+        Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT).normalize();
+        if (!chunkPath.startsWith(rootStoragePath)) {
+            throw new StorageException("Path traversal attempt detected for chunk retrieval: " + sessionId);
+        }
+
+        if (!Files.exists(chunkPath)) {
+            throw new NoSuchFileException("Chunk " + chunkIndex + " for file " + fileIndex + " not found in session " + sessionId);
+        }
+
+        return chunkPath;
+    }
+
+    @Override
     public boolean hasChunk(String sessionId, int fileIndex, int chunkIndex) {
         if (sessionId == null || sessionId.isBlank() || fileIndex < 0 || chunkIndex < 0) {
             return false;
         }
         try {
+            validateSessionId(sessionId);
             Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT).normalize();
             return chunkPath.startsWith(rootStoragePath) && Files.exists(chunkPath);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return false;
         }
     }
@@ -157,6 +182,7 @@ public class StorageService implements IStorageService {
         }
 
         try {
+            validateSessionId(sessionId);
             Path fileDir = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).normalize();
             if (!fileDir.startsWith(rootStoragePath) || !Files.exists(fileDir)) {
                 return Collections.emptySet();
@@ -169,7 +195,7 @@ public class StorageService implements IStorageService {
                         .map(Integer::parseInt)
                         .collect(Collectors.toSet());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.debug("Failed to read chunks in directory for session {}: {}", sessionId, e.getMessage());
             return Collections.emptySet();
         }
@@ -178,6 +204,13 @@ public class StorageService implements IStorageService {
     @Override
     public void cleanupSession(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) return;
+        try {
+            validateSessionId(sessionId);
+        } catch (Exception e) {
+            log.warn("Skipping cleanup for invalid session ID format: {}", sessionId);
+            return;
+        }
+
         Path sessionDir = rootStoragePath.resolve(sessionId).normalize();
         if (!sessionDir.startsWith(rootStoragePath) || !Files.exists(sessionDir)) return;
 
@@ -203,7 +236,12 @@ public class StorageService implements IStorageService {
 
     @Override
     public Path getSessionDirectory(String sessionId) {
-        return rootStoragePath.resolve(sessionId);
+        validateSessionId(sessionId);
+        Path sessionDir = rootStoragePath.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(rootStoragePath)) {
+            throw new StorageException("Path traversal attempt in getSessionDirectory: " + sessionId);
+        }
+        return sessionDir;
     }
 
     @Override

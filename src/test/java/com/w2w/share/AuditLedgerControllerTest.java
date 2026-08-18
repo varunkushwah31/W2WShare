@@ -7,7 +7,6 @@ import com.w2w.share.dto.AuditRecordDto;
 import com.w2w.share.service.IAuditLedgerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -16,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -28,17 +28,17 @@ class AuditLedgerControllerTest {
 
     @BeforeEach
     void setUp() {
-        auditLedgerService = Mockito.mock(IAuditLedgerService.class);
+        auditLedgerService = mock(IAuditLedgerService.class);
         AuditLedgerController controller = new AuditLedgerController(auditLedgerService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
     @Test
     void testGetLedger() throws Exception {
-        AuditRecordDto record = new AuditRecordDto(
+        AuditRecordDto recordDto = new AuditRecordDto(
                 "TX-8942-A", System.currentTimeMillis(), "SENT", "report.parquet", 4000L, 2, "sha256", "AES", true, true
         );
-        when(auditLedgerService.getAllRecords()).thenReturn(List.of(record));
+        when(auditLedgerService.getAllRecords()).thenReturn(List.of(recordDto));
 
         mockMvc.perform(get("/api/audit/ledger"))
                 .andExpect(status().isOk())
@@ -48,14 +48,14 @@ class AuditLedgerControllerTest {
 
     @Test
     void testRecordTransaction() throws Exception {
-        AuditRecordDto record = new AuditRecordDto(
+        AuditRecordDto recordDto = new AuditRecordDto(
                 "TX-NEW", System.currentTimeMillis(), "RECEIVED", "video.mp4", 5000000L, 5, "sha", "AES", false, false
         );
-        when(auditLedgerService.recordTransaction(any(AuditRecordDto.class))).thenReturn(record);
+        when(auditLedgerService.recordTransaction(any(AuditRecordDto.class))).thenReturn(recordDto);
 
         mockMvc.perform(post("/api/audit/ledger")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(record)))
+                        .content(objectMapper.writeValueAsString(recordDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("TX-NEW"))
                 .andExpect(jsonPath("$.direction").value("RECEIVED"));

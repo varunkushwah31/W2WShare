@@ -32,6 +32,7 @@ public class ChatMessage {
     }
 
     @JsonProperty("encryptedContent")
+    @SuppressWarnings("java:S4144")
     public String getEncryptedContent() {
         return content;
     }

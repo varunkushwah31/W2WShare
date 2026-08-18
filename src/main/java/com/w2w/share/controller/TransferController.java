@@ -2,7 +2,7 @@ package com.w2w.share.controller;
 
 import com.w2w.share.dto.*;
 import com.w2w.share.exception.InvalidChunkException;
-import com.w2w.share.exception.SessionNotFoundException;
+import com.w2w.share.exception.InvalidPinException;
 import com.w2w.share.metrics.ITransferMetricsService;
 import com.w2w.share.model.ChatMessage;
 import com.w2w.share.model.FileMetadata;
@@ -13,7 +13,6 @@ import com.w2w.share.service.ISessionService;
 import com.w2w.share.service.IStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,6 +27,9 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/transfer")
 public class TransferController {
+
+    private static final String PARAM_STATUS = "status";
+    private static final String STATUS_SAVED = "SAVED";
 
     private final ISessionService sessionService;
     private final IStorageService storageService;
@@ -99,10 +101,12 @@ public class TransferController {
         ));
     }
 
+    private static final int MAX_CHUNK_PAYLOAD_BYTES = 64 * 1024 * 1024; // 64 MB per chunk safety ceiling
+
     @GetMapping("/session/by-pin/{pin}")
     public ResponseEntity<TransferSessionDetailsResponse> getSessionByPin(@PathVariable String pin) {
         TransferSession session = sessionService.getSessionByPin(pin)
-                .orElseThrow(() -> new SessionNotFoundException("No active session with PIN: " + pin));
+                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
 
         return ResponseEntity.ok(TransferSessionDetailsResponse.from(session));
     }
@@ -110,15 +114,14 @@ public class TransferController {
     @PostMapping("/session/{sessionId}/join")
     public ResponseEntity<JoinSessionResponse> joinSession(
             @PathVariable String sessionId,
-            @Valid @RequestBody JoinSessionRequest body,
-            HttpServletRequest request) {
+            @RequestBody JoinSessionRequest request,
+            HttpServletRequest httpRequest) {
 
-        String pin = body.pin();
-        String receiverId = body.receiverId() != null ? body.receiverId() : "receiver-" + System.currentTimeMillis();
-        String clientIp = request.getRemoteAddr();
+        String pin = (request != null && request.pin() != null) ? request.pin().trim() : "";
+        String receiverId = (request != null && request.receiverId() != null) ? request.receiverId() : "receiver-" + System.currentTimeMillis();
+        String clientIp = httpRequest != null ? httpRequest.getRemoteAddr() : "unknown-ip";
 
         TransferSession session = sessionService.joinSessionWithRateLimit(pin, receiverId, clientIp);
-
         return ResponseEntity.ok(new JoinSessionResponse(
                 session.getSessionId(),
                 session.getPin(),
@@ -138,7 +141,7 @@ public class TransferController {
             throw new IllegalArgumentException("File metadata is required.");
         }
         sessionService.setFileOffer(sessionId, metadata);
-        return ResponseEntity.ok(Map.of("status", "OFFER_REGISTERED", "metadata", metadata));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "OFFER_REGISTERED", "metadata", metadata));
     }
 
     @PostMapping("/session/{sessionId}/batch-offer")
@@ -150,7 +153,7 @@ public class TransferController {
             throw new IllegalArgumentException("File batch cannot be null or empty.");
         }
         sessionService.setFileBatchOffer(sessionId, batch);
-        return ResponseEntity.ok(Map.of("status", "BATCH_REGISTERED", "totalFiles", batch.size()));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "BATCH_REGISTERED", "totalFiles", batch.size()));
     }
 
     @PostMapping(value = "/session/{sessionId}/file/{fileIndex}/chunk/{chunkIndex}", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
@@ -162,6 +165,9 @@ public class TransferController {
 
         if (data == null || data.length == 0) {
             throw new InvalidChunkException("Chunk payload cannot be empty or null.");
+        }
+        if (data.length > MAX_CHUNK_PAYLOAD_BYTES) {
+            throw new InvalidChunkException("Chunk payload exceeds maximum size limit (" + MAX_CHUNK_PAYLOAD_BYTES + " bytes).");
         }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
@@ -175,7 +181,7 @@ public class TransferController {
                 "chunkIndex", chunkIndex,
                 "bytesReceived", data.length,
                 "totalUploadedChunks", count,
-                "status", "SAVED"
+                PARAM_STATUS, STATUS_SAVED
         ));
     }
 
@@ -187,6 +193,9 @@ public class TransferController {
 
         if (file == null || file.isEmpty()) {
             throw new InvalidChunkException("Uploaded file chunk cannot be empty.");
+        }
+        if (file.getSize() > MAX_CHUNK_PAYLOAD_BYTES) {
+            throw new InvalidChunkException("Uploaded file chunk exceeds maximum size limit (" + MAX_CHUNK_PAYLOAD_BYTES + " bytes).");
         }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
@@ -200,7 +209,7 @@ public class TransferController {
                 "chunkIndex", chunkIndex,
                 "bytesReceived", bytes.length,
                 "totalUploadedChunks", count,
-                "status", "SAVED"
+                PARAM_STATUS, STATUS_SAVED
         ));
     }
 
@@ -217,18 +226,19 @@ public class TransferController {
     public ResponseEntity<Resource> downloadFileChunk(
             @PathVariable String sessionId,
             @PathVariable int fileIndex,
-            @PathVariable int chunkIndex) throws NoSuchFileException {
+            @PathVariable int chunkIndex) throws NoSuchFileException, IOException {
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
-        byte[] data = storageService.getChunk(sessionId, fileIndex, chunkIndex);
+        java.nio.file.Path chunkPath = storageService.getChunkPath(sessionId, fileIndex, chunkIndex);
+        long fileSize = java.nio.file.Files.size(chunkPath);
         session.incrementDownloadedChunks();
 
-        metricsService.recordChunkDownload(data.length);
+        metricsService.recordChunkDownload(fileSize);
 
-        ByteArrayResource resource = new ByteArrayResource(data);
+        org.springframework.core.io.FileSystemResource resource = new org.springframework.core.io.FileSystemResource(chunkPath);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"chunk_" + chunkIndex + ".bin\"")
-                .contentLength(data.length)
+                .contentLength(fileSize)
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
@@ -236,7 +246,7 @@ public class TransferController {
     @GetMapping(value = "/session/{sessionId}/chunk/{chunkIndex}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ResponseEntity<Resource> downloadChunk(
             @PathVariable String sessionId,
-            @PathVariable int chunkIndex) throws NoSuchFileException {
+            @PathVariable int chunkIndex) throws NoSuchFileException, IOException {
 
         return downloadFileChunk(sessionId, 0, chunkIndex);
     }
@@ -245,7 +255,7 @@ public class TransferController {
     public ResponseEntity<Map<String, Object>> markTransferComplete(@PathVariable String sessionId) {
         boolean burned = sessionService.notifyDownloadComplete(sessionId);
         return ResponseEntity.ok(Map.of(
-                "status", "COMPLETED",
+                PARAM_STATUS, "COMPLETED",
                 "burned", burned
         ));
     }
@@ -257,7 +267,7 @@ public class TransferController {
 
         String text = (request != null && request.text() != null) ? request.text() : "";
         sessionService.setEncryptedClipboardText(sessionId, text);
-        return ResponseEntity.ok(Map.of("status", "SAVED"));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, STATUS_SAVED));
     }
 
     @GetMapping("/session/{sessionId}/clipboard")

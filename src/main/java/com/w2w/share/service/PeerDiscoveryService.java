@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -20,6 +21,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PeerDiscoveryService implements IPeerDiscoveryService {
 
     private static final Logger log = LoggerFactory.getLogger(PeerDiscoveryService.class);
+
+    private static final String KEY_DEVICE_ID = "deviceId";
+    private static final String KEY_DEVICE_NAME = "deviceName";
+    private static final String KEY_NODE_ID = "nodeId";
+    private static final String KEY_PORT = "port";
+    private static final String KEY_OS = "os";
+    private static final String PROP_OS_NAME = "os.name";
 
     @Value("${server.port:8080}")
     private int serverPort;
@@ -31,7 +39,6 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
 
     private DatagramSocket socket;
     private volatile boolean running = false;
-    private Thread listenerThread;
 
     public record DiscoveredPeer(
             String deviceId,
@@ -59,7 +66,7 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
 
             running = true;
 
-            listenerThread = new Thread(this::listenForPeers, "W2W-Peer-Discovery-Listener");
+            Thread listenerThread = new Thread(this::listenForPeers, "W2W-Peer-Discovery-Listener");
             listenerThread.setDaemon(true);
             listenerThread.start();
 
@@ -84,32 +91,46 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
-
-                String json = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
-                Map<String, Object> map = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
-
-                String peerNodeId = map.containsKey("deviceId") ? String.valueOf(map.get("deviceId")) : (String) map.get("nodeId");
-                if (peerNodeId != null && !peerNodeId.equals(this.nodeId)) {
-                    String peerDevice = map.containsKey("deviceName") ? String.valueOf(map.get("deviceName")) : "Unknown Device";
-                    String peerIp = packet.getAddress().getHostAddress();
-                    int peerPort = map.containsKey("port") ? ((Number) map.get("port")).intValue() : 8080;
-                    String peerOs = map.containsKey("os") ? String.valueOf(map.get("os")) : System.getProperty("os.name", "Unknown");
-                    String peerUrl = "http://" + peerIp + ":" + peerPort;
-
-                    peers.put(peerNodeId, new DiscoveredPeer(
-                            peerNodeId,
-                            peerNodeId,
-                            peerDevice,
-                            peerIp,
-                            peerPort,
-                            peerOs,
-                            peerUrl,
-                            System.currentTimeMillis()
-                    ));
-                }
+                parseAndStorePeer(packet);
             } catch (SocketException se) {
+                if (running) {
+                    log.debug("UDP discovery socket interrupted or closed: {}", se.getMessage());
+                }
                 break;
-            } catch (Exception ignored) {}
+            } catch (IOException ioe) {
+                if (running) {
+                    log.debug("Failed to read UDP peer packet: {}", ioe.getMessage());
+                }
+            } catch (Exception e) {
+                if (running) {
+                    log.warn("Unexpected error processing peer discovery packet: {}", e.getMessage(), e);
+                }
+            }
+        }
+    }
+
+    private void parseAndStorePeer(DatagramPacket packet) throws IOException {
+        String json = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
+        Map<String, Object> map = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+
+        String peerNodeId = map.containsKey(KEY_DEVICE_ID) ? String.valueOf(map.get(KEY_DEVICE_ID)) : (String) map.get(KEY_NODE_ID);
+        if (peerNodeId != null && !peerNodeId.equals(this.nodeId)) {
+            String peerDevice = map.containsKey(KEY_DEVICE_NAME) ? String.valueOf(map.get(KEY_DEVICE_NAME)) : "Unknown Device";
+            String peerIp = packet.getAddress().getHostAddress();
+            int peerPort = map.containsKey(KEY_PORT) ? ((Number) map.get(KEY_PORT)).intValue() : 8080;
+            String peerOs = map.containsKey(KEY_OS) ? String.valueOf(map.get(KEY_OS)) : System.getProperty(PROP_OS_NAME, "Unknown");
+            String peerUrl = "http://" + peerIp + ":" + peerPort;
+
+            peers.put(peerNodeId, new DiscoveredPeer(
+                    peerNodeId,
+                    peerNodeId,
+                    peerDevice,
+                    peerIp,
+                    peerPort,
+                    peerOs,
+                    peerUrl,
+                    System.currentTimeMillis()
+            ));
         }
     }
 
@@ -121,11 +142,11 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
         try {
             Map<String, Object> announcement = Map.of(
                     "service", "w2w-share",
-                    "deviceId", this.nodeId,
-                    "nodeId", this.nodeId,
-                    "deviceName", this.hostDeviceName,
-                    "os", System.getProperty("os.name", "Host OS"),
-                    "port", this.serverPort
+                    KEY_DEVICE_ID, this.nodeId,
+                    KEY_NODE_ID, this.nodeId,
+                    KEY_DEVICE_NAME, this.hostDeviceName,
+                    KEY_OS, System.getProperty(PROP_OS_NAME, "Host OS"),
+                    KEY_PORT, this.serverPort
             );
 
             byte[] bytes = objectMapper.writeValueAsBytes(announcement);
@@ -137,14 +158,24 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
             );
 
             socket.send(packet);
-        } catch (Exception ignored) {}
+        } catch (SocketException | UnknownHostException e) {
+            log.debug("Subnet broadcast announcement skipped or unreachable: {}", e.getMessage());
+        } catch (IOException ioe) {
+            log.warn("IO error broadcasting subnet announcement: {}", ioe.getMessage());
+        } catch (Exception e) {
+            log.warn("Unexpected failure during peer broadcast: {}", e.getMessage(), e);
+        }
     }
 
     @Scheduled(fixedDelay = 8000)
     @Override
     public void evictStalePeers() {
-        long now = System.currentTimeMillis();
-        peers.entrySet().removeIf(e -> (now - e.getValue().lastSeen()) > 15000);
+        try {
+            long now = System.currentTimeMillis();
+            peers.entrySet().removeIf(e -> (now - e.getValue().lastSeen()) > 15000);
+        } catch (Exception e) {
+            log.warn("Error during stale peer eviction: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -156,9 +187,13 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
         try {
             String host = InetAddress.getLocalHost().getHostName();
             if (host != null && !host.isBlank()) return host;
-        } catch (Exception ignored) {}
+        } catch (UnknownHostException uhe) {
+            log.debug("Unable to resolve local host name, using OS-based identifier: {}", uhe.getMessage());
+        } catch (Exception e) {
+            log.debug("Error while resolving device name: {}", e.getMessage());
+        }
 
-        String os = System.getProperty("os.name", "Host");
+        String os = System.getProperty(PROP_OS_NAME, "Host");
         return os + "-W2W";
     }
 }

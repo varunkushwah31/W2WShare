@@ -27,8 +27,11 @@ public class AuditLedgerController {
     }
 
     @PostMapping("/ledger")
-    public ResponseEntity<AuditRecordDto> recordTransaction(@RequestBody AuditRecordDto record) {
-        AuditRecordDto saved = auditLedgerService.recordTransaction(record);
+    public ResponseEntity<AuditRecordDto> recordTransaction(@RequestBody AuditRecordDto auditRecordDto) {
+        if (auditRecordDto == null) {
+            throw new IllegalArgumentException("Audit record payload cannot be null");
+        }
+        AuditRecordDto saved = auditLedgerService.recordTransaction(auditRecordDto);
         return ResponseEntity.ok(saved);
     }
 

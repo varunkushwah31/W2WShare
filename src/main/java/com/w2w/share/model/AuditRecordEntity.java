@@ -49,6 +49,7 @@ public class AuditRecordEntity {
     @Column(length = 256)
     private String signature;
 
+    @SuppressWarnings("java:S107")
     public AuditRecordEntity(
             String transactionId,
             long timestamp,

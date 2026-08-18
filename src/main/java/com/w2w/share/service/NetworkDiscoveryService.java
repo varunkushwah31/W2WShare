@@ -50,47 +50,55 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
 
             while (interfaces.hasMoreElements()) {
                 NetworkInterface iface = interfaces.nextElement();
-                if (!iface.isUp() || iface.isVirtual()) continue;
-
-                Enumeration<InetAddress> addresses = iface.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress addr = addresses.nextElement();
-                    if (addr instanceof Inet4Address) {
-                        String ip = addr.getHostAddress();
-                        boolean isLoopback = addr.isLoopbackAddress();
-                        String ifaceName = iface.getName() != null ? iface.getName() : "eth";
-                        String ifaceDisplayName = iface.getDisplayName() != null ? iface.getDisplayName() : ifaceName;
-
-                        boolean isWifi = ifaceName.toLowerCase().contains("wlan")
-                                || ifaceName.toLowerCase().contains("wi-fi")
-                                || ifaceDisplayName.toLowerCase().contains("wireless")
-                                || ifaceDisplayName.toLowerCase().contains("wi-fi")
-                                || ifaceName.toLowerCase().contains("ap");
-
-                        result.add(new InterfaceAddressInfo(
-                                ifaceName,
-                                ifaceDisplayName,
-                                ip,
-                                serverPort,
-                                isLoopback,
-                                isWifi
-                        ));
-                    }
+                if (iface.isUp() && !iface.isVirtual()) {
+                    processNetworkInterface(iface, result);
                 }
             }
         } catch (SocketException e) {
             log.error("Failed to query local network interfaces", e);
         }
 
-        result.sort((a, b) -> {
-            if (a.isWifiOrHotspot() && !b.isWifiOrHotspot()) return -1;
-            if (!a.isWifiOrHotspot() && b.isWifiOrHotspot()) return 1;
-            if (!a.isLoopback() && b.isLoopback()) return -1;
-            if (a.isLoopback() && !b.isLoopback()) return 1;
-            return Objects.toString(a.getName(), "").compareTo(Objects.toString(b.getName(), ""));
-        });
-
+        result.sort(NetworkDiscoveryService::compareInterfaces);
         return result;
+    }
+
+    private void processNetworkInterface(NetworkInterface iface, List<InterfaceAddressInfo> result) {
+        String ifaceName = iface.getName() != null ? iface.getName() : "eth";
+        String ifaceDisplayName = iface.getDisplayName() != null ? iface.getDisplayName() : ifaceName;
+        boolean isWifi = isWifiOrHotspotInterface(ifaceName, ifaceDisplayName);
+
+        Enumeration<InetAddress> addresses = iface.getInetAddresses();
+        while (addresses.hasMoreElements()) {
+            InetAddress addr = addresses.nextElement();
+            if (addr instanceof Inet4Address) {
+                result.add(new InterfaceAddressInfo(
+                        ifaceName,
+                        ifaceDisplayName,
+                        addr.getHostAddress(),
+                        serverPort,
+                        addr.isLoopbackAddress(),
+                        isWifi
+                ));
+            }
+        }
+    }
+
+    private static boolean isWifiOrHotspotInterface(String name, String displayName) {
+        String lowerName = name.toLowerCase();
+        String lowerDisplay = displayName.toLowerCase();
+        return lowerName.contains("wlan")
+                || lowerName.contains("wi-fi")
+                || lowerDisplay.contains("wireless")
+                || lowerDisplay.contains("wi-fi")
+                || lowerName.contains("ap");
+    }
+
+    private static int compareInterfaces(InterfaceAddressInfo a, InterfaceAddressInfo b) {
+        if (a.isWifiOrHotspot() && !b.isWifiOrHotspot()) return -1;
+        if (!a.isWifiOrHotspot() && b.isWifiOrHotspot()) return 1;
+        if (!a.isLoopback() && b.isLoopback()) return -1;
+        if (a.isLoopback() && !b.isLoopback()) return 1;
+        return Objects.toString(a.getName(), "").compareTo(Objects.toString(b.getName(), ""));
     }
 
     @Override

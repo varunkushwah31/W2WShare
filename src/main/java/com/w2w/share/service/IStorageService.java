@@ -12,6 +12,8 @@ public interface IStorageService {
 
     byte[] getChunk(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException;
 
+    Path getChunkPath(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException;
+
     boolean hasChunk(String sessionId, int fileIndex, int chunkIndex);
 
     Set<Integer> getExistingChunkIndices(String sessionId, int fileIndex);

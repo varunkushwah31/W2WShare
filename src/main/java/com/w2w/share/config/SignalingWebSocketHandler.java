@@ -21,6 +21,9 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SignalingWebSocketHandler.class);
 
+    private static final String SIGNAL_ERROR = "ERROR";
+    private static final int MAX_SIGNAL_PAYLOAD_CHARS = 1024 * 1024; // 1MB payload ceiling
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ISessionService sessionService;
 
@@ -40,12 +43,22 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        if (message == null || message.getPayload() == null || message.getPayload().isBlank()) {
+        String payload = message.getPayload();
+        if (payload.isBlank()) {
+            return;
+        }
+
+        if (payload.length() > MAX_SIGNAL_PAYLOAD_CHARS) {
+            log.warn("Rejected oversized WebSocket payload ({} chars) from socket {}", payload.length(), session.getId());
+            try {
+                sendSignal(session, new SignalMessage(SIGNAL_ERROR, "Signal message exceeds maximum allowable size of 1MB"));
+            } catch (IOException sendEx) {
+                log.debug("Could not transmit error frame to socket {}: {}", session.getId(), sendEx.getMessage());
+            }
             return;
         }
 
         try {
-            String payload = message.getPayload();
             SignalMessage signal = objectMapper.readValue(payload, SignalMessage.class);
             if (signal == null || signal.type() == null) {
                 log.warn("Received empty or untyped signal from socket {}", session.getId());
@@ -70,14 +83,16 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             log.warn("Error processing WebSocket signal from {}: {}", session.getId(), e.getMessage());
             try {
-                sendSignal(session, new SignalMessage("ERROR", "Failed to process signal: " + e.getMessage()));
-            } catch (IOException ignored) {}
+                sendSignal(session, new SignalMessage(SIGNAL_ERROR, "Failed to process signal: " + e.getMessage()));
+            } catch (IOException sendEx) {
+                log.debug("Could not transmit error frame to socket {}: {}", session.getId(), sendEx.getMessage());
+            }
         }
     }
 
     private void handleRegisterSender(WebSocketSession session, SignalMessage signal) throws IOException {
         if (signal.payload() == null) {
-            sendSignal(session, new SignalMessage("ERROR", "Session ID required for sender registration"));
+            sendSignal(session, new SignalMessage(SIGNAL_ERROR, "Session ID required for sender registration"));
             return;
         }
         String transferSessionId = String.valueOf(signal.payload());
@@ -88,13 +103,14 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private void handleJoinByPin(WebSocketSession session, SignalMessage signal) throws IOException {
         if (signal.payload() == null || String.valueOf(signal.payload()).isBlank()) {
-            sendSignal(session, new SignalMessage("ERROR", "PIN is required to join session"));
+            sendSignal(session, new SignalMessage(SIGNAL_ERROR, "PIN is required to join session"));
             return;
         }
         String pin = String.valueOf(signal.payload()).trim();
         String clientIp = session.getId();
-        if (session.getRemoteAddress() != null && session.getRemoteAddress().getAddress() != null) {
-            clientIp = session.getRemoteAddress().getAddress().getHostAddress();
+        java.net.InetSocketAddress remoteAddress = session.getRemoteAddress();
+        if (remoteAddress != null && remoteAddress.getAddress() != null) {
+            clientIp = remoteAddress.getAddress().getHostAddress();
         }
 
         try {
@@ -115,7 +131,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             )));
         } catch (Exception e) {
             log.warn("Failed join attempt on socket {}: {}", session.getId(), e.getMessage());
-            sendSignal(session, new SignalMessage("ERROR", e.getMessage()));
+            sendSignal(session, new SignalMessage(SIGNAL_ERROR, e.getMessage()));
         }
     }
 
@@ -193,14 +209,18 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void sendSignal(WebSocketSession session, SignalMessage signal) throws IOException {
-        if (session.isOpen()) {
+        if (session != null && session.isOpen()) {
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(signal)));
         }
     }
 
     private void registerSocketToSession(WebSocketSession session, String transferSessionId) {
+        WebSocketSession concurrentSession = (session instanceof org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator)
+                ? session
+                : new org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator(session, 5000, 1024 * 1024);
+
         wsSessionToTransferSession.put(session.getId(), transferSessionId);
-        sessionSockets.computeIfAbsent(transferSessionId, k -> ConcurrentHashMap.newKeySet()).add(session);
+        sessionSockets.computeIfAbsent(transferSessionId, k -> ConcurrentHashMap.newKeySet()).add(concurrentSession);
     }
 
     @Override
@@ -217,7 +237,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         if (sockets == null) {
             return;
         }
-        sockets.remove(session);
+        sockets.removeIf(s -> s.getId().equals(session.getId()));
         if (sockets.isEmpty()) {
             sessionSockets.remove(transferSessionId);
             return;

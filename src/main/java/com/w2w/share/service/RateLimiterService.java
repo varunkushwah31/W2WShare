@@ -69,4 +69,13 @@ public class RateLimiterService implements IRateLimiterService {
         long diff = attempt.lockedUntilEpochMs - System.currentTimeMillis();
         return diff > 0 ? (diff / 1000) : 0;
     }
+
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 60000)
+    public void evictExpiredAttempts() {
+        long now = System.currentTimeMillis();
+        attempts.entrySet().removeIf(entry -> {
+            ClientAttempt attempt = entry.getValue();
+            return attempt != null && attempt.lockedUntilEpochMs > 0 && attempt.lockedUntilEpochMs < now;
+        });
+    }
 }

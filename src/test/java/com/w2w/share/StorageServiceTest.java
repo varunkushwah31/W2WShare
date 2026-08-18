@@ -64,4 +64,10 @@ class StorageServiceTest {
         assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, 0, null));
         assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, 0, new byte[0]));
     }
+
+    @Test
+    void testMaxChunkPayloadLimit() {
+        byte[] oversizedData = new byte[65 * 1024 * 1024]; // 65 MB (exceeds 64MB limit)
+        assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, 0, oversizedData));
+    }
 }
