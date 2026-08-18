@@ -19,4 +19,10 @@ public final class AppConstants {
 
     public static final String WEBSOCKET_PATH = "/ws/transfer";
     public static final String WEBSOCKET_ORIGIN_PATTERN = "*";
+
+    // WebRTC Signaling Constants
+    public static final int ICE_CANDIDATE_TIMEOUT_MS = 30000;
+    public static final int CONNECTION_STATE_TIMEOUT_MS = 60000;
+    public static final int RECONNECT_WINDOW_MS = 120000;
+    public static final int MAX_ICE_CANDIDATES_PER_PEER = 50;
 }

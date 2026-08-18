@@ -1,6 +1,7 @@
 package com.w2w.share.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record FileMetadata(
@@ -9,13 +10,13 @@ public record FileMetadata(
         String mimeType,
         int totalChunks,
         long chunkSize,
-        String salt,
-        String iv,
-        String authTag,
-        String sha256Checksum,
+        @JsonProperty("salt") String salt,
+        @JsonProperty("iv") String iv,
+        @JsonProperty("authTag") String authTag,
+        @JsonProperty("sha256") String sha256Checksum,
         String relativePath,
-        boolean isCompressed,
-        long originalSize
+        @JsonProperty("isCompressed") boolean isCompressed,
+        @JsonProperty("originalSize") long originalSize
 ) {
     public FileMetadata(
             String fileName,

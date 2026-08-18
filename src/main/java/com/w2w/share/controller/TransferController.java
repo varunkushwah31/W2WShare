@@ -96,7 +96,7 @@ public class TransferController {
                     i,
                     meta.fileName(),
                     meta.totalChunks(),
-                    chunks
+                    new ArrayList<>(chunks)
             ));
         }
 

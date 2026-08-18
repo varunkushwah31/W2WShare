@@ -1,9 +1,0 @@
-com\w2w\share\PeerDiscoveryServiceTest.class
-com\w2w\share\TransferControllerTest.class
-com\w2w\share\W2WSessionHealthIndicatorTest.class
-com\w2w\share\RateLimiterServiceTest.class
-com\w2w\share\StorageServiceTest.class
-com\w2w\share\W2WStorageHealthIndicatorTest.class
-com\w2w\share\TransferMetricsServiceTest.class
-com\w2w\share\SessionServiceTest.class
-com\w2w\share\E2ETransferIntegrationTest.class

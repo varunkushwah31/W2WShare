@@ -30,24 +30,19 @@ class TransferControllerTest {
 
     private MockMvc mockMvc;
     private MockMvc networkMockMvc;
-    private StorageService storageService;
-    private SessionService sessionService;
-    private RateLimiterService rateLimiterService;
-    private NetworkDiscoveryService networkDiscoveryService;
-    private TransferMetricsService metricsService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        storageService = new StorageService();
+        StorageService storageService = new StorageService();
         ReflectionTestUtils.setField(storageService, "tempDirPath", "./target/test-w2w-storage-ctrl");
         ReflectionTestUtils.setField(storageService, "maxQuotaBytes", 53687091200L);
         storageService.init();
 
-        rateLimiterService = new RateLimiterService();
-        metricsService = new TransferMetricsService(new SimpleMeterRegistry());
-        sessionService = new SessionService(storageService, rateLimiterService, metricsService);
-        networkDiscoveryService = new NetworkDiscoveryService();
+        RateLimiterService rateLimiterService = new RateLimiterService();
+        TransferMetricsService metricsService = new TransferMetricsService(new SimpleMeterRegistry());
+        SessionService sessionService = new SessionService(storageService, rateLimiterService, metricsService);
+        NetworkDiscoveryService networkDiscoveryService = new NetworkDiscoveryService();
         ReflectionTestUtils.setField(networkDiscoveryService, "serverPort", 8080);
 
         TransferController transferController = new TransferController(sessionService, storageService, networkDiscoveryService, metricsService);
@@ -122,7 +117,7 @@ class TransferControllerTest {
         mockMvc.perform(get("/api/transfer/session/" + sessionId + "/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionId").value(sessionId))
-                .andExpect(jsonPath("$.files[0].completedChunks[0]").value(0));
+                .andExpect(jsonPath("$.fileProgressList[0].existingChunks[0]").value(0));
 
         // 6. Download file 0 chunk
         mockMvc.perform(get("/api/transfer/session/" + sessionId + "/file/0/chunk/0"))
