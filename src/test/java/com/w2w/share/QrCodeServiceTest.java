@@ -33,4 +33,29 @@ class QrCodeServiceTest {
         assertThrows(IllegalArgumentException.class, () -> qrCodeService.generateQrCodePng(null));
         assertThrows(IllegalArgumentException.class, () -> qrCodeService.generateQrCodePng("   "));
     }
+
+    @Test
+    void testGenerateWifiQrCodePngSuccess() {
+        byte[] qrBytes = qrCodeService.generateWifiQrCodePng("MyHotspotSSID", "secretPassword123", "WPA", 250, 250);
+        assertNotNull(qrBytes);
+        assertTrue(qrBytes.length > 0);
+        assertEquals((byte) 0x89, qrBytes[0]);
+        assertEquals((byte) 'P', qrBytes[1]);
+        assertEquals((byte) 'N', qrBytes[2]);
+        assertEquals((byte) 'G', qrBytes[3]);
+    }
+
+    @Test
+    void testGenerateWifiQrCodePngNoPassword() {
+        byte[] qrBytes = qrCodeService.generateWifiQrCodePng("OpenCollegeWifi", "", "nopass");
+        assertNotNull(qrBytes);
+        assertTrue(qrBytes.length > 0);
+    }
+
+    @Test
+    void testGenerateWifiQrCodeWithBlankSsidThrows() {
+        assertThrows(IllegalArgumentException.class, () -> qrCodeService.generateWifiQrCodePng("", "pass", "WPA"));
+        assertThrows(IllegalArgumentException.class, () -> qrCodeService.generateWifiQrCodePng(null, "pass", "WPA"));
+    }
 }
+

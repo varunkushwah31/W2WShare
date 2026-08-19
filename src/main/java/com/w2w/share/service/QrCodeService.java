@@ -49,4 +49,39 @@ public class QrCodeService implements IQrCodeService {
     public byte[] generateQrCodePng(String text) {
         return generateQrCodePng(text, DEFAULT_SIZE, DEFAULT_SIZE);
     }
+
+    @Override
+    public byte[] generateWifiQrCodePng(String ssid, String password, String authType, int width, int height) {
+        if (ssid == null || ssid.isBlank()) {
+            throw new IllegalArgumentException("Wi-Fi SSID cannot be empty.");
+        }
+
+        String type = (authType == null || authType.isBlank()) ? "WPA" : authType.trim();
+        String escapedSsid = escapeWifiString(ssid.trim());
+        String wifiPayload;
+
+        if (password == null || password.isBlank() || "nopass".equalsIgnoreCase(type)) {
+            wifiPayload = "WIFI:T:nopass;S:" + escapedSsid + ";;";
+        } else {
+            String escapedPass = escapeWifiString(password);
+            wifiPayload = "WIFI:T:" + type + ";S:" + escapedSsid + ";P:" + escapedPass + ";;";
+        }
+
+        return generateQrCodePng(wifiPayload, width, height);
+    }
+
+    @Override
+    public byte[] generateWifiQrCodePng(String ssid, String password, String authType) {
+        return generateWifiQrCodePng(ssid, password, authType, DEFAULT_SIZE, DEFAULT_SIZE);
+    }
+
+    private String escapeWifiString(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")
+                .replace(";", "\\;")
+                .replace(",", "\\,")
+                .replace(":", "\\:")
+                .replace("\"", "\\\"");
+    }
 }
+

@@ -9,6 +9,19 @@ export interface NetworkInterfaceDto {
   url: string
   isLoopback: boolean
   isWifiOrHotspot: boolean
+  interfaceType?: string
+}
+
+export interface NetworkDiagnosticsResponse {
+  activeNetworkMode: string
+  udpDiscoveryActive: boolean
+  udpDiscoveryPort: number
+  apIsolationSuspected: boolean
+  apIsolationStatusMessage: string
+  recommendedMode: string
+  interfaces: NetworkInterfaceDto[]
+  localIp: string
+  primaryUrl: string
 }
 
 export interface NetworkInfoResponse {
@@ -130,6 +143,36 @@ export const api = {
         version: '1.0.0 (Offline E2EE)',
       }
     }
+  },
+
+  async getNetworkDiagnostics(): Promise<NetworkDiagnosticsResponse> {
+    try {
+      const res = await fetch(`${API_BASE}/network/diagnostics`)
+      if (!res.ok) throw new Error('Failed to fetch diagnostics')
+      return await res.json()
+    } catch {
+      return {
+        activeNetworkMode: 'OFFLINE_LOCAL',
+        udpDiscoveryActive: false,
+        udpDiscoveryPort: 8888,
+        apIsolationSuspected: false,
+        apIsolationStatusMessage: 'Running in offline standalone mode.',
+        recommendedMode: 'OFFLINE_HOTSPOT',
+        interfaces: [],
+        localIp: '127.0.0.1',
+        primaryUrl: 'http://localhost:8080',
+      }
+    }
+  },
+
+  getWifiQrUrl(ssid: string, password = '', authType = 'WPA', size = 300): string {
+    const params = new URLSearchParams({
+      ssid,
+      password,
+      authType,
+      size: String(size),
+    })
+    return `${API_BASE}/network/wifi-qr?${params.toString()}`
   },
 
   async getDiscoveredPeers(): Promise<DiscoveredPeer[]> {

@@ -4,12 +4,14 @@ import { ReceivePanel } from './ReceivePanel'
 import { PeerRadarPanel } from './PeerRadarPanel'
 import { ClipboardChatPanel } from './ClipboardChatPanel'
 import { AuditLedgerPanel } from './AuditLedgerPanel'
+import { OfflineSharingHub } from './OfflineSharingHub'
+import { type NetworkInterfaceDto } from '@/lib/api'
 import {
-  UploadSimple,
-  DownloadSimple,
-  Broadcast,
-  ClipboardText,
-  ShieldCheck,
+  UploadSimpleIcon,
+  DownloadSimpleIcon,
+  BroadcastIcon,
+  ClipboardTextIcon,
+  ShieldCheckIcon,
 } from '@phosphor-icons/react'
 
 export type W2WTabType = 'send' | 'receive' | 'radar' | 'clipboard' | 'ledger'
@@ -24,32 +26,33 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   id = 'workspace',
 }) => {
   const [activeTab, setActiveTab] = useState<W2WTabType>(initialTab)
+  const [selectedInterface, setSelectedInterface] = useState<NetworkInterfaceDto | null>(null)
 
   const tabs = [
     {
       id: 'send' as const,
       label: 'Send Files',
-      icon: <UploadSimple className="w-4 h-4" />,
+      icon: <UploadSimpleIcon className="w-4 h-4" />,
     },
     {
       id: 'receive' as const,
       label: 'Receive Vault',
-      icon: <DownloadSimple className="w-4 h-4" />,
+      icon: <DownloadSimpleIcon className="w-4 h-4" />,
     },
     {
       id: 'radar' as const,
       label: 'Subnet Radar',
-      icon: <Broadcast className="w-4 h-4 text-[#7089ba]" />,
+      icon: <BroadcastIcon className="w-4 h-4 text-[#7089ba]" />,
     },
     {
       id: 'clipboard' as const,
       label: 'Clipboard & Chat',
-      icon: <ClipboardText className="w-4 h-4" />,
+      icon: <ClipboardTextIcon className="w-4 h-4" />,
     },
     {
       id: 'ledger' as const,
       label: 'Audit Ledger',
-      icon: <ShieldCheck className="w-4 h-4" />,
+      icon: <ShieldCheckIcon className="w-4 h-4" />,
     },
   ]
 
@@ -78,8 +81,9 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
             {tabs.map((t) => (
               <button
                 key={t.id}
+                type='button'
                 onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer ${
                   activeTab === t.id
                     ? 'bg-white text-black font-semibold shadow-sm'
                     : 'text-[#808080] hover:text-white'
@@ -92,9 +96,15 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
           </div>
         </div>
 
+        {/* Offline & Campus Sharing Hub */}
+        <OfflineSharingHub
+          selectedInterface={selectedInterface}
+          onSelectedInterfaceChange={setSelectedInterface}
+        />
+
         {/* Tab Viewport */}
         <div className="transition-all duration-200">
-          {activeTab === 'send' && <SendPanel />}
+          {activeTab === 'send' && <SendPanel selectedInterface={selectedInterface} />}
           {activeTab === 'receive' && <ReceivePanel />}
           {activeTab === 'radar' && (
             <PeerRadarPanel

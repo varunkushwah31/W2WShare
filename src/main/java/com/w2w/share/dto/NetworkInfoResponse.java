@@ -15,6 +15,12 @@ public record NetworkInfoResponse(
             String ip,
             String url,
             boolean isLoopback,
-            boolean isWifiOrHotspot
-    ) {}
+            boolean isWifiOrHotspot,
+            String interfaceType
+    ) {
+        public InterfaceDto(String name, String displayName, String ip, String url, boolean isLoopback, boolean isWifiOrHotspot) {
+            this(name, displayName, ip, url, isLoopback, isWifiOrHotspot,
+                    isWifiOrHotspot ? "WIFI" : (isLoopback ? "LOOPBACK" : "ETHERNET"));
+        }
+    }
 }

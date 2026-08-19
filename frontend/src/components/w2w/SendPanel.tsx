@@ -32,7 +32,18 @@ interface PreparedFile {
 
 const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunking
 
-const resolveJoinUrl = (sessionJoinUrl: string, pin: string): string => {
+interface SendPanelProps {
+  selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
+}
+
+const resolveJoinUrl = (
+  sessionJoinUrl: string,
+  pin: string,
+  selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
+): string => {
+  if (selectedInterface && selectedInterface.url) {
+    return `${selectedInterface.url}/?pin=${pin}`
+  }
   if (typeof window === 'undefined') return sessionJoinUrl
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   if (!isLocal && window.location.origin) {
@@ -88,7 +99,7 @@ const prepareSingleFile = async (
   }
 }
 
-export const SendPanel: React.FC = () => {
+export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
   const [files, setFiles] = useState<SelectedFileItem[]>([])
   const [burnAfter, setBurnAfter] = useState(false)
   const [expiryMinutes, setExpiryMinutes] = useState(15)
@@ -102,11 +113,18 @@ export const SendPanel: React.FC = () => {
   const [joinUrl, setJoinUrl] = useState<string | null>(null)
   const [progressPercent, setProgressPercent] = useState(0)
   const [currentFileName, setCurrentFileName] = useState('')
-  const [currentChunkInfo, setCurrentChunkInfo] = useState({ current: 0, total: 0 })
+  const [currentChunkInfo, setCurrentChunkInfo] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
   const [transferSpeedMbps, setTransferSpeedMbps] = useState(0)
   const [statusMessage, setStatusMessage] = useState('')
-  const [qrModalOpen, setQrModalOpen] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
+
+  // Update joinUrl when selectedInterface changes
+  React.useEffect(() => {
+    if (pin) {
+      setJoinUrl(resolveJoinUrl(joinUrl || '', pin, selectedInterface))
+    }
+  }, [selectedInterface, pin])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -222,7 +240,7 @@ export const SendPanel: React.FC = () => {
       })
       setSessionId(sessionRes.sessionId)
       setPin(sessionRes.pin)
-      setJoinUrl(resolveJoinUrl(sessionRes.joinUrl, sessionRes.pin))
+      setJoinUrl(resolveJoinUrl(sessionRes.joinUrl, sessionRes.pin, selectedInterface))
 
       soundEngine.peerConnect()
       setStatusMessage('Deriving AES-256 keys & processing batch...')
