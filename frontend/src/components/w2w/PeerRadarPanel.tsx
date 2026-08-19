@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { api, type DiscoveredPeer, type NetworkInfoResponse } from '@/lib/api'
+import { api, type DiscoveredPeer, type NetworkInfoResponse, type NetworkDiagnosticsResponse } from '@/lib/api'
+import { OfflineNetworkModal } from './OfflineNetworkModal'
 import {
-  Desktop,
-  DeviceMobile,
-  WifiHigh,
-  ArrowsClockwise,
-  ArrowRight,
-  ShieldCheck,
+  DesktopIcon,
+  DeviceMobileIcon,
+  WifiHighIcon,
+  ArrowsClockwiseIcon,
+  ArrowRightIcon,
+  ShieldCheckIcon,
+  LightningIcon,
 } from '@phosphor-icons/react'
 
 interface PeerRadarPanelProps {
@@ -16,19 +18,23 @@ interface PeerRadarPanelProps {
 export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) => {
   const [peers, setPeers] = useState<DiscoveredPeer[]>([])
   const [networkInfo, setNetworkInfo] = useState<NetworkInfoResponse | null>(null)
+  const [diagnostics, setDiagnostics] = useState<NetworkDiagnosticsResponse | null>(null)
   const [scanning, setScanning] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     let active = true
     const load = async () => {
       try {
-        const [peersData, netData] = await Promise.all([
+        const [peersData, netData, diagData] = await Promise.all([
           api.getDiscoveredPeers(),
           api.getNetworkInfo(),
+          api.getNetworkDiagnostics(),
         ])
         if (active) {
           setPeers(peersData)
           setNetworkInfo(netData)
+          setDiagnostics(diagData)
           setScanning(false)
         }
       } catch {
@@ -82,7 +88,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
           {networkInfo && (
             <div className="pt-2 flex flex-wrap items-center gap-3 text-[11px] font-mono text-[#808080]">
               <span className="flex items-center gap-1 text-white">
-                <WifiHigh className="w-3.5 h-3.5 text-[#7089ba]" />
+                <WifiHighIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 {networkInfo.primaryUrl}
               </span>
               <span>·</span>
@@ -139,16 +145,17 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
           </div>
           <button
             onClick={handleRefresh}
+            type='button'
             className="flex items-center gap-1.5 text-xs text-[#808080] hover:text-white transition-colors"
           >
-            <ArrowsClockwise className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
+            <ArrowsClockwiseIcon className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
             <span>Refresh Scan</span>
           </button>
         </div>
 
         {peers.length === 0 ? (
           <div className="p-10 rounded-2xl bg-[#141414] border border-[#1c1c1c] text-center space-y-3">
-            <WifiHigh className="w-10 h-10 text-[#4d4d4d] mx-auto animate-pulse" />
+            <WifiHighIcon className="w-10 h-10 text-[#4d4d4d] mx-auto animate-pulse" />
             <div className="text-sm font-semibold text-white">
               Searching for peers on your local Wi-Fi subnet...
             </div>
@@ -167,7 +174,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba] shrink-0">
-                      {isMobile ? <DeviceMobile className="w-5 h-5" /> : <Desktop className="w-5 h-5" />}
+                      {isMobile ? <DeviceMobileIcon className="w-5 h-5" /> : <DesktopIcon className="w-5 h-5" />}
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-bold text-white font-sans">
@@ -183,10 +190,11 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
 
                   <button
                     onClick={() => onSelectPeer?.(peer)}
+                    type='button'
                     className="px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all flex items-center gap-1 shrink-0"
                   >
                     <span>Connect</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>
               )
@@ -196,15 +204,40 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
       </div>
 
       {/* Local Network Interfaces Info Table */}
-      {networkInfo && networkInfo.interfaces && (
+      {networkInfo?.interfaces && (
         <div className="p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-3">
           <div className="text-xs font-mono text-[#808080] uppercase tracking-wider flex items-center justify-between">
             <span>NETWORK INTERFACE TOPOLOGY</span>
             <span className="text-[#7089ba] flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheckIcon className="w-3.5 h-3.5" />
               100% OFFLINE READY
             </span>
           </div>
+
+          {diagnostics && (
+            <div className="p-3 rounded-xl bg-[#0d0d0d] border border-[#1f1f1f] text-xs font-mono flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div>
+                  <span className="text-[#808080]">Subnet Mode: </span>
+                  <span className="text-white font-bold">{diagnostics.activeNetworkMode}</span>
+                </div>
+                <div>
+                  <span className="text-[#808080]">Radar UDP (8888): </span>
+                  <span className={`font-bold ${diagnostics.udpDiscoveryActive ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {diagnostics.udpDiscoveryActive ? 'ACTIVE' : 'STANDALONE'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="px-3 py-1 rounded-lg bg-[#222] hover:bg-[#333] text-white text-[11px] font-mono flex items-center gap-1.5 transition-all cursor-pointer border border-[#333]"
+              >
+                <LightningIcon className="w-3.5 h-3.5 text-amber-400" />
+                <span>Hotspot & Campus Config</span>
+              </button>
+            </div>
+          )}
 
           <div className="divide-y divide-[#1c1c1c]">
             {networkInfo.interfaces.map((iface, idx) => (
@@ -228,6 +261,12 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
           </div>
         </div>
       )}
+
+      {/* Offline Network & Hotspot Modal */}
+      <OfflineNetworkModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   )
 }

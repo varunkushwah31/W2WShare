@@ -50,7 +50,7 @@ class TransferControllerTest {
         TransferController transferController = new TransferController(sessionService, storageService, networkDiscoveryService, metricsService, qrCodeService);
         PeerDiscoveryService peerDiscoveryService = new PeerDiscoveryService();
         ReflectionTestUtils.setField(peerDiscoveryService, "serverPort", 8080);
-        NetworkController networkController = new NetworkController(networkDiscoveryService, peerDiscoveryService);
+        NetworkController networkController = new NetworkController(networkDiscoveryService, peerDiscoveryService, qrCodeService);
 
         mockMvc = MockMvcBuilders.standaloneSetup(transferController)
                 .setControllerAdvice(new GlobalExceptionHandler())

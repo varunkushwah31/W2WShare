@@ -8,6 +8,7 @@ import com.w2w.share.service.IQrCodeService;
 import com.w2w.share.service.QrCodeService;
 import com.w2w.share.service.NetworkDiscoveryService;
 import com.w2w.share.service.PeerDiscoveryService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,7 @@ public class NetworkController {
     private final IPeerDiscoveryService peerDiscoveryService;
     private final IQrCodeService qrCodeService;
 
+    @Autowired
     public NetworkController(INetworkDiscoveryService networkDiscoveryService,
                              IPeerDiscoveryService peerDiscoveryService,
                              IQrCodeService qrCodeService) {
@@ -37,6 +39,7 @@ public class NetworkController {
                              IPeerDiscoveryService peerDiscoveryService) {
         this(networkDiscoveryService, peerDiscoveryService, new QrCodeService());
     }
+
 
 
     @GetMapping("/info")
