@@ -8,9 +8,9 @@ WORKDIR /app/frontend
 # Copy ONLY package manifests first to leverage Docker layer caching
 COPY frontend/package.json frontend/package-lock.json* ./
 
-# Cache npm download directory across builds
+# Cache npm download directory across builds and install deterministically
 RUN --mount=type=cache,target=/root/.npm \
-    npm install
+    npm ci --prefer-offline || npm install
 
 # Copy frontend source code and build static assets
 COPY frontend/ ./
@@ -22,27 +22,27 @@ RUN npm run build
 FROM eclipse-temurin:25-jdk-noble AS backend-builder
 WORKDIR /build
 
-# Install Maven
+# Install Maven (cached once)
 RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
 
-# Copy ONLY pom.xml first to maximize layer caching on git commits
+# Copy ONLY pom.xml first to maximize layer caching on code edits
 COPY pom.xml .
 
-# Download dependencies into persistent BuildKit .m2 cache mount
-# This step is completely cached and SKIPPED on every git commit unless pom.xml changes
+# Pre-download dependencies and plugins into persistent BuildKit .m2 cache mount
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn dependency:go-offline -B
+    mvn dependency:go-offline -B || true
 
-# Copy backend source code
+# Copy backend source code (Java, properties, resources)
 COPY src ./src
 
-# Integrate frontend production build into Spring Boot static resources
+# Integrate frontend production build from Stage 1 into Spring Boot static resources
 COPY --from=frontend-builder /app/frontend/dist ./src/main/resources/static
 
 # Build production executable JAR using cached .m2 repository
 RUN --mount=type=cache,target=/root/.m2 \
     mvn package -DskipTests -B \
-    && cp target/w2w-share-1.0.0.jar app.jar
+    && cp target/w2w-share-*.jar app.jar
+
 
 # ============================================================================
 # Stage 3: Minimal Production JRE Runtime Container

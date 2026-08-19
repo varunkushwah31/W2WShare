@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, X as XIcon, ShieldCheck } from '@phosphor-icons/react'
+import { CheckIcon, XIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 
 export const ArchitectureComparison: React.FC = () => {
   const specs = [
@@ -51,7 +51,7 @@ export const ArchitectureComparison: React.FC = () => {
     <section className="w-full max-w-[1200px] mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-[#000000]/60">
       <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
+          <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
           <span>TECHNICAL SPECIFICATIONS</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
@@ -85,7 +85,7 @@ export const ArchitectureComparison: React.FC = () => {
                   <td className="py-4 px-6 font-medium text-white">{s.feature}</td>
                   <td className="py-4 px-6 text-[#ffffff] font-semibold flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full bg-[#7089ba]/20 text-[#7089ba] flex items-center justify-center shrink-0">
-                      <Check className="w-3 h-3" weight="bold" />
+                      <CheckIcon className="w-3 h-3" weight="bold" />
                     </div>
                     <span>{s.w2w}</span>
                   </td>

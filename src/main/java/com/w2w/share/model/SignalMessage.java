@@ -1,20 +1,42 @@
 package com.w2w.share.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SignalMessage(
-        String type,
+        @JsonProperty("type") String type,
         @JsonProperty("sessionId") String sessionId,
-        Object payload,
+        @JsonProperty("payload") Object payload,
         @JsonProperty("fromPeerId") String fromPeerId,
         @JsonProperty("toPeerId") String toPeerId,
         @JsonProperty("correlationId") String correlationId,
-        @JsonProperty("timestamp") long timestamp
+        @JsonProperty("timestamp") Long timestamp
 ) {
+    @JsonCreator
+    public SignalMessage(
+            @JsonProperty("type") String type,
+            @JsonProperty("sessionId") String sessionId,
+            @JsonProperty("payload") Object payload,
+            @JsonProperty("fromPeerId") String fromPeerId,
+            @JsonProperty("toPeerId") String toPeerId,
+            @JsonProperty("correlationId") String correlationId,
+            @JsonProperty("timestamp") Long timestamp
+    ) {
+        this.type = type;
+        this.sessionId = sessionId;
+        this.payload = payload;
+        this.fromPeerId = fromPeerId;
+        this.toPeerId = toPeerId;
+        this.correlationId = correlationId;
+        this.timestamp = timestamp != null ? timestamp : System.currentTimeMillis();
+    }
+
     public SignalMessage(String type, Object payload) {
         this(type, null, payload, null, null, null, System.currentTimeMillis());
     }
@@ -22,6 +44,7 @@ public record SignalMessage(
     public SignalMessage(String type, String sessionId, Object payload) {
         this(type, sessionId, payload, null, null, null, System.currentTimeMillis());
     }
+
 
     public static SignalMessage of(String type, Object payload) {
         return new SignalMessage(type, null, payload, null, null, null, System.currentTimeMillis());

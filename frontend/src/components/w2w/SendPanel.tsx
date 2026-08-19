@@ -70,6 +70,7 @@ const prepareSingleFile = async (
     fileName: item.file.name,
     relativePath: item.relativePath,
     fileSize: rawBuffer.byteLength,
+    originalSize: item.size,
     mimeType: item.file.type || 'application/octet-stream',
     totalChunks,
     chunkSize: CHUNK_SIZE,

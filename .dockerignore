@@ -11,12 +11,12 @@ build/
 *.jar
 *.war
 *.tmp
+src/main/resources/static/
 
 # Node.js & Frontend dependencies
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
-frontend/package-lock.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -26,6 +26,10 @@ temp-w2w-encrypted/
 *.bin
 *.log
 
+# Documentation & Markdown
+*.md
+
 # OS generated files
 .DS_Store
 Thumbs.db
+

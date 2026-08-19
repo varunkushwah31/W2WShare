@@ -151,4 +151,39 @@ class TransferControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SESSION_CLOSED"));
     }
+
+    @Test
+    void testBatchOfferWithMinimalJson() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/transfer/session/create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"burnAfterReading\":false,\"expiresInSeconds\":900}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Map<?, ?> sessionMap = objectMapper.readValue(createResult.getResponse().getContentAsString(), Map.class);
+        String sessionId = (String) sessionMap.get("sessionId");
+
+        // Payload with missing optional fields (originalSize, isCompressed, authTag, relativePath)
+        String minimalBatchJson = """
+                [
+                  {
+                    "fileName": "sample.pdf",
+                    "fileSize": 1024,
+                    "mimeType": "application/pdf",
+                    "totalChunks": 1,
+                    "chunkSize": 1024,
+                    "salt": "mockSalt",
+                    "iv": "mockIv",
+                    "sha256": "mockSha"
+                  }
+                ]
+                """;
+
+        mockMvc.perform(post("/api/transfer/session/" + sessionId + "/batch-offer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(minimalBatchJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BATCH_REGISTERED"))
+                .andExpect(jsonPath("$.totalFiles").value(1));
+    }
 }

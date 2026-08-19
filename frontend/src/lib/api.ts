@@ -37,8 +37,10 @@ export interface FileMetadata {
   iv: string
   salt: string
   sha256: string
+  authTag?: string
   burnAfterReading?: boolean
   isCompressed?: boolean
+  originalSize?: number
   relativePath?: string
 }
 
