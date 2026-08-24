@@ -32,12 +32,16 @@ public class AuditLedgerService implements IAuditLedgerService {
     @Override
     @Transactional
     public AuditRecordDto recordTransaction(AuditRecordDto dto) {
-        return recordTransaction(dto, null, dto.userId(), dto.mimeType());
+        return saveTransaction(dto, null, dto != null ? dto.userId() : null, dto != null ? dto.mimeType() : null);
     }
 
     @Override
     @Transactional
     public AuditRecordDto recordTransaction(AuditRecordDto dto, byte[] fileData, String userId, String mimeType) {
+        return saveTransaction(dto, fileData, userId, mimeType);
+    }
+
+    private AuditRecordDto saveTransaction(AuditRecordDto dto, byte[] fileData, String userId, String mimeType) {
         if (dto == null) {
             throw new IllegalArgumentException("Audit record payload cannot be null");
         }
@@ -143,6 +147,10 @@ public class AuditLedgerService implements IAuditLedgerService {
     @Override
     @Transactional(readOnly = true)
     public List<AuditRecordDto> getAllRecords() {
+        return fetchAllRecords();
+    }
+
+    private List<AuditRecordDto> fetchAllRecords() {
         return repository.findAllByOrderByTimestampDesc().stream()
                 .map(AuditRecordDto::fromEntity)
                 .toList();
@@ -152,7 +160,7 @@ public class AuditLedgerService implements IAuditLedgerService {
     @Transactional(readOnly = true)
     public List<AuditRecordDto> getRecordsForUser(String userId) {
         if (userId == null || userId.isBlank()) {
-            return getAllRecords();
+            return fetchAllRecords();
         }
         return repository.findByUserIdOrderByTimestampDesc(userId.trim()).stream()
                 .map(AuditRecordDto::fromEntity)
@@ -177,7 +185,7 @@ public class AuditLedgerService implements IAuditLedgerService {
         }
         return repository.findByTransactionId(transactionId)
                 .filter(entity -> !entity.isDeleted() && !entity.isExpired() && entity.getFileData() != null)
-                .map(AuditRecordEntity::getFileData);
+                .map(t -> t.getFileData());
     }
 
     @Override

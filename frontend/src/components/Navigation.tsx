@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { List, X, Lightning, UserCheck, SignOut } from '@phosphor-icons/react'
+import { ListIcon, XIcon, LightningIcon, UserCheckIcon, SignOutIcon } from '@phosphor-icons/react'
 import { authStore, type AuthUser } from '@/lib/auth'
 
 export type NavPageType = 'home' | 'features' | 'changelog' | 'security' | 'pricing' | 'blog'
@@ -75,6 +75,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Logo — W2W Share with Monogram Bracket */}
           <button
+            type="button"
             onClick={() => handleNavClick('home')}
             className="flex items-center gap-2.5 group cursor-pointer"
           >
@@ -104,6 +105,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               const isActive = currentPage === link.id
               return (
                 <button
+                  type="button"
                   key={link.id}
                   onClick={() => handleNavClick(link.id)}
                   className={`text-sm transition-colors relative py-1 cursor-pointer ${
@@ -127,19 +129,21 @@ export const Navigation: React.FC<NavigationProps> = ({
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#161616] border border-[#2a2a2a] text-xs font-mono text-white">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <UserCheck className="w-3.5 h-3.5 text-[#7089ba]" />
+                  <UserCheckIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                   <span className="max-w-[130px] truncate">{user.nodeId}</span>
                 </div>
                 <button
+                  type="button"
                   onClick={handleLogout}
                   title="Logout"
                   className="p-1.5 rounded-full border border-[#282828] text-[#808080] hover:text-[#eb5757] hover:border-[#eb5757]/50 transition-colors"
                 >
-                  <SignOut className="w-3.5 h-3.5" />
+                  <SignOutIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
               <button
+                type="button"
                 onClick={onOpenLogin}
                 className="px-3.5 py-1.5 text-sm font-medium text-[#808080] hover:text-white transition-colors rounded-full cursor-pointer"
               >
@@ -148,21 +152,23 @@ export const Navigation: React.FC<NavigationProps> = ({
             )}
 
             <button
+              type="button"
               onClick={onOpenDemo}
               className="px-4 py-1.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all border border-white flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
-              <Lightning className="w-3.5 h-3.5" weight="fill" />
+              <LightningIcon className="w-3.5 h-3.5" weight="fill" />
               <span>Quick PIN</span>
             </button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden text-white p-2"
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <List className="w-6 h-6" />}
+            {mobileMenuOpen ? <XIcon className="w-6 h-6" /> : <ListIcon className="w-6 h-6" />}
           </button>
         </div>
       </header>
@@ -175,6 +181,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               const isActive = currentPage === link.id
               return (
                 <button
+                  type="button"
                   key={link.id}
                   onClick={() => handleNavClick(link.id)}
                   className={`block w-full text-left text-lg py-1 ${
@@ -195,6 +202,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <span className="text-white">{user.nodeId}</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     handleLogout()
                     setMobileMenuOpen(false)
@@ -206,6 +214,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => {
                   setMobileMenuOpen(false)
                   onOpenLogin()
@@ -217,6 +226,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             )}
 
             <button
+              type="button"
               onClick={() => {
                 setMobileMenuOpen(false)
                 onOpenDemo()

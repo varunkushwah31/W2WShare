@@ -81,7 +81,10 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
     }
 
     fetchNet()
-  }, [isOpen])
+    return () => {
+      active = false
+    }
+  }, [isOpen, selectedInterface, onSelectedInterfaceChange])
 
   const handleRunDiagnostics = async () => {
     setIsRunningDiagnostics(true)
@@ -115,7 +118,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
             </span>
             <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Zero Internet Needed
+              <span>Zero Internet Needed</span>
             </span>
           </div>
           <DialogTitle className="text-xl sm:text-2xl font-extrabold font-sans text-white">
@@ -304,8 +307,9 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="text-[10px] font-mono text-[#808080] block mb-0.5">Hotspot SSID</label>
+                    <label htmlFor="hotspot-ssid-input" className="text-[10px] font-mono text-[#808080] block mb-0.5">Hotspot SSID</label>
                     <input
+                      id="hotspot-ssid-input"
                       type="text"
                       value={hotspotSsid}
                       onChange={(e) => setHotspotSsid(e.target.value)}
@@ -313,9 +317,10 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono text-[#808080] block mb-0.5">Password</label>
+                    <label htmlFor="hotspot-password-input" className="text-[10px] font-mono text-[#808080] block mb-0.5">Password</label>
                     <div className="relative">
                       <input
+                        id="hotspot-password-input"
                         type={showPassword ? 'text' : 'password'}
                         value={hotspotPassword}
                         onChange={(e) => setHotspotPassword(e.target.value)}
@@ -331,8 +336,9 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono text-[#808080] block mb-0.5">Auth Type</label>
+                    <label htmlFor="hotspot-auth-select" className="text-[10px] font-mono text-[#808080] block mb-0.5">Auth Type</label>
                     <select
+                      id="hotspot-auth-select"
                       value={hotspotAuth}
                       onChange={(e) => setHotspotAuth(e.target.value)}
                       className="w-full bg-[#0a0a0a] border border-[#282828] rounded px-1.5 py-1 text-xs font-mono text-white"

@@ -16,6 +16,16 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
 
     private static final Logger log = LoggerFactory.getLogger(NetworkDiscoveryService.class);
 
+    public static final String TYPE_HOTSPOT = "HOTSPOT";
+    public static final String TYPE_CAMPUS_WIFI = "CAMPUS_WIFI";
+    public static final String TYPE_ETHERNET = "ETHERNET";
+    public static final String TYPE_LOOPBACK = "LOOPBACK";
+    public static final String TYPE_OTHER = "OTHER";
+
+    private static final String STR_HOTSPOT = "hotspot";
+    private static final String STR_DIRECT = "direct";
+    private static final String STR_WIFI = "wi-fi";
+
     public static class InterfaceAddressInfo {
         private final String name;
         private final String displayName;
@@ -33,11 +43,24 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
             this.url = "http://" + ip + ":" + port;
             this.isLoopback = isLoopback;
             this.isWifiOrHotspot = isWifiOrHotspot;
-            this.interfaceType = interfaceType != null ? interfaceType : (isWifiOrHotspot ? "CAMPUS_WIFI" : (isLoopback ? "LOOPBACK" : "ETHERNET"));
+            this.interfaceType = resolveInterfaceType(interfaceType, isWifiOrHotspot, isLoopback);
         }
 
         public InterfaceAddressInfo(String name, String displayName, String ip, int port, boolean isLoopback, boolean isWifiOrHotspot) {
             this(name, displayName, ip, port, isLoopback, isWifiOrHotspot, classifyType(name, displayName, ip, isLoopback, isWifiOrHotspot));
+        }
+
+        private static String resolveInterfaceType(String interfaceType, boolean isWifiOrHotspot, boolean isLoopback) {
+            if (interfaceType != null) {
+                return interfaceType;
+            }
+            if (isWifiOrHotspot) {
+                return TYPE_CAMPUS_WIFI;
+            }
+            if (isLoopback) {
+                return TYPE_LOOPBACK;
+            }
+            return TYPE_ETHERNET;
         }
 
         public String getName() { return name; }
@@ -101,7 +124,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
 
     public static String classifyType(String name, String displayName, String ip, boolean isLoopback, boolean isWifi) {
         if (isLoopback || "127.0.0.1".equals(ip)) {
-            return "LOOPBACK";
+            return TYPE_LOOPBACK;
         }
 
         String lowerName = (name != null ? name : "").toLowerCase();
@@ -111,37 +134,37 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         if (ip.startsWith("192.168.137.") // Windows Mobile Hotspot
                 || ip.startsWith("192.168.43.") // Android Hotspot
                 || ip.startsWith("172.20.10.") // iOS Hotspot
-                || lowerName.contains("hotspot")
-                || lowerDisplay.contains("hotspot")
-                || lowerName.contains("direct")
-                || lowerDisplay.contains("direct")
+                || lowerName.contains(STR_HOTSPOT)
+                || lowerDisplay.contains(STR_HOTSPOT)
+                || lowerName.contains(STR_DIRECT)
+                || lowerDisplay.contains(STR_DIRECT)
                 || lowerName.contains("hostednetwork")
                 || lowerName.contains("softap")
                 || lowerName.contains("ap0")) {
-            return "HOTSPOT";
+            return TYPE_HOTSPOT;
         }
 
-        if (isWifi || lowerName.contains("wlan") || lowerDisplay.contains("wi-fi") || lowerDisplay.contains("wireless")) {
-            return "CAMPUS_WIFI";
+        if (isWifi || lowerName.contains("wlan") || lowerDisplay.contains(STR_WIFI) || lowerDisplay.contains("wireless")) {
+            return TYPE_CAMPUS_WIFI;
         }
 
         if (lowerName.contains("eth") || lowerName.contains("en") || lowerDisplay.contains("ethernet") || lowerDisplay.contains("lan")) {
-            return "ETHERNET";
+            return TYPE_ETHERNET;
         }
 
-        return "OTHER";
+        return TYPE_OTHER;
     }
 
     private static boolean isWifiOrHotspotInterface(String name, String displayName) {
         String lowerName = name.toLowerCase();
         String lowerDisplay = displayName.toLowerCase();
         return lowerName.contains("wlan")
-                || lowerName.contains("wi-fi")
+                || lowerName.contains(STR_WIFI)
                 || lowerDisplay.contains("wireless")
-                || lowerDisplay.contains("wi-fi")
-                || lowerDisplay.contains("hotspot")
+                || lowerDisplay.contains(STR_WIFI)
+                || lowerDisplay.contains(STR_HOTSPOT)
                 || lowerDisplay.contains("hostednetwork")
-                || lowerDisplay.contains("direct")
+                || lowerDisplay.contains(STR_DIRECT)
                 || lowerName.contains("ap");
     }
 
@@ -156,10 +179,10 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
     }
 
     private static int getPriority(InterfaceAddressInfo info) {
-        if ("HOTSPOT".equals(info.getInterfaceType())) return 1;
-        if ("CAMPUS_WIFI".equals(info.getInterfaceType()) || info.isWifiOrHotspot()) return 2;
-        if ("ETHERNET".equals(info.getInterfaceType())) return 3;
-        if (info.isLoopback() || "LOOPBACK".equals(info.getInterfaceType())) return 5;
+        if (TYPE_HOTSPOT.equals(info.getInterfaceType())) return 1;
+        if (TYPE_CAMPUS_WIFI.equals(info.getInterfaceType()) || info.isWifiOrHotspot()) return 2;
+        if (TYPE_ETHERNET.equals(info.getInterfaceType())) return 3;
+        if (info.isLoopback() || TYPE_LOOPBACK.equals(info.getInterfaceType())) return 5;
         return 4;
     }
 
@@ -189,9 +212,9 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
                 ))
                 .toList();
 
-        boolean hasHotspot = interfaces.stream().anyMatch(i -> "HOTSPOT".equals(i.getInterfaceType()));
-        boolean hasCampusWifi = interfaces.stream().anyMatch(i -> "CAMPUS_WIFI".equals(i.getInterfaceType()));
-        boolean hasEthernet = interfaces.stream().anyMatch(i -> "ETHERNET".equals(i.getInterfaceType()));
+        boolean hasHotspot = interfaces.stream().anyMatch(i -> TYPE_HOTSPOT.equals(i.getInterfaceType()));
+        boolean hasCampusWifi = interfaces.stream().anyMatch(i -> TYPE_CAMPUS_WIFI.equals(i.getInterfaceType()));
+        boolean hasEthernet = interfaces.stream().anyMatch(i -> TYPE_ETHERNET.equals(i.getInterfaceType()));
 
         String activeMode;
         String recommendedMode;
@@ -199,16 +222,16 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         String apStatusMessage;
 
         if (hasHotspot) {
-            activeMode = "HOTSPOT";
+            activeMode = TYPE_HOTSPOT;
             recommendedMode = "OFFLINE_HOTSPOT";
             apStatusMessage = "Active Mobile Hotspot detected. 100% offline peer communication with zero AP isolation risk.";
         } else if (hasCampusWifi) {
-            activeMode = "CAMPUS_WIFI";
-            recommendedMode = "CAMPUS_WIFI";
+            activeMode = TYPE_CAMPUS_WIFI;
+            recommendedMode = TYPE_CAMPUS_WIFI;
             apStatusMessage = "Connected to Campus/College Wi-Fi. Transfers work locally on LAN without captive portal internet login. If peers cannot connect, switch to Offline Hotspot mode to bypass AP Isolation.";
         } else if (hasEthernet) {
-            activeMode = "ETHERNET";
-            recommendedMode = "ETHERNET";
+            activeMode = TYPE_ETHERNET;
+            recommendedMode = TYPE_ETHERNET;
             apStatusMessage = "Wired LAN active. Full throughput available.";
         } else {
             activeMode = "OFFLINE_LOCAL";
@@ -220,14 +243,14 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         boolean udpDiscoveryActive = true;
         try (DatagramSocket testSocket = new DatagramSocket()) {
             testSocket.setReuseAddress(true);
-        } catch (Exception e) {
+        } catch (Exception _) {
             udpDiscoveryActive = false;
         }
 
         String primaryUrl = getPrimaryNetworkUrl();
         String localIp = interfaces.stream()
                 .filter(i -> !i.isLoopback())
-                .map(InterfaceAddressInfo::getIp)
+                .map(info -> info.getIp())
                 .findFirst()
                 .orElse("127.0.0.1");
 

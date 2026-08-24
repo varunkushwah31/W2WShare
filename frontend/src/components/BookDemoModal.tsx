@@ -14,13 +14,39 @@ interface BookDemoModalProps {
   mode?: 'demo' | 'login'
 }
 
+type TabType = 'pin' | 'demo' | 'login'
+
+const TAB_BADGES: Record<TabType, string> = {
+  pin: 'INSTANT DECRYPT',
+  demo: 'AIR-GAPPED APPLIANCE',
+  login: 'NODE AUTH',
+}
+
+const TAB_TITLES: Record<TabType, string> = {
+  pin: 'Claim Transfer by PIN',
+  demo: 'Deploy On-Premise Node',
+  login: 'Local Node Keystore',
+}
+
+const TAB_DESCRIPTIONS: Record<TabType, string> = {
+  pin: 'Enter the 6-digit claim PIN to decrypt incoming file streams in-browser.',
+  demo: 'Request a dedicated air-gapped hardware image for your subnet.',
+  login: 'Authenticate using your local device keystore secret.',
+}
+
+const TAB_BUTTON_TEXTS: Record<TabType, string> = {
+  pin: 'Claim & Decrypt Files',
+  demo: 'Request Node Image',
+  login: 'Authenticate Node',
+}
+
 export const BookDemoModal: React.FC<BookDemoModalProps> = ({
   isOpen,
   onClose,
   mode = 'demo',
 }) => {
-  const [selectedTab, setSelectedTab] = useState<'pin' | 'demo' | 'login' | null>(null)
-  const activeTab = selectedTab ?? (mode === 'login' ? 'login' : 'pin')
+  const [selectedTab, setSelectedTab] = useState<TabType | null>(null)
+  const activeTab: TabType = selectedTab ?? (mode === 'login' ? 'login' : 'pin')
   const [submitted, setSubmitted] = useState(false)
   const [pinValue, setPinValue] = useState('')
   const [formData, setFormData] = useState({
@@ -41,7 +67,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
     onClose()
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (activeTab === 'pin') {
       if (pinValue.trim().length === 6) {
@@ -66,25 +92,15 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/25 flex items-center gap-1 font-medium">
               <ShieldCheckIcon className="w-3.5 h-3.5" />
-              <span>
-                {activeTab === 'pin' ? 'INSTANT DECRYPT' : activeTab === 'demo' ? 'AIR-GAPPED APPLIANCE' : 'NODE AUTH'}
-              </span>
+              <span>{TAB_BADGES[activeTab]}</span>
             </span>
           </div>
 
           <DialogTitle className="text-2xl font-bold tracking-tight text-white font-sans">
-            {activeTab === 'pin'
-              ? 'Claim Transfer by PIN'
-              : activeTab === 'demo'
-              ? 'Deploy On-Premise Node'
-              : 'Local Node Keystore'}
+            {TAB_TITLES[activeTab]}
           </DialogTitle>
           <DialogDescription className="text-xs text-[#808080] leading-relaxed">
-            {activeTab === 'pin'
-              ? 'Enter the 6-digit claim PIN to decrypt incoming file streams in-browser.'
-              : activeTab === 'demo'
-              ? 'Request a dedicated air-gapped hardware image for your subnet.'
-              : 'Authenticate using your local device keystore secret.'}
+            {TAB_DESCRIPTIONS[activeTab]}
           </DialogDescription>
         </DialogHeader>
 
@@ -148,6 +164,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                 : 'Local hardware node credentials verified.'}
             </p>
             <button
+              type="button"
               onClick={handleClose}
               className="mt-4 px-6 py-2.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all cursor-pointer"
             >
@@ -160,12 +177,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             {activeTab === 'pin' && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="claim-pin-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
                     6-Digit Claim PIN
                   </label>
                   <div className="relative flex items-center">
                     <KeyIcon className="w-5 h-5 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
+                      id="claim-pin-input"
                       type="text"
                       required
                       maxLength={6}
@@ -190,12 +208,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             {activeTab === 'demo' && (
               <div className="space-y-3.5">
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="lead-engineer-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
                     Lead Engineer
                   </label>
                   <div className="relative flex items-center">
                     <UserIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
+                      id="lead-engineer-input"
                       type="text"
                       required
                       placeholder="Alex Vance"
@@ -207,12 +226,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="work-email-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
                     Work Email
                   </label>
                   <div className="relative flex items-center">
                     <EnvelopeIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
+                      id="work-email-input"
                       type="email"
                       required
                       placeholder="engineer@defense-lab.org"
@@ -224,12 +244,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="organization-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
                     Organization / Node Subnet
                   </label>
                   <div className="relative flex items-center">
                     <BuildingIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
+                      id="organization-input"
                       type="text"
                       required
                       placeholder="Air-Gapped Systems Cluster"
@@ -246,12 +267,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             {activeTab === 'login' && (
               <div className="space-y-3.5">
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="node-id-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
                     Node ID / Device Address
                   </label>
                   <div className="relative flex items-center">
                     <UserIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
+                      id="node-id-input"
                       type="text"
                       required
                       placeholder="node-01.w2w.local"
@@ -263,12 +285,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="keystore-secret-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
                     Hardware Keystore Secret Token
                   </label>
                   <div className="relative flex items-center">
                     <LockKeyIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
+                      id="keystore-secret-input"
                       type="password"
                       required
                       placeholder="••••••••••••••••"
@@ -286,14 +309,8 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
               type="submit"
               className="w-full py-3 px-4 mt-2 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 flex items-center justify-center gap-2 transition-all group cursor-pointer shadow-md"
             >
-              <span>
-                {activeTab === 'pin'
-                  ? 'Claim & Decrypt Files'
-                  : activeTab === 'demo'
-                  ? 'Request Node Image'
-                  : 'Authenticate Node'}
-              </span>
-              <ArrowRightIcon className="wIcon-3.5 h-3.Icon5 groIconup-hover:tranIconslate-Iconx-0.5 tranIconsition-traIconnsform" />
+              <span>{TAB_BUTTON_TEXTS[activeTab]}</span>
+              <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-[#808080] pt-1">

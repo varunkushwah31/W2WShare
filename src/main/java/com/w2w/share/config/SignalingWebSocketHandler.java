@@ -171,25 +171,28 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private void handleChatMessage(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null && signal.payload() != null) {
-            ChatMessage msg;
-            if (signal.payload() instanceof Map<?, ?> map) {
-                String role = map.get("senderRole") != null ? String.valueOf(map.get("senderRole")) : "client";
-                String content = map.get("content") != null ? String.valueOf(map.get("content")) : "";
-                String id = map.get("id") != null ? String.valueOf(map.get("id")) : UUID.randomUUID().toString();
-                long ts = map.get("timestamp") instanceof Number num ? num.longValue() : System.currentTimeMillis();
-                msg = new ChatMessage(id, role, content, ts);
-            } else {
-                msg = new ChatMessage(
-                        UUID.randomUUID().toString(),
-                        "peer",
-                        String.valueOf(signal.payload()),
-                        System.currentTimeMillis()
-                );
-            }
-            sessionService.addChatMessage(transferSessionId, msg);
-            relayToOtherPeers(session, transferSessionId, new SignalMessage("CHAT_MESSAGE", msg));
+        if (transferSessionId == null || signal.payload() == null) {
+            return;
         }
+        ChatMessage msg = parseChatMessage(signal.payload());
+        sessionService.addChatMessage(transferSessionId, msg);
+        relayToOtherPeers(session, transferSessionId, new SignalMessage("CHAT_MESSAGE", msg));
+    }
+
+    private ChatMessage parseChatMessage(Object payload) {
+        if (payload instanceof Map<?, ?> map) {
+            String role = map.get("senderRole") != null ? String.valueOf(map.get("senderRole")) : "client";
+            String content = map.get("content") != null ? String.valueOf(map.get("content")) : "";
+            String id = map.get("id") != null ? String.valueOf(map.get("id")) : UUID.randomUUID().toString();
+            long ts = map.get("timestamp") instanceof Number num ? num.longValue() : System.currentTimeMillis();
+            return new ChatMessage(id, role, content, ts);
+        }
+        return new ChatMessage(
+                UUID.randomUUID().toString(),
+                "peer",
+                String.valueOf(payload),
+                System.currentTimeMillis()
+        );
     }
 
     private void handleCancel(WebSocketSession session, SignalMessage signal) throws IOException {
