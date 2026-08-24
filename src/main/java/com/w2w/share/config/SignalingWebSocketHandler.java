@@ -163,20 +163,30 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
     private void handleTextMessageRelay(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null && signal.payload() != null) {
-            sessionService.setEncryptedClipboardText(transferSessionId, String.valueOf(signal.payload()));
-            relayToOtherPeers(session, transferSessionId, signal);
+            String text = String.valueOf(signal.payload());
+            sessionService.setEncryptedClipboardText(transferSessionId, text);
+            relayToOtherPeers(session, transferSessionId, new SignalMessage("TEXT_MESSAGE", text));
         }
     }
 
     private void handleChatMessage(WebSocketSession session, SignalMessage signal) throws IOException {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null && signal.payload() != null) {
-            ChatMessage msg = new ChatMessage(
-                    UUID.randomUUID().toString(),
-                    session.getId(),
-                    String.valueOf(signal.payload()),
-                    System.currentTimeMillis()
-            );
+            ChatMessage msg;
+            if (signal.payload() instanceof Map<?, ?> map) {
+                String role = map.get("senderRole") != null ? String.valueOf(map.get("senderRole")) : "client";
+                String content = map.get("content") != null ? String.valueOf(map.get("content")) : "";
+                String id = map.get("id") != null ? String.valueOf(map.get("id")) : UUID.randomUUID().toString();
+                long ts = map.get("timestamp") instanceof Number num ? num.longValue() : System.currentTimeMillis();
+                msg = new ChatMessage(id, role, content, ts);
+            } else {
+                msg = new ChatMessage(
+                        UUID.randomUUID().toString(),
+                        "peer",
+                        String.valueOf(signal.payload()),
+                        System.currentTimeMillis()
+                );
+            }
             sessionService.addChatMessage(transferSessionId, msg);
             relayToOtherPeers(session, transferSessionId, new SignalMessage("CHAT_MESSAGE", msg));
         }

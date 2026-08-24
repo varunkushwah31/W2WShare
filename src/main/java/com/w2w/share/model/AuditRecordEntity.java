@@ -49,6 +49,29 @@ public class AuditRecordEntity {
     @Column(length = 256)
     private String signature;
 
+    @Column(length = 128)
+    private String userId;
+
+    @Column(nullable = false)
+    private boolean isPersisted;
+
+    @Column(nullable = false)
+    private long expiryTimestamp;
+
+    @Column(nullable = false)
+    private boolean isDeleted;
+
+    @Column(length = 128)
+    private String mimeType;
+
+    @Column(nullable = false)
+    private int retentionDays = 7;
+
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(columnDefinition = "BLOB")
+    private byte[] fileData;
+
     @SuppressWarnings("java:S107")
     public AuditRecordEntity(
             String transactionId,
@@ -74,5 +97,17 @@ public class AuditRecordEntity {
         this.burned = burned;
         this.isCompressed = isCompressed;
         this.signature = signature;
+        this.isPersisted = false;
+        this.expiryTimestamp = timestamp + (7L * 24 * 60 * 60 * 1000);
+        this.isDeleted = false;
+        this.retentionDays = 7;
+    }
+
+    public boolean isExpired() {
+        return System.currentTimeMillis() > this.expiryTimestamp;
+    }
+
+    public boolean canDownload() {
+        return this.isPersisted && !this.isDeleted && !isExpired() && (this.fileData != null && this.fileData.length > 0);
     }
 }

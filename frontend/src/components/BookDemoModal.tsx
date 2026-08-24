@@ -49,6 +49,12 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
         handleClose()
         return
       }
+    } else if (activeTab === 'login') {
+      if (loginData.nodeId.trim()) {
+        import('@/lib/auth').then(({ authStore }) => {
+          authStore.login(loginData.nodeId.trim(), loginData.token.trim())
+        })
+      }
     }
     setSubmitted(true)
   }

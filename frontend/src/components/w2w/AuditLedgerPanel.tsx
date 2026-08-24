@@ -1,99 +1,125 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { api, type AuditRecord } from '@/lib/api'
+import { authStore, type AuthUser } from '@/lib/auth'
+import { soundEngine } from '@/lib/sound'
 import {
   DownloadSimple,
   ShieldCheck,
   Trash,
   ArrowDownLeft,
   ArrowUpRight,
+  ArrowsClockwise,
+  Clock,
+  FileText,
+  MagnifyingGlass,
+  UserCheck,
+  WarningCircle,
 } from '@phosphor-icons/react'
 
-export interface AuditRecord {
-  id: string
-  timestamp: number
-  direction: 'SENT' | 'RECEIVED'
-  fileName: string
-  fileSize: number
-  totalChunks: number
-  sha256: string
-  cipher: string
-  burned: boolean
-  isCompressed: boolean
-}
-
 export const AuditLedgerPanel: React.FC = () => {
-  const [records, setRecords] = useState<AuditRecord[]>(() => {
+  const [records, setRecords] = useState<AuditRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filterType, setFilterType] = useState<'ALL' | 'SENT' | 'RECEIVED'>('ALL')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(() => authStore.getUser())
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    const unsub = authStore.subscribe((u) => setUser(u))
+    return unsub
+  }, [])
+
+  const loadLedger = useCallback(async () => {
+    setLoading(true)
+    setErrorMsg(null)
     try {
-      const stored = localStorage.getItem('w2w_audit_ledger')
-      if (stored) {
-        return JSON.parse(stored)
+      const serverRecords = await api.getAuditLedger()
+      if (serverRecords && serverRecords.length > 0) {
+        setRecords(serverRecords)
+        localStorage.setItem('w2w_audit_ledger', JSON.stringify(serverRecords))
+      } else {
+        // Fallback to local storage if empty
+        const stored = localStorage.getItem('w2w_audit_ledger')
+        if (stored) {
+          setRecords(JSON.parse(stored))
+        } else {
+          setRecords([])
+        }
       }
     } catch {
-      // Ignore
+      const stored = localStorage.getItem('w2w_audit_ledger')
+      if (stored) {
+        try {
+          setRecords(JSON.parse(stored))
+        } catch {
+          setRecords([])
+        }
+      }
+    } finally {
+      setLoading(false)
     }
-    const samples: AuditRecord[] = [
-      {
-        id: 'TX-8942-A',
-        timestamp: Date.now() - 1000 * 60 * 18,
-        direction: 'SENT',
-        fileName: 'quarterly-analytics-data.parquet',
-        fileSize: 4829104,
-        totalChunks: 3,
-        sha256: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
-        cipher: 'AES-256-GCM / PBKDF2 (100k)',
-        burned: true,
-        isCompressed: true,
-      },
-      {
-        id: 'TX-3819-B',
-        timestamp: Date.now() - 1000 * 60 * 65,
-        direction: 'RECEIVED',
-        fileName: 'design-system-schematics.fig',
-        fileSize: 12891040,
-        totalChunks: 7,
-        sha256: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8',
-        cipher: 'AES-256-GCM / PBKDF2 (100k)',
-        burned: false,
-        isCompressed: false,
-      },
-    ]
+  }, [])
+
+  useEffect(() => {
+    loadLedger()
+  }, [loadLedger, user])
+
+  const handleDownloadReceipt = async (record: AuditRecord) => {
     try {
-      localStorage.setItem('w2w_audit_ledger', JSON.stringify(samples))
+      const receipt = await api.getAuditReceipt(record.id).catch(() => null)
+      const receiptData = receipt || {
+        w2w_version: '1.0.0 (Offline E2EE)',
+        transaction_id: record.id,
+        timestamp: new Date(record.timestamp).toISOString(),
+        direction: record.direction,
+        file_name: record.fileName,
+        file_size_bytes: record.fileSize,
+        total_chunks: record.totalChunks,
+        cryptographic_algorithm: record.cipher || 'AES-256-GCM / PBKDF2 (100k)',
+        sha256_integrity_hash: record.sha256,
+        burn_after_reading: record.burned,
+        gzip_pre_compressed: record.isCompressed,
+        signature_verification: 'VALID · LOCAL_DEVICE_KEYSTORE',
+      }
+
+      const blob = new Blob([JSON.stringify(receiptData, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `audit-receipt-${record.id}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      soundEngine.peerConnect()
     } catch {
-      // Ignore
+      soundEngine.errorTone()
     }
-    return samples
-  })
-
-  const handleDownloadReceipt = (record: AuditRecord) => {
-    const receipt = {
-      w2w_version: '1.0.0 (Offline E2EE)',
-      transaction_id: record.id,
-      timestamp: new Date(record.timestamp).toISOString(),
-      direction: record.direction,
-      file_name: record.fileName,
-      file_size_bytes: record.fileSize,
-      total_chunks: record.totalChunks,
-      cryptographic_algorithm: record.cipher,
-      sha256_integrity_hash: record.sha256,
-      burn_after_reading: record.burned,
-      gzip_pre_compressed: record.isCompressed,
-      signature_verification: 'VALID · LOCAL_DEVICE_KEYSTORE',
-    }
-
-    const blob = new Blob([JSON.stringify(receipt, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `audit-receipt-${record.id}.json`
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
-  const handleClear = () => {
-    setRecords([])
-    localStorage.removeItem('w2w_audit_ledger')
+  const handleDownloadFile = async (record: AuditRecord) => {
+    setDownloadingId(record.id)
+    setErrorMsg(null)
+    try {
+      await api.downloadAuditFile(record.id, record.fileName)
+      soundEngine.transferComplete()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to download stored file'
+      setErrorMsg(msg)
+      soundEngine.errorTone()
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+
+  const handleClear = async () => {
+    if (window.confirm('Are you sure you want to clear the audit ledger?')) {
+      await api.clearAuditLedger()
+      setRecords([])
+    }
   }
 
   const formatBytes = (bytes: number) => {
@@ -104,41 +130,130 @@ export const AuditLedgerPanel: React.FC = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
   }
 
+  const filteredRecords = records.filter((r) => {
+    if (filterType !== 'ALL' && r.direction !== filterType) {
+      return false
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      return (
+        r.id.toLowerCase().includes(q) ||
+        r.fileName.toLowerCase().includes(q) ||
+        r.sha256.toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-[#141414] border border-[#1c1c1c]">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 rounded-2xl bg-[#141414] border border-[#1c1c1c]">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20">
-              IMMUTABLE LOCAL TRANSACTION LOG
+              IMMUTABLE TRANSACTION LOG
             </span>
+            {user ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <UserCheck className="w-3 h-3" />
+                <span>7-Day Vault Active ({user.nodeId})</span>
+              </span>
+            ) : (
+              <span className="text-[10px] font-mono text-[#808080] bg-[#222] px-2 py-0.5 rounded-full">
+                Guest Mode · Log in to enable 7-day persistence
+              </span>
+            )}
           </div>
           <h3 className="text-xl font-bold text-white font-sans">
             Cryptographic Audit Ledger
           </h3>
           <p className="text-xs text-[#808080]">
-            Full forensic integrity trail. Download signed JSON audit receipts for enterprise compliance.
+            Full forensic integrity trail. Shared files for logged-in users are retained for 7 days in the database.
           </p>
         </div>
 
-        {records.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={handleClear}
-            className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-[#808080] hover:text-[#eb5757] transition-colors flex items-center gap-1"
+            type="button"
+            onClick={loadLedger}
+            disabled={loading}
+            className="px-3 py-1.5 rounded-full border border-[#282828] text-xs text-white hover:border-white transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Refresh from server"
           >
-            <Trash className="w-3.5 h-3.5" />
-            <span>Clear Ledger</span>
+            <ArrowsClockwise className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Sync</span>
           </button>
-        )}
+
+          {records.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-[#808080] hover:text-[#eb5757] hover:border-[#eb5757]/40 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <Trash className="w-3.5 h-3.5" />
+              <span>Clear Ledger</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Error alert if download failed */}
+      {errorMsg && (
+        <div className="p-3.5 rounded-xl bg-[#eb5757]/10 border border-[#eb5757]/30 text-xs text-[#eb5757] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <WarningCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="text-[10px] uppercase font-mono hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#141414] border border-[#1c1c1c]">
+        {/* Search */}
+        <div className="relative flex-1">
+          <MagnifyingGlass className="w-3.5 h-3.5 text-[#808080] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search by TX ID, filename, or SHA-256..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 bg-[#000000] border border-[#282828] focus:border-[#7089ba] focus:outline-none rounded-lg text-xs font-mono text-white placeholder-[#4d4d4d]"
+          />
+        </div>
+
+        {/* Filter pills */}
+        <div className="flex items-center p-0.5 rounded-lg bg-[#000000] border border-[#282828] text-[11px] font-mono shrink-0">
+          {(['ALL', 'SENT', 'RECEIVED'] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setFilterType(type)}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                filterType === type
+                  ? 'bg-white text-black font-bold shadow-sm'
+                  : 'text-[#808080] hover:text-white'
+              }`}
+            >
+              {type === 'ALL' ? 'All' : type === 'SENT' ? 'Sent' : 'Received'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
       <div className="rounded-2xl bg-[#141414] border border-[#1c1c1c] overflow-hidden">
-        {records.length === 0 ? (
+        {filteredRecords.length === 0 ? (
           <div className="p-12 text-center text-xs text-[#808080] space-y-2">
             <ShieldCheck className="w-8 h-8 text-[#4d4d4d] mx-auto" />
-            <p>No transactions recorded yet.</p>
+            <p>{searchQuery ? 'No matching audit records found.' : 'No transactions recorded yet.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -149,48 +264,106 @@ export const AuditLedgerPanel: React.FC = () => {
                   <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Payload</th>
                   <th className="py-3 px-4">Size</th>
+                  <th className="py-3 px-4">Retention / Expiry</th>
                   <th className="py-3 px-4">SHA-256 Hash</th>
-                  <th className="py-3 px-4 text-right">Receipt</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1c1c1c]">
-                {records.map((r) => (
-                  <tr key={r.id} className="hover:bg-[#181818] transition-colors">
-                    <td className="py-3.5 px-4 text-[#7089ba] font-bold">{r.id}</td>
-                    <td className="py-3.5 px-4">
-                      {r.direction === 'SENT' ? (
-                        <span className="inline-flex items-center gap-1 text-white">
-                          <ArrowUpRight className="w-3.5 h-3.5 text-[#7089ba]" />
-                          Sent
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[#ababab]">
-                          <ArrowDownLeft className="w-3.5 h-3.5 text-white" />
-                          Received
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-white max-w-[200px] truncate font-medium">
-                      {r.fileName}
-                    </td>
-                    <td className="py-3.5 px-4 text-[#808080]">
-                      {formatBytes(r.fileSize)} ({r.totalChunks}c)
-                    </td>
-                    <td className="py-3.5 px-4 text-[#808080] max-w-[150px] truncate" title={r.sha256}>
-                      {r.sha256.slice(0, 16)}...
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleDownloadReceipt(r)}
-                        className="px-2.5 py-1 rounded-full border border-[#282828] text-white hover:border-white text-[11px] transition-colors inline-flex items-center gap-1"
-                        title="Download JSON Cryptographic Receipt"
-                      >
-                        <DownloadSimple className="w-3 h-3" />
-                        <span>JSON</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredRecords.map((r) => {
+                  const isPersisted = !!r.isPersisted
+                  const isExpired = !!r.isExpired || !!r.isDeleted
+                  const canDownload = isPersisted && !isExpired
+
+                  return (
+                    <tr key={r.id} className="hover:bg-[#181818] transition-colors">
+                      <td className="py-3.5 px-4 text-[#7089ba] font-bold">{r.id}</td>
+                      <td className="py-3.5 px-4">
+                        {r.direction === 'SENT' ? (
+                          <span className="inline-flex items-center gap-1 text-white">
+                            <ArrowUpRight className="w-3.5 h-3.5 text-[#7089ba]" />
+                            Sent
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[#ababab]">
+                            <ArrowDownLeft className="w-3.5 h-3.5 text-white" />
+                            Received
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-white max-w-[180px] truncate font-medium" title={r.fileName}>
+                        <div className="flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-[#7089ba] shrink-0" />
+                          <span className="truncate">{r.fileName}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-[#808080]">
+                        {formatBytes(r.fileSize)} ({r.totalChunks || 1}c)
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {isPersisted ? (
+                          !isExpired ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              <Clock className="w-3 h-3" />
+                              <span>{r.daysRemaining ? `${r.daysRemaining}d left` : '7d Vault'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-[#eb5757] bg-[#eb5757]/10 px-2 py-0.5 rounded border border-[#eb5757]/20">
+                              <span>Expired (7d)</span>
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[10px] text-[#666]">
+                            Ephemeral
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-[#808080] max-w-[120px] truncate" title={r.sha256}>
+                        {r.sha256 ? `${r.sha256.slice(0, 12)}...` : '—'}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          {/* File Download Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadFile(r)}
+                            disabled={!canDownload || downloadingId === r.id}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all inline-flex items-center gap-1 ${
+                              canDownload
+                                ? 'bg-white text-black hover:bg-white/90 cursor-pointer shadow-sm'
+                                : 'border border-[#282828] text-[#555] cursor-not-allowed opacity-50'
+                            }`}
+                            title={
+                              canDownload
+                                ? 'Download stored file payload'
+                                : isPersisted
+                                ? 'File has expired after 7 days and was deleted from the database'
+                                : 'File was shared in guest mode (not persisted in 7-day vault)'
+                            }
+                          >
+                            {downloadingId === r.id ? (
+                              <ArrowsClockwise className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <DownloadSimple className="w-3 h-3" />
+                            )}
+                            <span>File</span>
+                          </button>
+
+                          {/* JSON Receipt Download Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadReceipt(r)}
+                            className="px-2.5 py-1 rounded-full border border-[#282828] text-white hover:border-white text-[11px] transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="Download Signed JSON Cryptographic Receipt"
+                          >
+                            <DownloadSimple className="w-3 h-3 text-[#7089ba]" />
+                            <span>JSON</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -199,3 +372,4 @@ export const AuditLedgerPanel: React.FC = () => {
     </div>
   )
 }
+

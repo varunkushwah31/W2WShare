@@ -263,6 +263,41 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       // 4. Stream Chunks to Backend
       await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
 
+      // 5. Register in Audit Ledger & 7-Day File Vault if logged in
+      const { authStore } = await import('@/lib/auth')
+      const currentUser = authStore.getUser()
+
+      for (let i = 0; i < preparedFiles.length; i++) {
+        const prep = preparedFiles[i]
+        const txId = `TX-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+        try {
+          await api.recordAuditTransaction({
+            id: txId,
+            timestamp: Date.now(),
+            direction: 'SENT',
+            fileName: prep.metadata.fileName,
+            fileSize: prep.metadata.fileSize,
+            totalChunks: prep.metadata.totalChunks,
+            sha256: prep.metadata.sha256,
+            cipher: 'AES-256-GCM / PBKDF2 (100k)',
+            burned: burnAfter,
+            isCompressed: !!prep.metadata.isCompressed,
+            userId: currentUser ? currentUser.nodeId : undefined,
+          })
+
+          if (currentUser && files[i]) {
+            await api.persistAuditFile(
+              txId,
+              files[i].file,
+              prep.metadata.mimeType || 'application/octet-stream',
+              currentUser.nodeId
+            )
+          }
+        } catch {
+          // Non-blocking audit persistence fallback
+        }
+      }
+
       setProgressPercent(100)
       setIsTransferring(false)
       setTransferDone(true)

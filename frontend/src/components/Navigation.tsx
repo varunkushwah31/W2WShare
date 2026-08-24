@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { List, X, Lightning } from '@phosphor-icons/react'
+import { List, X, Lightning, UserCheck, SignOut } from '@phosphor-icons/react'
+import { authStore, type AuthUser } from '@/lib/auth'
 
 export type NavPageType = 'home' | 'features' | 'changelog' | 'security' | 'pricing' | 'blog'
 
@@ -18,6 +19,12 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(() => authStore.getUser())
+
+  useEffect(() => {
+    const unsub = authStore.subscribe((u) => setUser(u))
+    return unsub
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,6 +44,10 @@ export const Navigation: React.FC<NavigationProps> = ({
     if (page === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  const handleLogout = () => {
+    authStore.logout()
   }
 
   const navLinks = [
@@ -112,12 +123,30 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <button
-              onClick={onOpenLogin}
-              className="px-3.5 py-1.5 text-sm font-medium text-[#808080] hover:text-white transition-colors rounded-full cursor-pointer"
-            >
-              Login
-            </button>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#161616] border border-[#2a2a2a] text-xs font-mono text-white">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <UserCheck className="w-3.5 h-3.5 text-[#7089ba]" />
+                  <span className="max-w-[130px] truncate">{user.nodeId}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="Logout"
+                  className="p-1.5 rounded-full border border-[#282828] text-[#808080] hover:text-[#eb5757] hover:border-[#eb5757]/50 transition-colors"
+                >
+                  <SignOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenLogin}
+                className="px-3.5 py-1.5 text-sm font-medium text-[#808080] hover:text-white transition-colors rounded-full cursor-pointer"
+              >
+                Login
+              </button>
+            )}
+
             <button
               onClick={onOpenDemo}
               className="px-4 py-1.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all border border-white flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -152,22 +181,41 @@ export const Navigation: React.FC<NavigationProps> = ({
                     isActive ? 'text-white font-bold' : 'text-[#808080] hover:text-white font-medium'
                   }`}
                 >
-                  {link.label}
+                  <span>{link.label}</span>
                 </button>
               )
             })}
           </div>
 
           <div className="space-y-3 pt-6 border-t border-[#1c1c1c]">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false)
-                onOpenLogin()
-              }}
-              className="w-full py-2.5 rounded-full border border-[#282828] text-sm text-white hover:bg-[#1c1c1c]"
-            >
-              Login
-            </button>
+            {user ? (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-[#161616] border border-[#2a2a2a] text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-white">{user.nodeId}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    handleLogout()
+                    setMobileMenuOpen(false)
+                  }}
+                  className="text-[#eb5757] hover:underline"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  onOpenLogin()
+                }}
+                className="w-full py-2.5 rounded-full border border-[#282828] text-sm text-white hover:bg-[#1c1c1c]"
+              >
+                Login
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setMobileMenuOpen(false)
@@ -183,3 +231,4 @@ export const Navigation: React.FC<NavigationProps> = ({
     </>
   )
 }
+

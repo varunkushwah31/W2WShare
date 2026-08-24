@@ -115,6 +115,50 @@ export interface TransferSessionDetails {
   hasClipboard?: boolean
 }
 
+export interface AuditRecord {
+  id: string
+  timestamp: number
+  direction: 'SENT' | 'RECEIVED'
+  fileName: string
+  fileSize: number
+  totalChunks: number
+  sha256: string
+  cipher: string
+  burned: boolean
+  isCompressed: boolean
+  userId?: string
+  isPersisted?: boolean
+  expiryTimestamp?: number
+  isDeleted?: boolean
+  mimeType?: string
+  retentionDays?: number
+  isExpired?: boolean
+  canDownload?: boolean
+  daysRemaining?: number
+}
+
+export interface AuditReceipt {
+  w2w_version: string
+  transaction_id: string
+  timestamp: string
+  direction: string
+  file_name: string
+  file_size_bytes: number
+  total_chunks: number
+  cryptographic_algorithm: string
+  sha256_integrity_hash: string
+  burn_after_reading: boolean
+  gzip_pre_compressed: boolean
+  signature_verification: string
+}
+
+export interface NodeAuthResponse {
+  authenticated: boolean
+  nodeId: string
+  status: string
+  keystoreStatus: string
+}
+
 const API_BASE = '/api'
 
 export const api = {
@@ -192,6 +236,17 @@ export const api = {
     } catch {
       return { status: 'STANDALONE_UI' }
     }
+  },
+
+  // Node Auth
+  async authenticateNode(nodeId: string, token: string): Promise<NodeAuthResponse> {
+    const res = await fetch(`${API_BASE}/enterprise/node-auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nodeId, token }),
+    })
+    if (!res.ok) throw new Error('Authentication failed')
+    return await res.json()
   },
 
   // Transfer Sessions
@@ -301,8 +356,24 @@ export const api = {
     return await res.json()
   },
 
+  async saveClipboardByPin(pin: string, encryptedText: string): Promise<{ sessionId?: string }> {
+    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/clipboard`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: encryptedText }),
+    })
+    if (!res.ok) throw new Error('Failed to save clipboard by PIN')
+    return await res.json()
+  },
+
+  async getClipboardByPin(pin: string): Promise<{ text: string; sessionId?: string }> {
+    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/clipboard`)
+    if (!res.ok) throw new Error('Failed to get clipboard by PIN')
+    return await res.json()
+  },
+
   // Chat
-  async addChatMessage(sessionId: string, content: string, senderRole = 'client'): Promise<ChatMessage> {
+  async addChatMessage(sessionId: string, content: string, senderRole = 'Sender'): Promise<ChatMessage> {
     const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -318,4 +389,121 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch chat history')
     return await res.json()
   },
+
+  async addChatMessageByPin(pin: string, content: string, senderRole = 'Sender'): Promise<ChatMessage> {
+    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, senderRole }),
+    })
+    if (!res.ok) throw new Error('Failed to send chat message by PIN')
+    const data = await res.json()
+    return data.message
+  },
+
+  async getChatHistoryByPin(pin: string): Promise<ChatMessage[]> {
+    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/chat`)
+    if (!res.ok) throw new Error('Failed to fetch chat history by PIN')
+    return await res.json()
+  },
+
+  // Audit Ledger & 7-Day Persistent File Storage
+  async getAuditLedger(userId?: string): Promise<AuditRecord[]> {
+    try {
+      const url = userId
+        ? `${API_BASE}/audit/ledger?userId=${encodeURIComponent(userId)}`
+        : `${API_BASE}/audit/ledger`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to fetch audit ledger')
+      return await res.json()
+    } catch {
+      // Fallback to localStorage if backend is unreachable
+      try {
+        const stored = localStorage.getItem('w2w_audit_ledger')
+        if (stored) return JSON.parse(stored)
+      } catch {
+        // Ignore
+      }
+      return []
+    }
+  },
+
+  async recordAuditTransaction(record: Partial<AuditRecord>): Promise<AuditRecord> {
+    const res = await fetch(`${API_BASE}/audit/ledger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    })
+    if (!res.ok) throw new Error('Failed to record audit transaction')
+    return await res.json()
+  },
+
+  async persistAuditFile(
+    transactionId: string,
+    fileBlob: Blob,
+    mimeType = 'application/octet-stream',
+    userId?: string
+  ): Promise<AuditRecord> {
+    const formData = new FormData()
+    formData.append('transactionId', transactionId)
+    formData.append('file', fileBlob)
+    formData.append('mimeType', mimeType)
+    if (userId) {
+      formData.append('userId', userId)
+    }
+
+    const res = await fetch(`${API_BASE}/audit/ledger/persist`, {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) throw new Error('Failed to persist file in 7-day database vault')
+    return await res.json()
+  },
+
+  getAuditFileDownloadUrl(transactionId: string): string {
+    return `${API_BASE}/audit/ledger/${transactionId}/download`
+  },
+
+  async downloadAuditFile(transactionId: string, fileName: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/audit/ledger/${transactionId}/download`)
+    if (res.status === 410) {
+      throw new Error('This file has expired after the 7-day retention limit and was automatically purged.')
+    }
+    if (res.status === 400) {
+      throw new Error('This file was transferred in ephemeral guest mode and is not persisted in the database.')
+    }
+    if (!res.ok) {
+      throw new Error(`Download failed (HTTP ${res.status}). File may be deleted or unavailable.`)
+    }
+
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName || `w2w-download-${transactionId}.bin`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
+
+  async getAuditReceipt(transactionId: string): Promise<AuditReceipt> {
+    const res = await fetch(`${API_BASE}/audit/ledger/${transactionId}/receipt`)
+    if (!res.ok) throw new Error('Failed to fetch audit receipt')
+    return await res.json()
+  },
+
+  async clearAuditLedger(): Promise<void> {
+    try {
+      await fetch(`${API_BASE}/audit/ledger`, { method: 'DELETE' })
+    } catch {
+      // Ignore
+    }
+    localStorage.removeItem('w2w_audit_ledger')
+  },
+
+  async deleteAuditRecord(transactionId: string): Promise<void> {
+    await fetch(`${API_BASE}/audit/ledger/${transactionId}`, { method: 'DELETE' })
+  },
 }
+

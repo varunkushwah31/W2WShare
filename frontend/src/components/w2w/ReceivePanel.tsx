@@ -177,6 +177,40 @@ export const ReceivePanel: React.FC = () => {
       setStatusText('All files downloaded, decrypted & verified successfully!')
       soundEngine.transferComplete()
 
+      // Register received transactions in Audit Ledger & 7-day vault if logged in
+      const { authStore } = await import('@/lib/auth')
+      const currentUser = authStore.getUser()
+
+      for (const resItem of results) {
+        const txId = `TX-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+        try {
+          await api.recordAuditTransaction({
+            id: txId,
+            timestamp: Date.now(),
+            direction: 'RECEIVED',
+            fileName: resItem.metadata.fileName,
+            fileSize: resItem.metadata.fileSize,
+            totalChunks: resItem.metadata.totalChunks,
+            sha256: resItem.metadata.sha256,
+            cipher: 'AES-256-GCM / PBKDF2 (100k)',
+            burned: !!burnAfterReading,
+            isCompressed: !!resItem.metadata.isCompressed,
+            userId: currentUser ? currentUser.nodeId : undefined,
+          })
+
+          if (currentUser && resItem.blob) {
+            await api.persistAuditFile(
+              txId,
+              resItem.blob,
+              resItem.metadata.mimeType || 'application/octet-stream',
+              currentUser.nodeId
+            )
+          }
+        } catch {
+          // Non-blocking audit persistence fallback
+        }
+      }
+
       // Notify completion & auto-burn
       const completeRes = await api.markTransferComplete(sessionId)
       if (completeRes.burned || burnAfterReading) {

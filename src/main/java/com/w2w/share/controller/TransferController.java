@@ -277,6 +277,26 @@ public class TransferController {
         return ResponseEntity.ok(Map.of("text", text != null ? text : ""));
     }
 
+    @PostMapping("/session/by-pin/{pin}/clipboard")
+    public ResponseEntity<Map<String, String>> saveClipboardByPin(
+            @PathVariable String pin,
+            @RequestBody(required = false) ClipboardSyncRequest request) {
+
+        TransferSession session = sessionService.getSessionByPin(pin)
+                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+        String text = (request != null && request.text() != null) ? request.text() : "";
+        sessionService.setEncryptedClipboardText(session.getSessionId(), text);
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, STATUS_SAVED, "sessionId", session.getSessionId()));
+    }
+
+    @GetMapping("/session/by-pin/{pin}/clipboard")
+    public ResponseEntity<Map<String, String>> getClipboardByPin(@PathVariable String pin) {
+        TransferSession session = sessionService.getSessionByPin(pin)
+                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+        String text = session.getEncryptedClipboardText();
+        return ResponseEntity.ok(Map.of("text", text != null ? text : "", "sessionId", session.getSessionId()));
+    }
+
     @PostMapping("/session/{sessionId}/chat")
     public ResponseEntity<Map<String, Object>> addChatMessage(
             @PathVariable String sessionId,
@@ -297,6 +317,32 @@ public class TransferController {
     @GetMapping("/session/{sessionId}/chat")
     public ResponseEntity<List<ChatMessage>> getChatHistory(@PathVariable String sessionId) {
         TransferSession session = sessionService.getRequiredSession(sessionId);
+        return ResponseEntity.ok(session.getChatHistory());
+    }
+
+    @PostMapping("/session/by-pin/{pin}/chat")
+    public ResponseEntity<Map<String, Object>> addChatMessageByPin(
+            @PathVariable String pin,
+            @Valid @RequestBody ChatMessageRequest request) {
+
+        TransferSession session = sessionService.getSessionByPin(pin)
+                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+        String senderRole = request.senderRole() != null ? request.senderRole() : "client";
+        String content = request.content();
+        if (content == null || content.isBlank()) {
+            throw new InvalidChunkException("Chat message content cannot be empty.");
+        }
+
+        ChatMessage msg = new ChatMessage(UUID.randomUUID().toString(), senderRole, content, System.currentTimeMillis());
+        sessionService.addChatMessage(session.getSessionId(), msg);
+
+        return ResponseEntity.ok(Map.of("status", "SENT", "message", msg, "sessionId", session.getSessionId()));
+    }
+
+    @GetMapping("/session/by-pin/{pin}/chat")
+    public ResponseEntity<List<ChatMessage>> getChatHistoryByPin(@PathVariable String pin) {
+        TransferSession session = sessionService.getSessionByPin(pin)
+                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
         return ResponseEntity.ok(session.getChatHistory());
     }
 

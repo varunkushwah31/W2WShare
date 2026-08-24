@@ -13,4 +13,11 @@ public interface AuditRecordRepository extends JpaRepository<AuditRecordEntity, 
     Optional<AuditRecordEntity> findByTransactionId(String transactionId);
 
     List<AuditRecordEntity> findAllByOrderByTimestampDesc();
+
+    List<AuditRecordEntity> findByUserIdOrderByTimestampDesc(String userId);
+
+    List<AuditRecordEntity> findAllByExpiryTimestampLessThanEqualAndIsDeletedFalse(long now);
+
+    void deleteByTransactionId(String transactionId);
 }
+

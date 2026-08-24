@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.w2w.share.controller.AuditLedgerController;
 import com.w2w.share.dto.AuditReceiptDto;
 import com.w2w.share.dto.AuditRecordDto;
+import com.w2w.share.model.AuditRecordEntity;
 import com.w2w.share.service.IAuditLedgerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,4 +81,51 @@ class AuditLedgerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("LEDGER_CLEARED"));
     }
+
+    @Test
+    void testDownloadPersistedFileSuccess() throws Exception {
+        AuditRecordEntity entity = new AuditRecordEntity(
+                "TX-DL-1", System.currentTimeMillis(), "SENT", "notes.txt", 12L, 1, "sha", "AES", false, false, "SIG"
+        );
+        entity.setPersisted(true);
+        entity.setFileData("Hello world!".getBytes());
+        entity.setMimeType("text/plain");
+        entity.setExpiryTimestamp(System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000));
+
+        when(auditLedgerService.getRecordEntity("TX-DL-1")).thenReturn(Optional.of(entity));
+
+        mockMvc.perform(get("/api/audit/ledger/TX-DL-1/download"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"notes.txt\""))
+                .andExpect(content().string("Hello world!"));
+    }
+
+    @Test
+    void testDownloadPersistedFileExpired() throws Exception {
+        AuditRecordEntity entity = new AuditRecordEntity(
+                "TX-EXPIRED", System.currentTimeMillis() - 1000000, "SENT", "expired.txt", 12L, 1, "sha", "AES", false, false, "SIG"
+        );
+        entity.setPersisted(true);
+        entity.setDeleted(true); // expired and deleted
+        entity.setExpiryTimestamp(System.currentTimeMillis() - 500);
+
+        when(auditLedgerService.getRecordEntity("TX-EXPIRED")).thenReturn(Optional.of(entity));
+
+        mockMvc.perform(get("/api/audit/ledger/TX-EXPIRED/download"))
+                .andExpect(status().isGone());
+    }
+
+    @Test
+    void testDownloadPersistedFileGuestNotPersisted() throws Exception {
+        AuditRecordEntity entity = new AuditRecordEntity(
+                "TX-GUEST", System.currentTimeMillis(), "SENT", "guest.txt", 12L, 1, "sha", "AES", false, false, "SIG"
+        );
+        entity.setPersisted(false);
+
+        when(auditLedgerService.getRecordEntity("TX-GUEST")).thenReturn(Optional.of(entity));
+
+        mockMvc.perform(get("/api/audit/ledger/TX-GUEST/download"))
+                .andExpect(status().isBadRequest());
+    }
 }
+
