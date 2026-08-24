@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { ArrowRight, CheckCircle, LockKey, Key, ShieldCheck, User, Envelope, Building } from '@phosphor-icons/react'
+import { ArrowRightIcon, CheckCircleIcon, LockKeyIcon, KeyIcon, ShieldCheckIcon, UserIcon, EnvelopeIcon, BuildingIcon } from '@phosphor-icons/react'
 
 interface BookDemoModalProps {
   isOpen: boolean
@@ -65,7 +65,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
         <DialogHeader className="space-y-2 mb-2 text-left">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/25 flex items-center gap-1 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheckIcon className="w-3.5 h-3.5" />
               <span>
                 {activeTab === 'pin' ? 'INSTANT DECRYPT' : activeTab === 'demo' ? 'AIR-GAPPED APPLIANCE' : 'NODE AUTH'}
               </span>
@@ -137,7 +137,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
         {submitted ? (
           <div className="py-8 text-center space-y-3">
             <div className="w-12 h-12 rounded-full bg-[#7089ba]/20 text-[#7089ba] flex items-center justify-center mx-auto border border-[#7089ba]/40">
-              <CheckCircle className="w-6 h-6" weight="bold" />
+              <CheckCircleIcon className="w-6 h-6" weight="bold" />
             </div>
             <h4 className="text-base font-bold text-white font-sans">
               {activeTab === 'demo' ? 'Appliance Request Registered' : 'Authentication Confirmed'}
@@ -164,7 +164,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                     6-Digit Claim PIN
                   </label>
                   <div className="relative flex items-center">
-                    <Key className="w-5 h-5 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+                    <KeyIcon className="w-5 h-5 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
                       type="text"
                       required
@@ -194,7 +194,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                     Lead Engineer
                   </label>
                   <div className="relative flex items-center">
-                    <User className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+                    <UserIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
                       type="text"
                       required
@@ -211,7 +211,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                     Work Email
                   </label>
                   <div className="relative flex items-center">
-                    <Envelope className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+                    <EnvelopeIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
                       type="email"
                       required
@@ -228,7 +228,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                     Organization / Node Subnet
                   </label>
                   <div className="relative flex items-center">
-                    <Building className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+                    <BuildingIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
                       type="text"
                       required
@@ -250,7 +250,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                     Node ID / Device Address
                   </label>
                   <div className="relative flex items-center">
-                    <User className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+                    <UserIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
                       type="text"
                       required
@@ -267,7 +267,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                     Hardware Keystore Secret Token
                   </label>
                   <div className="relative flex items-center">
-                    <LockKey className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+                    <LockKeyIcon className="w-4 h-4 text-[#7089ba] absolute left-3.5 pointer-events-none" />
                     <input
                       type="password"
                       required
@@ -293,11 +293,11 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                   ? 'Request Node Image'
                   : 'Authenticate Node'}
               </span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRightIcon className="wIcon-3.5 h-3.Icon5 groIconup-hover:tranIconslate-Iconx-0.5 tranIconsition-traIconnsform" />
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-[#808080] pt-1">
-              <LockKey className="w-3 h-3 text-[#7089ba]" />
+              <LockKeyIcon className="w-3 h-3 text-[#7089ba]" />
               <span>100% OFFLINE · ZERO INTERNET REQUIRED</span>
             </div>
           </form>
