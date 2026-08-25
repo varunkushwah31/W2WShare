@@ -94,7 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 W2W Share
               </span>
               <span className="hidden sm:inline-block font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-medium">
-                v2.0 E2EE
+                v1.0 E2EE
               </span>
             </div>
           </button>
@@ -157,7 +157,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               className="px-4 py-1.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all border border-white flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <LightningIcon className="w-3.5 h-3.5" weight="fill" />
-              <span>Quick PIN</span>
+              <span>Claim by PIN</span>
             </button>
           </div>
 
@@ -233,7 +233,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               }}
               className="w-full py-2.5 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90"
             >
-              Quick PIN Claim
+              Claim by PIN
             </button>
           </div>
         </div>

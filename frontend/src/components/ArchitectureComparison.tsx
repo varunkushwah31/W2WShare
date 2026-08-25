@@ -69,7 +69,7 @@ export const ArchitectureComparison: React.FC = () => {
             <thead className="bg-[#000000] text-[#808080] uppercase tracking-wider text-[10px] border-b border-[#1c1c1c]">
               <tr>
                 <th className="py-4 px-6">Capability / Metric</th>
-                <th className="py-4 px-6 text-[#7089ba] font-bold">W2WShare (Index Architecture)</th>
+                <th className="py-4 px-6 text-[#7089ba] font-bold">W2W Share (Offline Architecture)</th>
                 <th className="py-4 px-6">Cloud Drives (GDrive / Dropbox)</th>
                 <th className="py-4 px-6">Apple AirDrop</th>
               </tr>

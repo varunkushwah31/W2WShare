@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { api, type FileMetadata } from '@/lib/api'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
+import { WebRtcPeerManager } from '@/lib/webrtc'
+import { ZipArchiver } from '@/lib/zip'
+import { TransferTelemetryChart } from './TransferTelemetryChart'
 import { MediaPreviewModal, type MediaPreviewItem } from './MediaPreviewModal'
 import {
   DownloadSimple,
@@ -13,6 +16,7 @@ import {
   Flame,
   WarningCircle,
   ArrowsClockwise,
+  Archive,
 } from '@phosphor-icons/react'
 
 interface ReceivedFileItem {
@@ -49,6 +53,18 @@ export const ReceivePanel: React.FC = () => {
   const [receivedFiles, setReceivedFiles] = useState<ReceivedFileItem[]>([])
   const [previewItem, setPreviewItem] = useState<MediaPreviewItem | null>(null)
   const [burnedNotice, setBurnedNotice] = useState(false)
+
+  // Telemetry, WebRTC, and ZIP state
+  const [isDirectP2p, setIsDirectP2p] = useState(false)
+  const [downloadSpeedMbps, setDownloadSpeedMbps] = useState(0)
+  const [transferredBytes, setTransferredBytes] = useState(0)
+  const [currentChunkIndex, setCurrentChunkIndex] = useState(0)
+  const [totalChunksCount, setTotalChunksCount] = useState(0)
+  const [isZipping, setIsZipping] = useState(false)
+  const [zipProgress, setZipProgress] = useState(0)
+  const rtcManagerRef = useRef<WebRtcPeerManager | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const webrtcChunksRef = useRef<Map<string, ArrayBuffer>>(new Map())
 
   const handleLookup = React.useCallback(async (lookupPin: string) => {
     const cleanPin = lookupPin.trim()
@@ -98,6 +114,85 @@ export const ReceivePanel: React.FC = () => {
     }
   }, [handleLookup])
 
+  // Setup WebRTC and WebSocket signaling when session is joined
+  useEffect(() => {
+    if (!sessionId || !activePin) {
+      if (wsRef.current) wsRef.current.close()
+      if (rtcManagerRef.current) rtcManagerRef.current.close()
+      return
+    }
+
+    const rtc = new WebRtcPeerManager('receiver')
+    rtcManagerRef.current = rtc
+
+    rtc.onStateChange((_, stats) => {
+      setIsDirectP2p(stats.isDirectP2p)
+      if (stats.currentMbps > 0) {
+        setDownloadSpeedMbps(stats.currentMbps)
+      }
+    })
+
+    rtc.onChunkReceived((fileIndex, chunkIndex, buffer) => {
+      webrtcChunksRef.current.set(`${fileIndex}-${chunkIndex}`, buffer)
+    })
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host || 'localhost:8080'
+    const wsUrl = `${protocol}//${host}/ws/signaling`
+
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+
+    rtc.setSignalingSender((signal) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(signal))
+      }
+    })
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'JOIN_BY_PIN', payload: activePin }))
+    }
+
+    ws.onmessage = async (event) => {
+      try {
+        const signal = JSON.parse(event.data)
+        if (signal.type === 'WEBRTC_OFFER' && signal.payload) {
+          await rtc.handleRemoteOffer(signal.payload)
+        } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
+          await rtc.handleRemoteIceCandidate(signal.payload)
+        }
+      } catch (err) {
+        console.warn('Signaling error:', err)
+      }
+    }
+
+    return () => {
+      ws.close()
+      rtc.close()
+    }
+  }, [sessionId, activePin])
+
+  // One-click ZIP generation and download
+  const handleDownloadAllAsZip = async () => {
+    if (receivedFiles.length === 0) return
+    setIsZipping(true)
+    setZipProgress(0)
+    try {
+      const zipEntries = receivedFiles.map((item) => ({
+        name: item.metadata.fileName,
+        relativePath: item.metadata.relativePath || item.metadata.fileName,
+        blob: item.blob,
+      }))
+      const zipBlob = await ZipArchiver.createZip(zipEntries, (pct) => setZipProgress(pct))
+      ZipArchiver.downloadBlob(zipBlob, `w2w-share-${activePin || 'bundle'}.zip`)
+      soundEngine.transferComplete()
+    } catch (err) {
+      console.error('Failed to generate ZIP archive:', err)
+    } finally {
+      setIsZipping(false)
+    }
+  }
+
   const handleDownloadAndDecrypt = async () => {
     if (!sessionId || !activePin || batchMetadata.length === 0) return
 
@@ -105,6 +200,11 @@ export const ReceivePanel: React.FC = () => {
     setDownloadPercent(0)
     setErrorMsg(null)
     setStatusText('Deriving cryptographic keys...')
+
+    const totalChunksAllFiles = batchMetadata.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
+    setTotalChunksCount(totalChunksAllFiles)
+    let downloadedBytesTotal = 0
+    const startTime = Date.now()
 
     const results: ReceivedFileItem[] = []
 
@@ -119,9 +219,22 @@ export const ReceivePanel: React.FC = () => {
         const chunkBuffers: ArrayBuffer[] = []
 
         for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
+          setCurrentChunkIndex(cIdx + 1)
           setStatusText(`Downloading chunk ${cIdx + 1}/${totalChunks} (${meta.fileName})`)
-          const chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+
+          let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
+          if (!chunkData) {
+            chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+          }
           chunkBuffers.push(chunkData)
+          downloadedBytesTotal += chunkData.byteLength
+          setTransferredBytes(downloadedBytesTotal)
+
+          const elapsedSec = (Date.now() - startTime) / 1000
+          if (elapsedSec > 0) {
+            const speed = downloadedBytesTotal / (1024 * 1024) / elapsedSec
+            setDownloadSpeedMbps(speed)
+          }
 
           const totalProgress = Math.round(
             ((fIdx * totalChunks + (cIdx + 1)) / (batchMetadata.length * totalChunks)) * 100
@@ -381,6 +494,20 @@ export const ReceivePanel: React.FC = () => {
             </div>
           )}
 
+          {/* Live Real-Time Telemetry & Throughput Chart */}
+          {(downloading || receivedFiles.length > 0) && (
+            <TransferTelemetryChart
+              currentSpeedMbps={downloadSpeedMbps}
+              totalBytes={batchMetadata.reduce((acc, m) => acc + (m.fileSize || 0), 0)}
+              transferredBytes={transferredBytes}
+              isDirectP2p={isDirectP2p}
+              isCompressed={batchMetadata.some((m) => !!m.isCompressed)}
+              originalSizeBytes={batchMetadata.reduce((acc, m) => acc + (m.originalSize || m.fileSize || 0), 0)}
+              currentChunk={currentChunkIndex}
+              totalChunks={totalChunksCount}
+            />
+          )}
+
           {/* Burned Notice */}
           {burnedNotice && (
             <div className="p-3 rounded-xl bg-[#eb5757]/10 border border-[#eb5757]/20 flex items-center gap-2 text-xs text-[#eb5757]">
@@ -392,9 +519,33 @@ export const ReceivePanel: React.FC = () => {
           {/* Decrypted Ready Files */}
           {receivedFiles.length > 0 && (
             <div className="space-y-3 pt-2">
-              <div className="text-xs font-mono text-[#7089ba] flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4" weight="bold" />
-                <span>Decrypted & Verified Files:</span>
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-mono text-[#7089ba] flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4" weight="bold" />
+                  <span>Decrypted & Verified Files ({receivedFiles.length}):</span>
+                </div>
+
+                {/* Download All as .ZIP Button */}
+                {receivedFiles.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadAllAsZip}
+                    disabled={isZipping}
+                    className="px-3.5 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                  >
+                    {isZipping ? (
+                      <>
+                        <ArrowsClockwise className="w-3.5 h-3.5 animate-spin text-black" />
+                        <span>Packing ZIP ({zipProgress}%)...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Archive className="w-3.5 h-3.5 text-black" weight="fill" />
+                        <span>Download All as .ZIP</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -405,7 +556,14 @@ export const ReceivePanel: React.FC = () => {
                   >
                     <div className="flex items-center gap-2 min-w-0 pr-2">
                       <FileIcon className="w-4 h-4 text-white shrink-0" />
-                      <span className="truncate text-white font-mono">{item.metadata.fileName}</span>
+                      <div className="min-w-0">
+                        <div className="truncate text-white font-mono">{item.metadata.fileName}</div>
+                        {item.metadata.relativePath && item.metadata.relativePath !== item.metadata.fileName && (
+                          <div className="text-[10px] text-[#808080] font-mono truncate">
+                            {item.metadata.relativePath}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">

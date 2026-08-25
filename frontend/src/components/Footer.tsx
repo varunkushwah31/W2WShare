@@ -37,7 +37,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
             {/* System Status */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#141414] border border-[#282828] text-[10px] font-mono text-[#808080]">
               <span className="w-2 h-2 rounded-full bg-[#7089ba] animate-pulse" />
-              <span>ALL SUBNET SERVICES OPERATIONAL · v2.0.4</span>
+              <span>ALL SUBNET SERVICES OPERATIONAL · v1.0.0</span>
             </div>
           </div>
 
@@ -131,7 +131,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#4d4d4d] font-mono">
           <div>© 2026 W2W Share Inc. All rights reserved. 100% Offline & Open Architecture.</div>
           <div className="flex items-center gap-6">
-            <span>SPEC: 2.0.4</span>
+            <span>SPEC: 1.0.0</span>
             <span className="text-[#7089ba]">AES-256-GCM</span>
           </div>
         </div>

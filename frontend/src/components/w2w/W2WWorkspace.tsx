@@ -78,7 +78,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
                 OFFLINE PEER STUDIO
               </span>
               <span className="font-mono text-[10px] text-[#808080]">
-                SPEC: 1.00 · AES-256-GCM
+                SPEC: 1.0.0 · AES-256-GCM
               </span>
               <button
                 type="button"

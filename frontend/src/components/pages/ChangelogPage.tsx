@@ -11,68 +11,68 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
       version: 'v1.0.0',
       date: 'August 15, 2026',
       tag: 'LATEST_STABLE',
-      headline: 'W2WShare v1',
+      headline: 'W2W Share v1.0 Production Architecture',
       items: [
         {
-          type: 'INFO',
-          title: 'W2WShare',
-          desc: 'W2WShare is a file sharing tool that uses zero-knowledge end-to-end encryption to securely transfer files between devices on a local network.',
+          type: 'SECURITY',
+          title: 'AES-256-GCM & PBKDF2',
+          desc: 'Browser-native authenticated symmetric cipher with 100,000 PBKDF2 rounds and hardware-derived cryptographic salts.',
         },
         {
-          type: 'FEATURES',
-          title: 'Stream Sinks',
-          desc: 'Transfer large files and folder hierarchies with 2MB binary chunk pipelining.',
+          type: 'PERFORMANCE',
+          title: '2MB Sliding Stream Sinks',
+          desc: 'Stream 10GB+ files and nested folder hierarchies directly to disk with zero browser heap memory bloat.',
         },
         {
-          type: 'DISCOVERY',
-          title: 'UDP Discovery Beacon',
-          desc: 'Auto-discover peers across local Wi-Fi, Ethernet, and hotspots.',
+          type: 'PROTOCOL',
+          title: 'Subnet Peer Radar & WebRTC',
+          desc: 'Automatic UDP multicast discovery on port 8888 and direct browser-to-browser P2P WebRTC data channels.',
         },
       ],
     },
     {
-      version: 'v1.0.0',
+      version: 'v0.9.0',
       date: 'July 28, 2026',
-      tag: 'CORE_ARCH',
-      headline: 'W2WShare v1',
+      tag: 'RELEASE_CANDIDATE',
+      headline: 'W2W Share v0.9 Beta Candidate',
       items: [
         {
-          type: 'INFO',
-          title: 'W2WShare',
-          desc: 'W2WShare is a file sharing tool that uses zero-knowledge end-to-end encryption to securely transfer files between devices on a local network.',
+          type: 'SECURITY',
+          title: 'Ephemeral Burn-After-Reading',
+          desc: 'Single-claim auto-destruct protocol that wipes in-memory session buffer handles immediately upon download completion.',
         },
         {
-          type: 'FEATURES',
-          title: 'Stream Sinks',
-          desc: 'Transfer large files and folder hierarchies with 2MB binary chunk pipelining.',
+          type: 'PERFORMANCE',
+          title: 'Gzip Pre-Compression',
+          desc: 'Hardware-accelerated browser CompressionStream transforms reducing code, JSON, and text transfer payloads by up to 80%.',
         },
         {
-          type: 'DISCOVERY',
-          title: 'UDP Discovery Beacon',
-          desc: 'Auto-discover peers across local Wi-Fi, Ethernet, and hotspots.',
+          type: 'UI/UX BLUEPRINT',
+          title: 'Drafting Table UI & QR Scanner',
+          desc: 'Technical wireframe interface with dynamic optical QR codes for 1-click mobile camera pairing.',
         },
       ],
     },
     {
-      version: 'v1.0.0',
+      version: 'v0.8.0',
       date: 'June 12, 2026',
-      tag: 'CORE_ARCH',
-      headline: 'W2WShare v1',
+      tag: 'ALPHA_CORE',
+      headline: 'W2W Share v0.8 Core Primitives',
       items: [
         {
-          type: 'INFO',
-          title: 'W2WShare',
-          desc: 'W2WShare is a file sharing tool that uses zero-knowledge end-to-end encryption to securely transfer files between devices on a local network.',
+          type: 'PROTOCOL',
+          title: 'Zero-Knowledge Local Relay',
+          desc: 'Lightweight Spring Boot 4.x local interface routing without external internet or cloud escrow dependencies.',
         },
         {
-          type: 'FEATURES',
-          title: 'Stream Sinks',
-          desc: 'Transfer large files and folder hierarchies with 2MB binary chunk pipelining.',
+          type: 'SECURITY',
+          title: 'Audit History Ledger',
+          desc: 'Local transaction logs producing downloadable signed JSON cryptographic audit receipts.',
         },
         {
-          type: 'DISCOVERY',
-          title: 'UDP Discovery Beacon',
-          desc: 'Auto-discover peers across local Wi-Fi, Ethernet, and hotspots.',
+          type: 'PERFORMANCE',
+          title: 'Direct Binary Slicing',
+          desc: 'Asynchronous chunk slicing supporting multi-file batch offers and recursive directory hierarchy traversal.',
         },
       ],
     },
@@ -99,7 +99,7 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
       {/* Page Title */}
       <div className="space-y-3">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
-          W2WShare System Updates
+          W2W Share System Updates
         </h1>
         <p className="text-sm text-[#808080] max-w-2xl leading-relaxed">
           Record of cryptographic enhancements, UDP discovery protocols, performance benchmarks.

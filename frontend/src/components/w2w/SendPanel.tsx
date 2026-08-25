@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { api, type FileMetadata } from '@/lib/api'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
+import { WebRtcPeerManager } from '@/lib/webrtc'
+import { TransferTelemetryChart } from './TransferTelemetryChart'
 import { QrCodeModal } from './QrCodeModal'
 import {
   UploadSimpleIcon,
@@ -119,12 +121,100 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
   const [linkCopied, setLinkCopied] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
 
+  // Telemetry & WebRTC state
+  const [isDirectP2p, setIsDirectP2p] = useState(false)
+  const [totalEncryptedBytes, setTotalEncryptedBytes] = useState(0)
+  const [uploadedBytes, setUploadedBytes] = useState(0)
+  const [originalTotalBytes, setOriginalTotalBytes] = useState(0)
+  const preparedFilesRef = useRef<PreparedFile[]>([])
+  const rtcManagerRef = useRef<WebRtcPeerManager | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+
+  // WebRTC direct streaming handler
+  const streamViaWebRtc = useCallback(async (prepared: PreparedFile[]) => {
+    const rtc = rtcManagerRef.current
+    if (!rtc || !rtc.isChannelOpen()) return
+
+    for (let fIdx = 0; fIdx < prepared.length; fIdx++) {
+      const p = prepared[fIdx]
+      const totalChunks = p.metadata.totalChunks
+      for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
+        const start = cIdx * CHUNK_SIZE
+        const end = Math.min(start + CHUNK_SIZE, p.encryptedBuffer.length)
+        const chunkData = p.encryptedBuffer.subarray(start, end)
+        await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
+      }
+    }
+  }, [])
+
+  // Connect WebSocket signaling and setup WebRTC when session is active
+  useEffect(() => {
+    if (!sessionId) {
+      if (wsRef.current) wsRef.current.close()
+      if (rtcManagerRef.current) rtcManagerRef.current.close()
+      return
+    }
+
+    const rtc = new WebRtcPeerManager('sender')
+    rtcManagerRef.current = rtc
+
+    rtc.onStateChange((_, stats) => {
+      setIsDirectP2p(stats.isDirectP2p)
+      if (stats.currentMbps > 0) {
+        setTransferSpeedMbps(stats.currentMbps)
+      }
+    })
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host || 'localhost:8080'
+    const wsUrl = `${protocol}//${host}/ws/signaling`
+
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+
+    rtc.setSignalingSender((signal) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(signal))
+      }
+    })
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'REGISTER_SENDER', payload: sessionId }))
+    }
+
+    ws.onmessage = async (event) => {
+      try {
+        const signal = JSON.parse(event.data)
+        if (signal.type === 'PEER_CONNECTED') {
+          soundEngine.peerConnect()
+          // Initiate WebRTC offer to the connected peer
+          await rtc.initSenderOffer()
+        } else if (signal.type === 'WEBRTC_ANSWER' && signal.payload) {
+          await rtc.handleRemoteAnswer(signal.payload)
+        } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
+          await rtc.handleRemoteIceCandidate(signal.payload)
+        } else if (signal.type === 'REQUEST_WEBRTC_CHUNKS') {
+          if (preparedFilesRef.current.length > 0) {
+            streamViaWebRtc(preparedFilesRef.current)
+          }
+        }
+      } catch (err) {
+        console.warn('Signaling message error:', err)
+      }
+    }
+
+    return () => {
+      ws.close()
+      rtc.close()
+    }
+  }, [sessionId, streamViaWebRtc])
+
   // Update joinUrl when selectedInterface changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (pin) {
       setJoinUrl(resolveJoinUrl(joinUrl || '', pin, selectedInterface))
     }
-  }, [selectedInterface, pin])
+  }, [selectedInterface, pin, joinUrl])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -189,10 +279,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     preparedFiles: PreparedFile[]
   ) => {
     let uploadedBytesTotal = 0
-    const totalEncryptedBytes = preparedFiles.reduce(
+    const totalEncrypted = preparedFiles.reduce(
       (acc, p) => acc + p.encryptedBuffer.length,
       0
     )
+    setTotalEncryptedBytes(totalEncrypted)
     const startTime = Date.now()
 
     for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
@@ -209,6 +300,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
         await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
 
         uploadedBytesTotal += chunkData.length
+        setUploadedBytes(uploadedBytesTotal)
         const elapsedSec = (Date.now() - startTime) / 1000
         if (elapsedSec > 0) {
           const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
@@ -217,7 +309,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
 
         const percent = Math.min(
           99,
-          Math.round((uploadedBytesTotal / totalEncryptedBytes) * 100)
+          Math.round((uploadedBytesTotal / totalEncrypted) * 100)
         )
         setProgressPercent(percent)
         setStatusMessage(`Streaming chunk ${cIdx + 1}/${totalChunks}`)
@@ -231,6 +323,9 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     setTransferDone(false)
     setProgressPercent(0)
     setStatusMessage('Initializing offline E2EE session...')
+
+    const totalRaw = files.reduce((acc, f) => acc + f.size, 0)
+    setOriginalTotalBytes(totalRaw)
 
     try {
       // 1. Create Transfer Session
@@ -257,10 +352,14 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
         preparedFiles.push(prepared)
       }
 
+      preparedFilesRef.current = preparedFiles
+      const totalEncrypted = preparedFiles.reduce((acc, p) => acc + p.encryptedBuffer.length, 0)
+      setTotalEncryptedBytes(totalEncrypted)
+
       // 3. Register batch offer
       await api.offerBatch(sessionRes.sessionId, batchMetadata)
 
-      // 4. Stream Chunks to Backend
+      // 4. Stream Chunks to Backend Relay
       await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
 
       // 5. Register in Audit Ledger & 7-Day File Vault if logged in
@@ -558,6 +657,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               {transferSpeedMbps > 0 && <span>{transferSpeedMbps.toFixed(2)} MB/s</span>}
             </div>
           </div>
+
+          {/* Live Real-Time Telemetry & Throughput Chart */}
+          <TransferTelemetryChart
+            currentSpeedMbps={transferSpeedMbps}
+            totalBytes={totalEncryptedBytes || (files.reduce((a, b) => a + b.size, 0))}
+            transferredBytes={uploadedBytes}
+            isDirectP2p={isDirectP2p}
+            isCompressed={enableCompression}
+            originalSizeBytes={originalTotalBytes}
+            currentChunk={currentChunkInfo.current}
+            totalChunks={currentChunkInfo.total}
+          />
 
           {/* Action buttons */}
           <div className="flex items-center justify-between pt-2">

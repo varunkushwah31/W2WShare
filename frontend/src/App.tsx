@@ -61,7 +61,7 @@ export function App() {
             {/* 1. Hero Section */}
             <Hero onOpenDemo={handleOpenDemo} />
 
-            {/* 2. Interactive W2WShare Live Terminal Workspace */}
+            {/* 2. Interactive W2W Share Live Terminal Workspace */}
             <W2WWorkspace id="workspace" initialTab="send" />
 
             {/* Section 2 Intro Header */}
@@ -71,7 +71,7 @@ export function App() {
               </h2>
             </div>
 
-            {/* 3. Feature Split Panel 1: Connect Your Data */}
+            {/* 3. Feature Split Panel 1: Subnet Radar */}
             <FeatureSplitPanel
               id="features"
               eyebrow="SUBNET RADAR"
@@ -92,7 +92,7 @@ export function App() {
 
             {/* 5. Feature Split Panel 2: Cryptographic Engine */}
             <FeatureSplitPanel
-              id="query"
+              id="crypto"
               eyebrow="CLIENT-SIDE CIPHER"
               heading="AES-256-GCM and PBKDF2 (100k rounds)."
               description="Symmetric encryption executes directly in your browser with hardware-level Galois/Counter Mode authentication tags."

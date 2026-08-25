@@ -52,7 +52,7 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
           <ShieldCheckIcon className="w-3.5 h-3.5" />
-          <span>CRYPTOGRAPHIC WHITEPAPER · SPEC 2.0</span>
+          <span>CRYPTOGRAPHIC WHITEPAPER · SPEC 1.0</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
           Security Architecture & Threat Model
         </h1>
         <p className="text-base text-[#808080] leading-relaxed">
-          W2WShare guarantees zero-knowledge, end-to-end encrypted direct data transit across local subnets without intermediary cloud telemetry, external key escrow, or permanent persistence.
+          W2W Share guarantees zero-knowledge, end-to-end encrypted direct data transit across local subnets without intermediary cloud telemetry, external key escrow, or permanent persistence.
         </p>
       </div>
 

@@ -69,12 +69,12 @@ export const EnterprisePricingPage: React.FC<EnterprisePricingPageProps> = ({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
         >
           <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
-          <span>Return Home</span>
+          <span>Return to Studio</span>
         </button>
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
           <ShieldCheckIcon className="w-3.5 h-3.5" />
-          <span>ENTERPRISE SPEC 2.0</span>
+          <span>ENTERPRISE SPEC 1.0</span>
         </div>
       </div>
 

@@ -82,7 +82,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
           </h3>
 
           <p className="text-xs text-[#808080] leading-relaxed">
-            Automatic UDP discovery broadcasts on port 8888 across your local Wi-Fi. Devices running W2WShare appear on your drafting table in real time.
+            Automatic UDP discovery broadcasts on port 8888 across your local Wi-Fi. Devices running W2W Share appear on your drafting table in real time.
           </p>
 
           {networkInfo && (
@@ -160,7 +160,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
               Searching for peers on your local Wi-Fi subnet...
             </div>
             <p className="text-xs text-[#808080] max-w-sm mx-auto">
-              Open W2WShare on your phone, laptop, or another browser tab on the same local network to auto-connect.
+              Open W2W Share on your phone, laptop, or another browser tab on the same local network to auto-connect.
             </p>
           </div>
         ) : (

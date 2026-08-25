@@ -26,7 +26,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           content: [
             {
               h: '1. Zero Data Collection',
-              p: 'W2WShare is an open-source tool that operates strictly on your local subnet and hardware. W2WShare does not operate telemetry collectors, user tracking scripts, third-party analytics pixels, or remote key escrow servers. All binary data transfers stay bounded to your local network interfaces.',
+              p: 'W2W Share is an open-source tool that operates strictly on your local subnet and hardware. W2W Share does not operate telemetry collectors, user tracking scripts, third-party analytics pixels, or remote key escrow servers. All binary data transfers stay bounded to your local network interfaces.',
             },
             {
               h: '2. Client-Side Cryptographic Isolation',
@@ -45,15 +45,15 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           content: [
             {
               h: '1. Permitted Use',
-              p: 'W2WShare is an open-source tool provided free of charge under the open architecture license for personal, educational, research, and commercial file sharing across private and enterprise networks.',
+              p: 'W2W Share is an open-source tool provided free of charge under the open architecture license for personal, educational, research, and commercial file sharing across private and enterprise networks.',
             },
             {
               h: '2. No Liability for Key Loss',
-              p: 'Because W2WShare uses true zero-knowledge end-to-end encryption without key recovery backdoors, loss of the 6-digit claim PIN or cryptographic salt renders transferred files irrecoverable.',
+              p: 'Because W2W Share uses true zero-knowledge end-to-end encryption without key recovery backdoors, loss of the 6-digit claim PIN or cryptographic salt renders transferred files irrecoverable.',
             },
             {
               h: '3. Local Network Usage',
-              p: 'Users are responsible for ensuring compliance with their organization network policies when operating W2WShare on their local network.',
+              p: 'Users are responsible for ensuring compliance with their organization network policies when operating W2W Share on their local network.',
             },
           ],
         }
@@ -83,7 +83,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           content: [
             {
               h: '1. Air-Gapped Network Readiness',
-              p: 'W2WShare functions 100% offline with zero outbound internet dependencies, satisfying strict air-gapped laboratory and defense requirements.',
+              p: 'W2W Share functions 100% offline with zero outbound internet dependencies, satisfying strict air-gapped laboratory and defense requirements.',
             },
             {
               h: '2. Cryptographic Forensic Receipts',

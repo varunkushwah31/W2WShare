@@ -159,7 +159,7 @@ export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ clas
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
       <div className="absolute top-3 left-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
-        QUERY_STREAM: ACTIVE · AES-256
+        CIPHER_STREAM: ACTIVE · AES-256-GCM
       </div>
 
       <svg

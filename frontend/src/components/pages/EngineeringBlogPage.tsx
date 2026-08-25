@@ -12,7 +12,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
       title: 'How we achieved 10GB+ in-browser direct-to-disk streams using Web Crypto & CompressionStream',
       excerpt:
         'We bypassed browser heap memory bottlenecks using 2MB chunk pipelining, CompressionStream gzip transforms, and authenticated AES-256-GCM cipher sinks.',
-      tag: 'ENGINEERING_BLOG',
+      tag: 'STREAMING & WEBCRYPTO',
       date: 'August 15, 2026',
       readTime: '7 min read',
       author: 'W2W Core Team',
@@ -21,8 +21,8 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
       id: 'udp-subnet-radar',
       title: 'How to send UDP discovery beacons across local networks using IEEE 802.11 UDP broadcast frames',
       excerpt:
-        'How we send UDP discovery beacons across local networks using IEEE 802.11 UDP broadcast frames.',
-      tag: 'ENGINEERING_BLOG',
+        'A deep dive into socket-level UDP multicasting on port 8888, bypassing captive portals and local router AP isolation for instant peer discovery.',
+      tag: 'NETWORKING & UDP',
       date: 'July 22, 2026',
       readTime: '5 min read',
       author: 'W2W Core Team',
@@ -31,8 +31,8 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
       id: 'ephemeral-burn-mechanics',
       title: 'How we achieved Zero-Knowledge Ephemeral Burn with cryptographic zeroization',
       excerpt:
-        'How we achieved zero-knowledge ephemeral burn with cryptographic zeroization of WebCrypto key handles.',
-      tag: 'ENGINEERING_BLOG',
+        'How our auto-destruct protocol ensures forensic zero-knowledge security by immediately clearing WebCrypto key handles and in-memory RAM buffers upon transfer confirmation.',
+      tag: 'SECURITY & ZEROIZATION',
       date: 'June 30, 2026',
       readTime: '9 min read',
       author: 'W2W Core Team',
@@ -54,7 +54,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
 
         <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
           <BookOpenIcon className="w-3.5 h-3.5" />
-          <span>W2W BLOG</span>
+          <span>ENGINEERING DISPATCHES</span>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
           W2W Dispatches
         </h1>
         <p className="text-sm text-[#808080] leading-relaxed">
-          W2WShare dispatches contains technical insights and details into the protocol, browser-native cryptographic benchmarks, stream piping, and zero-knowledge threat modeling.
+          Engineering dispatches contain technical insights and architectural deep dives into browser-native cryptography, high-throughput stream piping, and air-gapped threat modeling.
         </p>
       </div>
 

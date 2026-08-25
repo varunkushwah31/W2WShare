@@ -15,18 +15,18 @@ export const AiAnalyticsGrid: React.FC = () => {
       illustration: <LaptopWandCadIllustration />,
     },
     {
-      title: 'One-time Ephemeral Burn',
-      description: 'Auto-destruct protocol that wipes after single claim or receiver confirmation.',
+      title: 'Ephemeral Auto-Destruct',
+      description: 'Auto-destruct protocol that wipes memory buffers after single claim or receiver confirmation.',
       illustration: <PedestalAwardCadIllustration />,
     },
     {
-      title: 'Subnet Peer Discovery',
-      description: 'Auto-discovery of peers across local Wi-Fi, Ethernet, and hotspots.',
+      title: 'Subnet Peer Radar',
+      description: 'Automatic UDP discovery of active peers across local Wi-Fi, Ethernet, and mobile hotspots.',
       illustration: <LightningVortexCadIllustration />,
     },
     {
-      title: 'Secure Token & Audit Ledger',
-      description: 'Sync tokens and data with downloadable signed SHA-256 receipts.',
+      title: 'Cryptographic Audit Ledger',
+      description: 'Immutable transaction logs with downloadable signed SHA-256 cryptographic receipts.',
       illustration: <CoinStacksCadIllustration />,
     },
   ]

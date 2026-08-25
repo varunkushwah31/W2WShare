@@ -1,5 +1,5 @@
 import React from 'react'
-import { Lightning, ShieldCheck } from '@phosphor-icons/react'
+import { LightningIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 
 interface CtaSectionProps {
   onOpenDemo: () => void
@@ -17,7 +17,7 @@ export const CtaSection: React.FC<CtaSectionProps> = ({ onOpenDemo }) => {
       {/* Content */}
       <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center space-y-6">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7089ba]/10 border border-[#7089ba]/20 font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
-          <ShieldCheck className="w-3.5 h-3.5" />
+          <ShieldCheckIcon className="w-3.5 h-3.5" />
           <span>ZERO CLOUD · 100% OFFLINE</span>
         </div>
 
@@ -34,15 +34,16 @@ export const CtaSection: React.FC<CtaSectionProps> = ({ onOpenDemo }) => {
             href="#workspace"
             className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all shadow-none border border-white cursor-pointer flex items-center gap-1.5"
           >
-            <Lightning className="w-4 h-4 text-black" weight="fill" />
+            <LightningIcon className="w-4 h-4 text-black" weight="fill" />
             <span>Launch Transfer Studio</span>
           </a>
           <button
             onClick={onOpenDemo}
+            type='button'
             className="px-6 py-2.5 rounded-full border border-[#282828] bg-[#141414] text-white text-sm font-medium hover:border-white transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <ShieldCheck className="w-4 h-4 text-[#7089ba]" />
-            <span>Join by PIN</span>
+            <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
+            <span>Claim by PIN</span>
           </button>
         </div>
       </div>
