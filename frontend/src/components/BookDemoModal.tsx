@@ -7,6 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { ArrowRightIcon, CheckCircleIcon, LockKeyIcon, KeyIcon, ShieldCheckIcon, UserIcon, EnvelopeIcon, BuildingIcon } from '@phosphor-icons/react'
+import { authStore } from '@/lib/auth'
 
 interface BookDemoModalProps {
   isOpen: boolean
@@ -77,9 +78,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
       }
     } else if (activeTab === 'login') {
       if (loginData.nodeId.trim()) {
-        import('@/lib/auth').then(({ authStore }) => {
-          authStore.login(loginData.nodeId.trim(), loginData.token.trim())
-        })
+        authStore.login(loginData.nodeId.trim(), loginData.token.trim())
       }
     }
     setSubmitted(true)
@@ -99,13 +98,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
           <DialogTitle className="text-2xl font-bold tracking-tight text-white font-sans">
             {TAB_TITLES[activeTab]}
           </DialogTitle>
-          <DialogDescription className="text-xs text-[#808080] leading-relaxed">
+          <DialogDescription className="text-xs text-steel leading-relaxed">
             {TAB_DESCRIPTIONS[activeTab]}
           </DialogDescription>
         </DialogHeader>
 
         {/* 3-Way Tab Switcher */}
-        <div className="grid grid-cols-3 p-1 bg-[#000000] rounded-xl border border-[#242424] my-3">
+        <div className="grid grid-cols-3 p-1 bg-void rounded-xl border border-[#242424] my-3">
           <button
             type="button"
             onClick={() => {
@@ -115,7 +114,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             className={`py-2 text-xs font-mono tracking-wide rounded-lg transition-all cursor-pointer ${
               activeTab === 'pin'
                 ? 'bg-white text-black font-bold shadow'
-                : 'text-[#808080] hover:text-white font-medium'
+                : 'text-steel hover:text-white font-medium'
             }`}
           >
             Claim PIN
@@ -129,7 +128,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             className={`py-2 text-xs font-mono tracking-wide rounded-lg transition-all cursor-pointer ${
               activeTab === 'demo'
                 ? 'bg-white text-black font-bold shadow'
-                : 'text-[#808080] hover:text-white font-medium'
+                : 'text-steel hover:text-white font-medium'
             }`}
           >
             On-Premise
@@ -143,7 +142,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             className={`py-2 text-xs font-mono tracking-wide rounded-lg transition-all cursor-pointer ${
               activeTab === 'login'
                 ? 'bg-white text-black font-bold shadow'
-                : 'text-[#808080] hover:text-white font-medium'
+                : 'text-steel hover:text-white font-medium'
             }`}
           >
             Node Auth
@@ -158,7 +157,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             <h4 className="text-base font-bold text-white font-sans">
               {activeTab === 'demo' ? 'Appliance Request Registered' : 'Authentication Confirmed'}
             </h4>
-            <p className="text-xs text-[#808080] max-w-xs mx-auto leading-relaxed">
+            <p className="text-xs text-steel max-w-xs mx-auto leading-relaxed">
               {activeTab === 'demo'
                 ? 'Our systems engineer will deliver your air-gapped subnet appliance documentation.'
                 : 'Local hardware node credentials verified.'}
@@ -177,7 +176,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             {activeTab === 'pin' && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="claim-pin-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="claim-pin-input" className="block text-[11px] font-mono uppercase text-steel tracking-wider">
                     6-Digit Claim PIN
                   </label>
                   <div className="relative flex items-center">
@@ -191,13 +190,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                       placeholder="e.g. 849201"
                       value={pinValue}
                       onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
-                      className="w-full py-3 pl-11 pr-4 bg-[#000000] border border-[#2a2a2a] focus:border-[#7089ba] focus:outline-none rounded-xl text-base font-mono tracking-[0.2em] text-white placeholder-[#4d4d4d] transition-all"
+                      className="w-full py-3 pl-11 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-base font-mono tracking-[0.2em] text-white transition-all"
                       autoFocus
                     />
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#000000] border border-[#202020] text-xs font-mono text-[#808080] flex items-center justify-between">
+                <div className="p-3.5 rounded-xl bg-void border border-[#202020] text-xs font-mono text-steel flex items-center justify-between">
                   <span>CRYPTO CIPHER:</span>
                   <span className="text-white font-medium">AES-256-GCM / PBKDF2</span>
                 </div>
@@ -208,7 +207,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             {activeTab === 'demo' && (
               <div className="space-y-3.5">
                 <div className="space-y-1.5">
-                  <label htmlFor="lead-engineer-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="lead-engineer-input" className="block text-[11px] font-mono uppercase text-steel tracking-wider">
                     Lead Engineer
                   </label>
                   <div className="relative flex items-center">
@@ -220,13 +219,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                       placeholder="Alex Vance"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full py-2.5 pl-10 pr-4 bg-[#000000] border border-[#2a2a2a] focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder-[#4d4d4d] transition-all"
+                      className="w-full py-2.5 pl-10 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-xs font-mono text-white transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="work-email-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="work-email-input" className="block text-[11px] font-mono uppercase text-steel tracking-wider">
                     Work Email
                   </label>
                   <div className="relative flex items-center">
@@ -238,13 +237,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                       placeholder="engineer@defense-lab.org"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full py-2.5 pl-10 pr-4 bg-[#000000] border border-[#2a2a2a] focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder-[#4d4d4d] transition-all"
+                      className="w-full py-2.5 pl-10 pr-4 bg-void border focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="organization-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="organization-input" className="block text-[11px] font-mono uppercase text-steel tracking-wider">
                     Organization / Node Subnet
                   </label>
                   <div className="relative flex items-center">
@@ -256,7 +255,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                       placeholder="Air-Gapped Systems Cluster"
                       value={formData.company}
                       onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                      className="w-full py-2.5 pl-10 pr-4 bg-[#000000] border border-[#2a2a2a] focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder-[#4d4d4d] transition-all"
+                      className="w-full py-2.5 pl-10 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-xs font-mono text-white transition-all"
                     />
                   </div>
                 </div>
@@ -267,7 +266,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
             {activeTab === 'login' && (
               <div className="space-y-3.5">
                 <div className="space-y-1.5">
-                  <label htmlFor="node-id-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="node-id-input" className="block text-[11px] font-mono uppercase text-steel tracking-wider">
                     Node ID / Device Address
                   </label>
                   <div className="relative flex items-center">
@@ -279,13 +278,13 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                       placeholder="node-01.w2w.local"
                       value={loginData.nodeId}
                       onChange={(e) => setLoginData({ ...loginData, nodeId: e.target.value })}
-                      className="w-full py-2.5 pl-10 pr-4 bg-[#000000] border border-[#2a2a2a] focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder-[#4d4d4d] transition-all"
+                      className="w-full py-2.5 pl-10 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-xs font-mono text-white transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="keystore-secret-input" className="block text-[11px] font-mono uppercase text-[#808080] tracking-wider">
+                  <label htmlFor="keystore-secret-input" className="block text-[11px] font-mono uppercase text-steel tracking-wider">
                     Hardware Keystore Secret Token
                   </label>
                   <div className="relative flex items-center">
@@ -297,7 +296,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                       placeholder="••••••••••••••••"
                       value={loginData.token}
                       onChange={(e) => setLoginData({ ...loginData, token: e.target.value })}
-                      className="w-full py-2.5 pl-10 pr-4 bg-[#000000] border border-[#2a2a2a] focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder-[#4d4d4d] transition-all"
+                      className="w-full py-2.5 pl-10 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-xs font-mono text-white transition-all"
                     />
                   </div>
                 </div>
@@ -313,7 +312,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
               <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </button>
 
-            <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-[#808080] pt-1">
+            <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-steel pt-1">
               <LockKeyIcon className="w-3 h-3 text-[#7089ba]" />
               <span>100% OFFLINE · ZERO INTERNET REQUIRED</span>
             </div>

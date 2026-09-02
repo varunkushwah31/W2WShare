@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
+import { authStore } from '@/lib/auth'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
@@ -207,13 +208,6 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     }
   }, [sessionId, streamViaWebRtc])
 
-  // Update joinUrl when selectedInterface changes
-  useEffect(() => {
-    if (pin) {
-      setJoinUrl(resolveJoinUrl(joinUrl || '', pin, selectedInterface))
-    }
-  }, [selectedInterface, pin, joinUrl])
-
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
@@ -361,7 +355,6 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
 
       // 5. Register in Audit Ledger & 7-Day File Vault if logged in
-      const { authStore } = await import('@/lib/auth')
       const currentUser = authStore.getUser()
 
       for (let i = 0; i < preparedFiles.length; i++) {
@@ -420,9 +413,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     }
   }
 
+  const effectiveJoinUrl = resolveJoinUrl(joinUrl || '', pin || '', selectedInterface)
+
   const copyLink = () => {
-    if (joinUrl) {
-      navigator.clipboard.writeText(joinUrl)
+    if (effectiveJoinUrl) {
+      navigator.clipboard.writeText(effectiveJoinUrl)
       setLinkCopied(true)
       setTimeout(() => setLinkCopied(false), 2000)
     }
@@ -694,12 +689,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       )}
 
       {/* QR Code Modal */}
-      {pin && joinUrl && (
+      {pin && (
         <QrCodeModal
           isOpen={qrModalOpen}
           onClose={() => setQrModalOpen(false)}
           pin={pin}
-          url={joinUrl}
+          url={effectiveJoinUrl}
         />
       )}
     </div>

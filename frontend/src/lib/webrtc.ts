@@ -348,13 +348,17 @@ export class WebRtcPeerManager {
     if (this.dataChannel) {
       try {
         this.dataChannel.close()
-      } catch {}
+      } catch {
+        // DataChannel already closed or invalid
+      }
       this.dataChannel = null
     }
     if (this.pc) {
       try {
         this.pc.close()
-      } catch {}
+      } catch {
+        // PeerConnection already closed
+      }
       this.pc = null
     }
     this.updateState('CLOSED')

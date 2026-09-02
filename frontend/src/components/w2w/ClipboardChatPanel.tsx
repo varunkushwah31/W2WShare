@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { api, getWebSocketUrl, type ChatMessage } from '@/lib/api'
 import { soundEngine } from '@/lib/sound'
 import { QrCodeModal } from './QrCodeModal'
@@ -53,8 +53,10 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   }, [messages])
 
   // Setup WebSocket connection when sessionId changes
-  const connectWebSocket = useCallback((currentSessionId: string, currentPin: string) => {
-    if (!currentSessionId) return
+  useEffect(() => {
+    if (!sessionId) return
+
+    let active = true
 
     try {
       if (wsRef.current) {
@@ -62,20 +64,21 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
       }
 
       const wsUrl = getWebSocketUrl('/ws/signaling')
-
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
 
       ws.onopen = () => {
+        if (!active) return
         setWsConnected(true)
-        if (currentPin) {
-          ws.send(JSON.stringify({ type: 'JOIN_BY_PIN', payload: currentPin }))
+        if (pin) {
+          ws.send(JSON.stringify({ type: 'JOIN_BY_PIN', payload: pin }))
         } else {
-          ws.send(JSON.stringify({ type: 'REGISTER_SENDER', payload: currentSessionId }))
+          ws.send(JSON.stringify({ type: 'REGISTER_SENDER', payload: sessionId }))
         }
       }
 
       ws.onmessage = (event) => {
+        if (!active) return
         try {
           const signal = JSON.parse(event.data)
           if (signal.type === 'CHAT_MESSAGE' && signal.payload) {
@@ -106,27 +109,23 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
       }
 
       ws.onclose = () => {
-        setWsConnected(false)
+        if (active) setWsConnected(false)
       }
 
       ws.onerror = () => {
-        setWsConnected(false)
+        if (active) setWsConnected(false)
       }
     } catch {
-      setWsConnected(false)
+      // Socket creation error
     }
-  }, [])
 
-  useEffect(() => {
-    if (sessionId) {
-      connectWebSocket(sessionId, pin)
-    }
     return () => {
+      active = false
       if (wsRef.current) {
         wsRef.current.close()
       }
     }
-  }, [sessionId, pin, connectWebSocket])
+  }, [sessionId, pin])
 
   // Polling fallback to ensure 100% reliability
   useEffect(() => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
+import { authStore } from '@/lib/auth'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
@@ -283,7 +284,6 @@ export const ReceivePanel: React.FC = () => {
       soundEngine.transferComplete()
 
       // Register received transactions in Audit Ledger & 7-day vault if logged in
-      const { authStore } = await import('@/lib/auth')
       const currentUser = authStore.getUser()
 
       for (const resItem of results) {
