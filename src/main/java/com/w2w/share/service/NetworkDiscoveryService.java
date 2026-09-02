@@ -3,6 +3,7 @@ package com.w2w.share.service;
 import com.w2w.share.constant.AppConstants;
 import com.w2w.share.dto.NetworkDiagnosticsResponse;
 import com.w2w.share.dto.NetworkInfoResponse;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +27,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
     private static final String STR_DIRECT = "direct";
     private static final String STR_WIFI = "wi-fi";
 
+    @Getter
     public static class InterfaceAddressInfo {
         private final String name;
         private final String displayName;
@@ -63,13 +65,6 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
             return TYPE_ETHERNET;
         }
 
-        public String getName() { return name; }
-        public String getDisplayName() { return displayName; }
-        public String getIp() { return ip; }
-        public String getUrl() { return url; }
-        public boolean isLoopback() { return isLoopback; }
-        public boolean isWifiOrHotspot() { return isWifiOrHotspot; }
-        public String getInterfaceType() { return interfaceType; }
     }
 
     @Value("${server.port:8080}")
@@ -186,8 +181,14 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         return 4;
     }
 
+    @Value("${w2w.public-url:}")
+    private String publicUrl;
+
     @Override
     public String getPrimaryNetworkUrl() {
+        if (publicUrl != null && !publicUrl.isBlank()) {
+            return publicUrl.replaceAll("/+$", "");
+        }
         List<InterfaceAddressInfo> interfaces = getAvailableNetworkInterfaces();
         for (InterfaceAddressInfo info : interfaces) {
             if (!info.isLoopback()) {
@@ -250,7 +251,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         String primaryUrl = getPrimaryNetworkUrl();
         String localIp = interfaces.stream()
                 .filter(i -> !i.isLoopback())
-                .map(info -> info.getIp())
+                .map(InterfaceAddressInfo::getIp)
                 .findFirst()
                 .orElse("127.0.0.1");
 

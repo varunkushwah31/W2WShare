@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { api, type FileMetadata } from '@/lib/api'
+import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
@@ -8,15 +8,11 @@ import { ZipArchiver } from '@/lib/zip'
 import { TransferTelemetryChart } from './TransferTelemetryChart'
 import { MediaPreviewModal, type MediaPreviewItem } from './MediaPreviewModal'
 import {
-  DownloadSimple,
-  Eye,
-  File as FileIcon,
-  ShieldCheck,
-  CheckCircle,
-  Flame,
-  WarningCircle,
-  ArrowsClockwise,
-  Archive,
+  FileIcon,
+  ShieldCheckIcon,
+  CheckCircleIcon,
+  WarningCircleIcon,
+  FlameIcon, ArrowsClockwiseIcon, DownloadSimpleIcon, ArchiveIcon, EyeIcon,
 } from '@phosphor-icons/react'
 
 interface ReceivedFileItem {
@@ -31,7 +27,7 @@ export const ReceivePanel: React.FC = () => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
       const pinParam = urlParams.get('pin')
-      if (pinParam && pinParam.length === 6) {
+      if (pinParam?.length === 6) {
         return pinParam
       }
     }
@@ -85,7 +81,7 @@ export const ReceivePanel: React.FC = () => {
 
       if (session.fileBatch && session.fileBatch.length > 0) {
         setBatchMetadata(session.fileBatch)
-      } else if (session.fileMetadata && session.fileMetadata.fileName) {
+      } else if (session.fileMetadata?.fileName) {
         setBatchMetadata([session.fileMetadata])
       } else {
         setBatchMetadata([])
@@ -106,7 +102,7 @@ export const ReceivePanel: React.FC = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const pinParam = urlParams.get('pin')
-    if (pinParam && pinParam.length === 6) {
+    if (pinParam?.length === 6) {
       const timer = setTimeout(() => {
         handleLookup(pinParam)
       }, 0)
@@ -136,9 +132,7 @@ export const ReceivePanel: React.FC = () => {
       webrtcChunksRef.current.set(`${fileIndex}-${chunkIndex}`, buffer)
     })
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host || 'localhost:8080'
-    const wsUrl = `${protocol}//${host}/ws/signaling`
+    const wsUrl = getWebSocketUrl('/ws/signaling')
 
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
@@ -223,9 +217,7 @@ export const ReceivePanel: React.FC = () => {
           setStatusText(`Downloading chunk ${cIdx + 1}/${totalChunks} (${meta.fileName})`)
 
           let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
-          if (!chunkData) {
-            chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
-          }
+          chunkData ??= await api.downloadFileChunk(sessionId, fIdx, cIdx);
           chunkBuffers.push(chunkData)
           downloadedBytesTotal += chunkData.byteLength
           setTransferredBytes(downloadedBytesTotal)
@@ -306,7 +298,7 @@ export const ReceivePanel: React.FC = () => {
             totalChunks: resItem.metadata.totalChunks,
             sha256: resItem.metadata.sha256,
             cipher: 'AES-256-GCM / PBKDF2 (100k)',
-            burned: !!burnAfterReading,
+            burned: burnAfterReading,
             isCompressed: !!resItem.metadata.isCompressed,
             userId: currentUser ? currentUser.nodeId : undefined,
           })
@@ -353,15 +345,15 @@ export const ReceivePanel: React.FC = () => {
           <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-5">
-            <div className="w-14 h-14 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba]">
-              <ShieldCheck className="w-7 h-7" weight="duotone" />
+            <div className="w-14 h-14 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba]">
+              <ShieldCheckIcon className="w-7 h-7" weight="duotone" />
             </div>
 
             <div>
               <h4 className="text-lg font-bold text-white font-sans">
                 Enter 6-Digit Transfer PIN
               </h4>
-              <p className="text-xs text-[#808080] mt-1">
+              <p className="text-xs text-steel mt-1">
                 Zero-knowledge claim. Files are decrypted locally inside your browser.
               </p>
             </div>
@@ -379,12 +371,12 @@ export const ReceivePanel: React.FC = () => {
                 placeholder="123456"
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-                className="w-full text-center text-3xl font-mono font-extrabold tracking-[0.3em] py-3 bg-[#000000] border border-[#282828] focus:border-[#7089ba] focus:outline-none rounded-xl text-white placeholder-[#333333] transition-colors"
+                className="w-full text-center text-3xl font-mono font-extrabold tracking-[0.3em] py-3 bg-void border border-[#282828] focus:outline-none rounded-xl text-white transition-colors"
               />
 
               {errorMsg && (
                 <div className="flex items-center justify-center gap-1.5 text-xs text-[#eb5757]">
-                  <WarningCircle className="w-4 h-4" />
+                  <WarningCircleIcon className="w-4 h-4" />
                   <span>{errorMsg}</span>
                 </div>
               )}
@@ -396,12 +388,12 @@ export const ReceivePanel: React.FC = () => {
               >
                 {loading ? (
                   <>
-                    <ArrowsClockwise className="w-4 h-4 animate-spin text-black" />
+                    <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-black" />
                     <span>Locating Transfer Vault...</span>
                   </>
                 ) : (
                   <>
-                    <DownloadSimple className="w-4 h-4" />
+                    <DownloadSimpleIcon className="w-4 h-4" />
                     <span>Claim & Decrypt Files</span>
                   </>
                 )}
@@ -413,9 +405,9 @@ export const ReceivePanel: React.FC = () => {
 
       {/* Found Session Details & Staged Download */}
       {sessionId && (
-        <div className="p-6 sm:p-8 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-6">
+        <div className="p-6 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#1c1c1c] pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-carbon pb-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
@@ -423,13 +415,13 @@ export const ReceivePanel: React.FC = () => {
                 </span>
                 {burnAfterReading && (
                   <span className="flex items-center gap-1 text-[10px] font-mono text-[#eb5757] bg-[#eb5757]/10 px-2 py-0.5 rounded-full border border-[#eb5757]/20">
-                    <Flame className="w-3 h-3" />
+                    <FlameIcon className="w-3 h-3" />
                     BURN AFTER READING
                   </span>
                 )}
               </div>
               <div className="text-xl font-bold text-white mt-1 font-sans">
-                PIN: <span className="font-mono text-[#ffffff] tracking-widest">{activePin}</span>
+                PIN: <span className="font-mono text-paper tracking-widest">{activePin}</span>
               </div>
             </div>
 
@@ -440,7 +432,7 @@ export const ReceivePanel: React.FC = () => {
                 setReceivedFiles([])
                 setBatchMetadata([])
               }}
-              className="text-xs text-[#808080] hover:text-white transition-colors"
+              className="text-xs text-steel hover:text-white transition-colors"
             >
               Disconnect
             </button>
@@ -448,7 +440,7 @@ export const ReceivePanel: React.FC = () => {
 
           {/* Staged File List */}
           <div className="space-y-2">
-            <div className="text-xs font-mono text-[#808080]">
+            <div className="text-xs font-mono text-steel">
               PAYLOAD MANIFEST ({batchMetadata.length} {batchMetadata.length === 1 ? 'FILE' : 'FILES'})
             </div>
 
@@ -456,7 +448,7 @@ export const ReceivePanel: React.FC = () => {
               {batchMetadata.map((meta, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3 rounded-xl bg-[#1c1c1c] border border-[#242424] text-xs"
+                  className="flex items-center justify-between p-3 rounded-xl bg-carbon border border-[#242424] text-xs"
                 >
                   <div className="flex items-center gap-3 min-w-0 pr-2">
                     <FileIcon className="w-4 h-4 text-[#7089ba] shrink-0" />
@@ -464,7 +456,7 @@ export const ReceivePanel: React.FC = () => {
                       <div className="truncate text-white font-mono font-medium">
                         {meta.fileName}
                       </div>
-                      <div className="text-[10px] text-[#808080] font-mono">
+                      <div className="text-[10px] text-steel font-mono">
                         {formatBytes(meta.fileSize)} · {meta.totalChunks} chunks {meta.isCompressed ? '· Gzip' : ''}
                       </div>
                     </div>
@@ -482,10 +474,10 @@ export const ReceivePanel: React.FC = () => {
           {downloading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-[#808080]">{statusText}</span>
+                <span className="text-steel">{statusText}</span>
                 <span className="text-white font-bold">{downloadPercent}%</span>
               </div>
-              <div className="w-full h-2 bg-[#1c1c1c] rounded-full overflow-hidden border border-[#242424]">
+              <div className="w-full h-2 bg-carbon rounded-full overflow-hidden border border-[#242424]">
                 <div
                   className="h-full bg-[#7089ba] transition-all duration-300"
                   style={{ width: `${downloadPercent}%` }}
@@ -511,7 +503,7 @@ export const ReceivePanel: React.FC = () => {
           {/* Burned Notice */}
           {burnedNotice && (
             <div className="p-3 rounded-xl bg-[#eb5757]/10 border border-[#eb5757]/20 flex items-center gap-2 text-xs text-[#eb5757]">
-              <Flame className="w-4 h-4 shrink-0" />
+              <FlameIcon className="w-4 h-4 shrink-0" />
               <span>Burn-After-Reading executed: Server payload has auto-destructed.</span>
             </div>
           )}
@@ -521,7 +513,7 @@ export const ReceivePanel: React.FC = () => {
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-mono text-[#7089ba] flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4" weight="bold" />
+                  <CheckCircleIcon className="w-4 h-4" weight="bold" />
                   <span>Decrypted & Verified Files ({receivedFiles.length}):</span>
                 </div>
 
@@ -535,12 +527,12 @@ export const ReceivePanel: React.FC = () => {
                   >
                     {isZipping ? (
                       <>
-                        <ArrowsClockwise className="w-3.5 h-3.5 animate-spin text-black" />
+                        <ArrowsClockwiseIcon className="w-3.5 h-3.5 animate-spin text-black" />
                         <span>Packing ZIP ({zipProgress}%)...</span>
                       </>
                     ) : (
                       <>
-                        <Archive className="w-3.5 h-3.5 text-black" weight="fill" />
+                        <ArchiveIcon className="w-3.5 h-3.5 text-black" weight="fill" />
                         <span>Download All as .ZIP</span>
                       </>
                     )}
@@ -552,14 +544,14 @@ export const ReceivePanel: React.FC = () => {
                 {receivedFiles.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-3 rounded-xl bg-[#000000] border border-[#282828] text-xs"
+                    className="flex items-center justify-between p-3 rounded-xl bg-void border border-[#282828] text-xs"
                   >
                     <div className="flex items-center gap-2 min-w-0 pr-2">
                       <FileIcon className="w-4 h-4 text-white shrink-0" />
                       <div className="min-w-0">
                         <div className="truncate text-white font-mono">{item.metadata.fileName}</div>
                         {item.metadata.relativePath && item.metadata.relativePath !== item.metadata.fileName && (
-                          <div className="text-[10px] text-[#808080] font-mono truncate">
+                          <div className="text-[10px] text-steel font-mono truncate">
                             {item.metadata.relativePath}
                           </div>
                         )}
@@ -578,7 +570,7 @@ export const ReceivePanel: React.FC = () => {
                         }
                         className="px-2.5 py-1 rounded-full border border-[#282828] text-white text-[11px] hover:border-white flex items-center gap-1 transition-colors"
                       >
-                        <Eye className="w-3.5 h-3.5 text-[#7089ba]" />
+                        <EyeIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                         <span>Preview</span>
                       </button>
 
@@ -587,7 +579,7 @@ export const ReceivePanel: React.FC = () => {
                         download={item.metadata.fileName}
                         className="px-3 py-1 rounded-full bg-white text-black text-[11px] font-semibold hover:bg-white/90 flex items-center gap-1 transition-all"
                       >
-                        <DownloadSimple className="w-3.5 h-3.5" />
+                        <DownloadSimpleIcon className="w-3.5 h-3.5" />
                         <span>Download</span>
                       </a>
                     </div>
@@ -606,12 +598,12 @@ export const ReceivePanel: React.FC = () => {
             >
               {downloading ? (
                 <>
-                  <ArrowsClockwise className="w-4 h-4 animate-spin text-black" />
+                  <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-black" />
                   <span>Streaming Chunks & Decrypting...</span>
                 </>
               ) : (
                 <>
-                  <DownloadSimple className="w-4 h-4" />
+                  <DownloadSimpleIcon className="w-4 h-4" />
                   <span>Start Decryption & Download</span>
                 </>
               )}

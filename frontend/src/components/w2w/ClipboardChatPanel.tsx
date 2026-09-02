@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { api, type ChatMessage } from '@/lib/api'
+import { api, getWebSocketUrl, type ChatMessage } from '@/lib/api'
 import { soundEngine } from '@/lib/sound'
 import { QrCodeModal } from './QrCodeModal'
 import {
-  ClipboardText,
-  PaperPlaneRight,
-  Copy,
-  Check,
-  LockKey,
-  ArrowsClockwise,
-  Broadcast,
-  QrCode,
-  Trash,
-  Key,
-  PlusCircle,
-  ChatCircleText,
+  ClipboardTextIcon,
+  PaperPlaneRightIcon,
+  CopyIcon,
+  CheckIcon,
+  LockKeyIcon,
+  ArrowsClockwiseIcon,
+  BroadcastIcon,
+  QrCodeIcon,
+  TrashIcon,
+  KeyIcon,
+  PlusCircleIcon,
+  ChatCircleTextIcon,
 } from '@phosphor-icons/react'
 
 interface ClipboardChatPanelProps {
@@ -61,9 +61,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         wsRef.current.close()
       }
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const host = window.location.host || 'localhost:8080'
-      const wsUrl = `${protocol}//${host}/ws/signaling`
+      const wsUrl = getWebSocketUrl('/ws/signaling')
 
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
@@ -168,7 +166,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     }
   }
 
-  const handleJoinByPin = async (e: React.FormEvent) => {
+  const handleJoinByPin = async (e: React.SubmitEvent) => {
     e.preventDefault()
     const cleanPin = joinPinInput.trim()
     if (cleanPin.length !== 6) return
@@ -210,7 +208,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         setPin(res.pin)
       }
       await api.saveClipboard(targetSession, clipboardText)
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'TEXT_MESSAGE', payload: clipboardText }))
       }
       setLastSyncTime(Date.now())
@@ -245,7 +243,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.SubmitEvent) => {
     e.preventDefault()
     if (!chatInput.trim()) return
 
@@ -267,7 +265,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         return [...prev, msg]
       })
 
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'CHAT_MESSAGE', payload: msg }))
       }
       soundEngine.chatMsg()
@@ -289,10 +287,10 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Sync & Pairing Banner */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#141414] border border-carbon flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#000000] border border-[#242424] flex items-center justify-center text-[#7089ba]">
-            <Broadcast className="w-5 h-5" weight="duotone" />
+          <div className="w-9 h-9 rounded-xl bg-void border border-[#242424] flex items-center justify-center text-[#7089ba]">
+            <BroadcastIcon className="w-5 h-5" weight="duotone" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -308,7 +306,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                 <span>{wsConnected ? 'LIVE WS' : 'REST SYNC'}</span>
               </span>
             </div>
-            <p className="text-[11px] text-[#808080] mt-0.5">
+            <p className="text-[11px] text-steel mt-0.5">
               {pin ? `Active Session PIN: ${pin} · E2EE Encrypted channel` : 'Connect using a 6-digit PIN or start a new sync channel.'}
             </p>
           </div>
@@ -318,17 +316,17 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {pin ? (
             <div className="flex items-center gap-2">
-              <div className="px-3 py-1 rounded-xl bg-[#000000] border border-[#282828] text-xs font-mono text-white flex items-center gap-2">
-                <span className="text-[#808080]">PIN:</span>
+              <div className="px-3 py-1 rounded-xl bg-void border border-[#282828] text-xs font-mono text-white flex items-center gap-2">
+                <span className="text-steel">PIN:</span>
                 <strong className="tracking-widest text-[#7089ba] text-sm">{pin}</strong>
               </div>
               <button
                 type="button"
                 onClick={() => setQrModalOpen(true)}
-                className="p-2 rounded-xl bg-[#000000] border border-[#282828] text-white hover:border-white text-xs transition-colors"
+                className="p-2 rounded-xl bg-void border border-[#282828] text-white hover:border-white text-xs transition-colors"
                 title="Show Pairing QR"
               >
-                <QrCode className="w-4 h-4" />
+                <QrCodeIcon className="w-4 h-4" />
               </button>
               <button
                 type="button"
@@ -342,14 +340,14 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <form onSubmit={handleJoinByPin} className="flex items-center gap-1.5">
                 <div className="relative flex items-center">
-                  <Key className="w-3.5 h-3.5 text-[#7089ba] absolute left-2.5 pointer-events-none" />
+                  <KeyIcon className="w-3.5 h-3.5 text-[#7089ba] absolute left-2.5 pointer-events-none" />
                   <input
                     type="text"
                     maxLength={6}
                     placeholder="Enter PIN"
                     value={joinPinInput}
                     onChange={(e) => setJoinPinInput(e.target.value.replace(/\D/g, ''))}
-                    className="w-28 py-1.5 pl-8 pr-2 bg-[#000000] border border-[#282828] focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder-[#4d4d4d] tracking-widest"
+                    className="w-28 py-1.5 pl-8 pr-2 bg-void border focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white tracking-widest"
                   />
                 </div>
                 <button
@@ -366,7 +364,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                 onClick={handleCreateNewSession}
                 className="px-3 py-1.5 rounded-xl border border-[#282828] text-white text-xs hover:border-white transition-colors flex items-center gap-1 cursor-pointer"
               >
-                <PlusCircle className="w-3.5 h-3.5 text-[#7089ba]" />
+                <PlusCircleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 <span>Create Channel</span>
               </button>
             </div>
@@ -377,22 +375,22 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
       {/* Main 2-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Zero-Knowledge Clipboard */}
-        <div className="p-6 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-4 flex flex-col justify-between">
+        <div className="p-6 rounded-2xl bg-[#141414] border border-carbon space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-3">
+            <div className="flex items-center justify-between border-b border-carbon pb-3">
               <div className="flex items-center gap-2">
-                <ClipboardText className="w-5 h-5 text-[#7089ba]" weight="duotone" />
+                <ClipboardTextIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />
                 <h4 className="text-base font-bold text-white font-sans">
                   Zero-Knowledge Clipboard
                 </h4>
               </div>
               <div className="flex items-center gap-1 text-[10px] font-mono text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded border border-[#7089ba]/20">
-                <LockKey className="w-3 h-3" />
+                <LockKeyIcon className="w-3 h-3" />
                 <span>E2EE SYNC</span>
               </div>
             </div>
 
-            <p className="text-xs text-[#808080]">
+            <p className="text-xs text-steel">
               Paste API tokens, SSH keys, passwords, or snippets. Synchronizes securely across devices on your local network.
             </p>
 
@@ -401,12 +399,12 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
               placeholder="Paste or type confidential text here..."
               value={clipboardText}
               onChange={(e) => setClipboardText(e.target.value)}
-              className="w-full p-3 rounded-xl bg-[#000000] border border-[#242424] focus:border-[#7089ba] focus:outline-none text-xs font-mono text-white placeholder-[#4d4d4d] leading-relaxed resize-none transition-colors"
+              className="w-full p-3 rounded-xl bg-void border border-[#242424] focus:outline-none text-xs font-mono text-white leading-relaxed resize-none transition-colors"
             />
           </div>
 
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between text-xs font-mono text-[#808080] px-1">
+            <div className="flex items-center justify-between text-xs font-mono text-steel px-1">
               {lastSyncTime ? (
                 <span>Last Synced: <strong className="text-white">{new Date(lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong></span>
               ) : (
@@ -423,9 +421,9 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                 className="flex-1 py-2.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow"
               >
                 {syncingClip ? (
-                  <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" />
+                  <ArrowsClockwiseIcon className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <LockKey className="w-3.5 h-3.5" />
+                  <LockKeyIcon className="w-3.5 h-3.5" />
                 )}
                 <span>Push to Local Network</span>
               </button>
@@ -436,7 +434,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                 disabled={!clipboardText.trim()}
                 className="px-3.5 py-2.5 rounded-full border border-[#282828] text-white text-xs hover:border-white disabled:opacity-50 transition-all flex items-center gap-1 cursor-pointer"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-[#7089ba]" weight="bold" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <CheckIcon className="w-3.5 h-3.5 text-[#7089ba]" weight="bold" /> : <CopyIcon className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied' : 'Copy'}</span>
               </button>
 
@@ -447,7 +445,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                   className="p-2.5 rounded-full border border-[#282828] text-white hover:border-white text-xs transition-colors cursor-pointer"
                   title="Fetch Latest from Server"
                 >
-                  <ArrowsClockwise className="w-3.5 h-3.5" />
+                  <ArrowsClockwiseIcon className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -455,11 +453,11 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         </div>
 
         {/* Ephemeral In-Session Encrypted Chat */}
-        <div className="p-6 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-4 flex flex-col justify-between">
+        <div className="p-6 rounded-2xl bg-[#141414] border border-carbon space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-3">
+            <div className="flex items-center justify-between border-b border-carbon pb-3">
               <div className="flex items-center gap-2">
-                <ChatCircleText className="w-5 h-5 text-[#7089ba]" weight="duotone" />
+                <ChatCircleTextIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />
                 <h4 className="text-base font-bold text-white font-sans">
                   Ephemeral Peer Chat
                 </h4>
@@ -467,12 +465,12 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
 
               <div className="flex items-center gap-2">
                 {/* Role switch */}
-                <div className="flex items-center p-0.5 rounded-lg bg-[#000000] border border-[#242424] text-[10px] font-mono">
+                <div className="flex items-center p-0.5 rounded-lg bg-void border border-[#242424] text-[10px] font-mono">
                   <button
                     type="button"
                     onClick={() => setSenderRole('Sender')}
                     className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                      senderRole === 'Sender' ? 'bg-white text-black font-semibold' : 'text-[#808080]'
+                      senderRole === 'Sender' ? 'bg-white text-black font-semibold' : 'text-steel'
                     }`}
                   >
                     Sender
@@ -481,7 +479,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                     type="button"
                     onClick={() => setSenderRole('Receiver')}
                     className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                      senderRole === 'Receiver' ? 'bg-white text-black font-semibold' : 'text-[#808080]'
+                      senderRole === 'Receiver' ? 'bg-white text-black font-semibold' : 'text-steel'
                     }`}
                   >
                     Receiver
@@ -493,18 +491,18 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                     type="button"
                     onClick={handleClearChat}
                     title="Clear Chat"
-                    className="p-1 rounded text-[#808080] hover:text-[#eb5757] transition-colors"
+                    className="p-1 rounded text-steel hover:text-[#eb5757] transition-colors"
                   >
-                    <Trash className="w-3.5 h-3.5" />
+                    <TrashIcon className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* Messages timeline */}
-            <div ref={chatScrollContainerRef} className="h-48 overflow-y-auto space-y-2.5 p-3 rounded-xl bg-[#000000] border border-[#242424]">
+            <div ref={chatScrollContainerRef} className="h-48 overflow-y-auto space-y-2.5 p-3 rounded-xl bg-void border border-[#242424]">
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-[#4d4d4d] text-xs">
+                <div className="h-full flex flex-col items-center justify-center text-graphite text-xs">
                   <span>No messages yet.</span>
                   <span className="text-[10px] text-[#333333]">Send a message to start live peer ledger.</span>
                 </div>
@@ -514,11 +512,11 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                     key={m.id}
                     className={`group relative p-2.5 rounded-lg max-w-[85%] text-xs ${
                       m.senderRole === senderRole
-                        ? 'ml-auto bg-[#1c1c1c] text-white border border-[#2a2a2a]'
+                        ? 'ml-auto bg-carbon text-white border border-[#2a2a2a]'
                         : 'mr-auto bg-[#7089ba]/15 text-white border border-[#7089ba]/30'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-3 text-[10px] text-[#808080] font-mono mb-1">
+                    <div className="flex items-center justify-between gap-3 text-[10px] text-steel font-mono mb-1">
                       <span className="font-semibold text-white/90">{m.senderRole}</span>
                       <div className="flex items-center gap-1.5">
                         <span>{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -529,14 +527,14 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                           title="Copy text"
                         >
                           {copiedMsgId === m.id ? (
-                            <Check className="w-3 h-3 text-[#7089ba]" />
+                            <CheckIcon className="w-3 h-3 text-[#7089ba]" />
                           ) : (
-                            <Copy className="w-3 h-3" />
+                            <CopyIcon className="w-3 h-3" />
                           )}
                         </button>
                       </div>
                     </div>
-                    <div className="break-words leading-relaxed whitespace-pre-wrap">{m.content}</div>
+                    <div className="wrap-break-word leading-relaxed whitespace-pre-wrap">{m.content}</div>
                   </div>
                 ))
               )}
@@ -550,14 +548,14 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
               placeholder="Type encrypted message..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              className="flex-1 bg-[#000000] border border-[#242424] focus:border-[#7089ba] focus:outline-none rounded-full px-4 py-2.5 text-xs text-white placeholder-[#4d4d4d] transition-colors font-sans"
+              className="flex-1 bg-void border border-[#242424] focus:outline-none rounded-full px-4 py-2.5 text-xs text-white transition-colors font-sans"
             />
             <button
               type="submit"
               disabled={!chatInput.trim()}
               className="p-2.5 rounded-full bg-white text-black hover:bg-white/90 disabled:opacity-50 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow"
             >
-              <PaperPlaneRight className="w-3.5 h-3.5" weight="bold" />
+              <PaperPlaneRightIcon className="w-3.5 h-3.5" weight="bold" />
             </button>
           </form>
         </div>

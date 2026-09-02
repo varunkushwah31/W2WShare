@@ -121,3 +121,5 @@ target/*!/target/
 !/target/
 !/temp-w2w-encrypted/
 /target/
+
+*.md

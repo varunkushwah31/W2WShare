@@ -46,7 +46,7 @@ export class WebRtcPeerManager {
   private lastTimeMeasurement = Date.now()
   private currentMbps = 0
   private peakMbps = 0
-  private rttMs = 0
+  private readonly rttMs = 0
   private speedTimer: number | null = null
 
   // Buffer chunk queuing on receiver
@@ -95,9 +95,17 @@ export class WebRtcPeerManager {
       this.pc.close()
     }
 
-    // Zero reliance on external STUN/TURN servers for pure offline LAN operation
+    // STUN servers for WAN / Internet NAT traversal with graceful local LAN fallback
+    const stunServers = import.meta.env.VITE_STUN_SERVERS
+      ? import.meta.env.VITE_STUN_SERVERS.split(',').map((url: string) => ({ urls: url.trim() }))
+      : [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ]
+
     const config: RTCConfiguration = {
-      iceServers: [],
+      iceServers: stunServers,
       iceCandidatePoolSize: 2,
     }
 
@@ -262,7 +270,7 @@ export class WebRtcPeerManager {
     totalChunks: number,
     chunkData: Uint8Array
   ): Promise<boolean> {
-    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+    if (this.dataChannel?.readyState !== 'open') {
       return false
     }
 

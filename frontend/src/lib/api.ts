@@ -159,7 +159,36 @@ export interface NodeAuthResponse {
   keystoreStatus: string
 }
 
-const API_BASE = '/api'
+const RAW_BACKEND_URL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '').trim().replace(/\/+$/, '')
+export const API_BASE = RAW_BACKEND_URL
+  ? (RAW_BACKEND_URL.endsWith('/api') ? RAW_BACKEND_URL : `${RAW_BACKEND_URL}/api`)
+  : '/api'
+
+export function getWebSocketUrl(path = '/ws/signaling'): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+
+  // 1. Explicit VITE_WS_URL
+  if (import.meta.env.VITE_WS_URL) {
+    const wsBase = import.meta.env.VITE_WS_URL.trim().replace(/\/+$/, '')
+    return `${wsBase}${cleanPath}`
+  }
+
+  // 2. Derived from VITE_API_URL or VITE_BACKEND_URL
+  if (RAW_BACKEND_URL) {
+    try {
+      const parsed = new URL(RAW_BACKEND_URL)
+      const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
+      return `${wsProto}//${parsed.host}${cleanPath}`
+    } catch {
+      // Ignore URL parse error and fallback
+    }
+  }
+
+  // 3. Fallback to current browser location (monolith or local dev proxy)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.host || 'localhost:8080'
+  return `${protocol}//${host}${cleanPath}`
+}
 
 export const api = {
   // Network
@@ -217,6 +246,14 @@ export const api = {
       size: String(size),
     })
     return `${API_BASE}/network/wifi-qr?${params.toString()}`
+  },
+
+  getTransferQrUrl(url: string, size = 400): string {
+    const params = new URLSearchParams({
+      text: url,
+      size: String(size),
+    })
+    return `${API_BASE}/transfer/qr?${params.toString()}`
   },
 
   async getDiscoveredPeers(): Promise<DiscoveredPeer[]> {

@@ -7,13 +7,13 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import {
-  Copy as CopyIcon,
-  Check as CheckIcon,
-  DownloadSimple as DownloadSimpleIcon,
-  QrCode as QrIcon,
-  WifiHigh,
-  Eye,
-  EyeSlash,
+  CopyIcon,
+  CheckIcon,
+  DownloadSimpleIcon,
+  QrCodeIcon as QrIcon,
+  WifiHighIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@phosphor-icons/react'
 import { api } from '@/lib/api'
 
@@ -46,14 +46,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const claimQrUrl = `/api/transfer/qr?text=${encodeURIComponent(url)}&size=400`
+  const claimQrUrl = api.getTransferQrUrl(url, 400)
   const wifiQrUrl = api.getWifiQrUrl(hotspotSsid, hotspotPass, 'WPA', 400)
 
   const currentQrUrl = activeTab === 'claim' ? claimQrUrl : wifiQrUrl
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm sm:max-w-md border border-[#1c1c1c] bg-[#141414] text-white p-6 rounded-2xl">
+      <DialogContent className="max-w-sm sm:max-w-md border border-carbon bg-[#141414] text-white p-6 rounded-2xl">
         <DialogHeader className="text-center sm:text-center">
           <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20 mb-2 font-bold">
             OPTICAL SCANNER & OFFLINE CONNECT
@@ -61,7 +61,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           <DialogTitle className="text-xl font-bold font-sans">
             Direct Peer QR Scanner
           </DialogTitle>
-          <DialogDescription className="text-xs text-[#808080]">
+          <DialogDescription className="text-xs text-steel">
             Point any phone camera or tablet to connect and transfer files instantly.
           </DialogDescription>
         </DialogHeader>
@@ -77,7 +77,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'claim'
                 ? 'bg-white text-black font-bold shadow'
-                : 'text-[#808080] hover:text-white'
+                : 'text-steel hover:text-white'
             }`}
           >
             <QrIcon className="w-3.5 h-3.5" />
@@ -92,19 +92,19 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'wifi'
                 ? 'bg-amber-500 text-black font-bold shadow'
-                : 'text-[#808080] hover:text-white'
+                : 'text-steel hover:text-white'
             }`}
           >
-            <WifiHigh className="w-3.5 h-3.5" />
+            <WifiHighIcon className="w-3.5 h-3.5" />
             <span>2. Auto-Join Hotspot</span>
           </button>
         </div>
 
-        {/* Wi-Fi Settings Sub-bar if in wifi tab */}
+        {/* Wi-Fi Settings Sub-bar if in Wi-Fi tab */}
         {activeTab === 'wifi' && (
           <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#222] grid grid-cols-2 gap-2 text-xs font-mono">
             <div>
-              <label className="text-[10px] text-[#808080] block mb-0.5">Hotspot SSID</label>
+              <label className="text-[10px] text-steel block mb-0.5">Hotspot SSID</label>
               <input
                 type="text"
                 value={hotspotSsid}
@@ -113,7 +113,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
               />
             </div>
             <div>
-              <label className="text-[10px] text-[#808080] block mb-0.5">Password</label>
+              <label className="text-[10px] text-steel block mb-0.5">Password</label>
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
@@ -126,7 +126,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
                   onClick={() => setShowPass(!showPass)}
                   className="absolute right-1.5 top-1.5 text-[#666] hover:text-white"
                 >
-                  {showPass ? <EyeSlash className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {showPass ? <EyeSlashIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
                 </button>
               </div>
             </div>
@@ -134,11 +134,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         )}
 
         {/* High-Contrast QR Code Card */}
-        <div className="p-4 rounded-2xl bg-[#000000] border border-[#1c1c1c] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-void border border-carbon flex flex-col items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
           {/* White container for maximum optical contrast */}
-          <div className="p-3 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-[190px] min-h-[190px]">
+          <div className="p-3 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-47.5 min-h-47.5">
             {!imgLoaded && !imgError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-xl text-neutral-400">
                 <QrIcon className="w-8 h-8 animate-pulse text-[#7089ba]" />
@@ -169,12 +169,12 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           {/* Context Explanations */}
           {activeTab === 'claim' ? (
             <>
-              <div className="mt-3 text-[10px] font-mono text-[#7089ba] max-w-[280px] truncate text-center bg-[#141414] px-2.5 py-1 rounded-md border border-[#222]">
+              <div className="mt-3 text-[10px] font-mono text-[#7089ba] max-w-70 truncate text-center bg-[#141414] px-2.5 py-1 rounded-md border border-[#222]">
                 {url}
               </div>
-              <div className="mt-2.5 pt-2.5 border-t border-[#1c1c1c] w-full flex items-center justify-between text-xs">
-                <span className="text-[#808080] font-mono">ENCRYPTED PIN:</span>
-                <span className="font-mono text-base font-bold text-white tracking-widest bg-[#1c1c1c] px-3 py-1 rounded border border-[#282828]">
+              <div className="mt-2.5 pt-2.5 border-t border-carbon w-full flex items-center justify-between text-xs">
+                <span className="text-steel font-mono">ENCRYPTED PIN:</span>
+                <span className="font-mono text-base font-bold text-white tracking-widest bg-carbon px-3 py-1 rounded border border-[#282828]">
                   {pin}
                 </span>
               </div>
@@ -226,7 +226,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             download={activeTab === 'claim' ? `w2w-qr-${pin}.png` : `w2w-wifi-${hotspotSsid}.png`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full py-2 px-4 rounded-full bg-[#1c1c1c] border border-[#282828] text-neutral-300 font-medium text-xs hover:text-white hover:border-neutral-500 flex items-center justify-center gap-2 transition-all"
+            className="w-full py-2 px-4 rounded-full bg-carbon border border-[#282828] text-neutral-300 font-medium text-xs hover:text-white hover:border-neutral-500 flex items-center justify-center gap-2 transition-all"
           >
             <DownloadSimpleIcon className="w-3.5 h-3.5" />
             <span>Download QR Code Image</span>

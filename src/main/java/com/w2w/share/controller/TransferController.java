@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.NoSuchFileException;
 import java.util.*;
 
 @RestController
@@ -49,8 +48,13 @@ public class TransferController {
         this.qrCodeService = qrCodeService;
     }
 
+    @org.springframework.beans.factory.annotation.Value("${w2w.frontend-url:}")
+    private String configuredFrontendUrl;
+
     @PostMapping("/session/create")
-    public ResponseEntity<CreateSessionResponse> createSession(@RequestBody(required = false) CreateSessionRequest request) {
+    public ResponseEntity<CreateSessionResponse> createSession(
+            @RequestBody(required = false) CreateSessionRequest request,
+            HttpServletRequest httpRequest) {
         String senderId = (request != null && request.senderId() != null) ? request.senderId() : "sender-" + System.currentTimeMillis();
         boolean burnAfter = request != null && request.isBurnAfterReading();
         int maxDownloads = request != null ? request.getMaxDownloads() : 0;
@@ -58,8 +62,8 @@ public class TransferController {
 
         TransferSession session = sessionService.createSession(senderId, burnAfter, maxDownloads, expiresInSeconds);
 
-        String primaryUrl = networkDiscoveryService.getPrimaryNetworkUrl();
-        String joinUrl = primaryUrl + "/?pin=" + session.getPin();
+        String baseUrl = resolveBaseUrl(httpRequest);
+        String joinUrl = baseUrl + "/?pin=" + session.getPin();
 
         return ResponseEntity.ok(new CreateSessionResponse(
                 session.getSessionId(),
@@ -69,6 +73,35 @@ public class TransferController {
                 session.isBurnAfterReading(),
                 session.getCreatedAt().toEpochMilli()
         ));
+    }
+
+    private String resolveBaseUrl(HttpServletRequest httpRequest) {
+        if (configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()) {
+            return configuredFrontendUrl.replaceAll("/+$", "");
+        }
+        if (httpRequest != null) {
+            String origin = httpRequest.getHeader("Origin");
+            if (origin != null && !origin.isBlank() && !origin.equals("null")) {
+                return origin.replaceAll("/+$", "");
+            }
+            String referer = httpRequest.getHeader("Referer");
+            if (referer != null && !referer.isBlank()) {
+                try {
+                    java.net.URI uri = java.net.URI.create(referer);
+                    String scheme = uri.getScheme();
+                    String host = uri.getHost();
+                    int port = uri.getPort();
+                    if (scheme != null && host != null) {
+                        return (port > 0 && port != 80 && port != 443)
+                                ? scheme + "://" + host + ":" + port
+                                : scheme + "://" + host;
+                    }
+                } catch (Exception ignored) {
+                    // fallback
+                }
+            }
+        }
+        return networkDiscoveryService.getPrimaryNetworkUrl();
     }
 
     @GetMapping("/session/{sessionId}")
@@ -226,7 +259,7 @@ public class TransferController {
     public ResponseEntity<Resource> downloadFileChunk(
             @PathVariable String sessionId,
             @PathVariable int fileIndex,
-            @PathVariable int chunkIndex) throws NoSuchFileException, IOException {
+            @PathVariable int chunkIndex) throws IOException {
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
         java.nio.file.Path chunkPath = storageService.getChunkPath(sessionId, fileIndex, chunkIndex);
@@ -246,7 +279,7 @@ public class TransferController {
     @GetMapping(value = "/session/{sessionId}/chunk/{chunkIndex}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ResponseEntity<Resource> downloadChunk(
             @PathVariable String sessionId,
-            @PathVariable int chunkIndex) throws NoSuchFileException, IOException {
+            @PathVariable int chunkIndex) throws IOException {
 
         return downloadFileChunk(sessionId, 0, chunkIndex);
     }

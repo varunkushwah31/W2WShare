@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
@@ -22,24 +24,22 @@ public class SecurityConfig {
     @SuppressWarnings({"java:S4502", "java:S5122", "java:S112"})
     public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/",
-                    "/index.html",
-                    "/css/**",
-                    "/js/**",
                     "/api/**",
                     "/ws/**",
                     "/actuator/**",
-                    "/favicon.ico"
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**"
                 ).permitAll()
                 .anyRequest().permitAll()
             )
             .headers(headers -> headers
-                .frameOptions(frame -> frame.sameOrigin())
+                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
                 .contentTypeOptions(Customizer.withDefaults())
                 .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
@@ -53,10 +53,13 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${w2w.security.allowed-origins:}")
+    private String customAllowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
+        java.util.List<String> origins = new java.util.ArrayList<>(List.of(
             "http://localhost:*",
             "http://127.0.0.1:*",
             "http://[::1]:*",
@@ -70,8 +73,25 @@ public class SecurityConfig {
             "http://172.30.*.*:*",
             "http://172.31.*.*:*",
             "https://localhost:*",
-            "https://127.0.0.1:*"
+            "https://127.0.0.1:*",
+            "https://*.vercel.app",
+            "https://*.vercel.app:*",
+            "https://*.vercel.dev",
+            "https://*.vercel.dev:*",
+            "https://*.onrender.com",
+            "https://*.onrender.com:*"
         ));
+
+        if (customAllowedOrigins != null && !customAllowedOrigins.isBlank()) {
+            for (String origin : customAllowedOrigins.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    origins.add(trimmed);
+                }
+            }
+        }
+
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Content-Disposition", "Retry-After", "X-W2W-Session-Status"));

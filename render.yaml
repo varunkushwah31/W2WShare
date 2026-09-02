@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: w2w-share-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://*.vercel.app,https://*.vercel.dev"
+      - key: FRONTEND_URL
+        sync: false
+      - key: JAVA_OPTS
+        value: "-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 -Dspring.threads.virtual.enabled=true"

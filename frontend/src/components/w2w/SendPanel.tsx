@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { api, type FileMetadata } from '@/lib/api'
+import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
@@ -43,7 +43,7 @@ const resolveJoinUrl = (
   pin: string,
   selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
 ): string => {
-  if (selectedInterface && selectedInterface.url) {
+  if (selectedInterface?.url) {
     return `${selectedInterface.url}/?pin=${pin}`
   }
   if (typeof window === 'undefined') return sessionJoinUrl
@@ -133,7 +133,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
   // WebRTC direct streaming handler
   const streamViaWebRtc = useCallback(async (prepared: PreparedFile[]) => {
     const rtc = rtcManagerRef.current
-    if (!rtc || !rtc.isChannelOpen()) return
+    if (!rtc?.isChannelOpen()) return
 
     for (let fIdx = 0; fIdx < prepared.length; fIdx++) {
       const p = prepared[fIdx]
@@ -165,9 +165,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       }
     })
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host || 'localhost:8080'
-    const wsUrl = `${protocol}//${host}/ws/signaling`
+    const wsUrl = getWebSocketUrl('/ws/signaling')
 
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
@@ -442,7 +440,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
           <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:scale-105 transition-transform">
+            <div className="w-14 h-14 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:scale-105 transition-transform">
               <UploadSimpleIcon className="w-7 h-7" weight="duotone" />
             </div>
 
@@ -450,7 +448,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <h4 className="text-lg font-bold text-white font-sans">
                 Drag & drop files or folders here
               </h4>
-              <p className="text-xs text-[#808080] mt-1">
+              <p className="text-xs text-steel mt-1">
                 Zero size limit. Direct chunk streaming with browser-native AES-256-GCM.
               </p>
             </div>
@@ -467,7 +465,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <button
                 type="button"
                 onClick={() => folderInputRef.current?.click()}
-                className="px-4 py-2 rounded-full border border-[#282828] bg-[#1c1c1c] text-white font-semibold text-xs hover:bg-[#242424] transition-all flex items-center gap-1.5"
+                className="px-4 py-2 rounded-full border border-[#282828] bg-carbon text-white font-semibold text-xs hover:bg-[#242424] transition-all flex items-center gap-1.5"
               >
                 <FolderSimpleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 <span>Select Folder</span>
@@ -495,20 +493,20 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
 
       {/* Selected Files Staging List */}
       {files.length > 0 && !pin && (
-        <div className="p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-4">
-          <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-3">
+        <div className="p-5 rounded-2xl bg-[#141414] border border-carbon space-y-4">
+          <div className="flex items-center justify-between border-b border-carbon pb-3">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs text-white font-bold">
                 BATCH QUEUE ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})
               </span>
-              <span className="font-mono text-xs text-[#808080]">
+              <span className="font-mono text-xs text-steel">
                 · {formatBytes(totalBytes)}
               </span>
             </div>
             <button
               type="button"
               onClick={clearFiles}
-              className="text-xs text-[#808080] hover:text-[#eb5757] transition-colors"
+              className="text-xs text-steel hover:text-[#eb5757] transition-colors"
             >
               Clear All
             </button>
@@ -518,18 +516,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             {files.map((item, idx) => (
               <div
                 key={`${item.relativePath}-${item.size}-${idx}`}
-                className="flex items-center justify-between p-2 rounded bg-[#1c1c1c] border border-[#242424] text-xs"
+                className="flex items-center justify-between p-2 rounded bg-carbon border border-[#242424] text-xs"
               >
                 <div className="flex items-center gap-2 min-w-0 pr-2">
                   <FileIcon className="w-4 h-4 text-[#7089ba] shrink-0" />
                   <span className="truncate text-white font-mono">{item.relativePath}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[#808080] font-mono">{formatBytes(item.size)}</span>
+                  <span className="text-steel font-mono">{formatBytes(item.size)}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(idx)}
-                    className="text-[#808080] hover:text-white"
+                    className="text-steel hover:text-white"
                   >
                     <TrashIcon className="w-3.5 h-3.5" />
                   </button>
@@ -539,8 +537,8 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
           </div>
 
           {/* Transfer Configurations */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#1c1c1c] text-xs">
-            <label className="flex items-center gap-2 text-[#ababab] cursor-pointer">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-carbon text-xs">
+            <label className="flex items-center gap-2 text-ash cursor-pointer">
               <input
                 type="checkbox"
                 checked={burnAfter}
@@ -553,7 +551,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               </span>
             </label>
 
-            <label className="flex items-center gap-2 text-[#ababab] cursor-pointer">
+            <label className="flex items-center gap-2 text-ash cursor-pointer">
               <input
                 type="checkbox"
                 checked={enableCompression}
@@ -563,12 +561,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <span>Gzip Pre-Compression</span>
             </label>
 
-            <div className="flex items-center gap-2 text-[#ababab]">
+            <div className="flex items-center gap-2 text-ash">
               <span>Expires:</span>
               <select
                 value={expiryMinutes}
                 onChange={(e) => setExpiryMinutes(Number(e.target.value))}
-                className="bg-[#1c1c1c] border border-[#282828] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none"
+                className="bg-carbon border border-[#282828] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none"
               >
                 <option value={5}>5 mins</option>
                 <option value={15}>15 mins</option>
@@ -593,9 +591,9 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
 
       {/* Live Active Transfer Stream / PIN Display */}
       {pin && (
-        <div className="p-6 sm:p-8 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-6">
+        <div className="p-6 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-6">
           {/* PIN Banner */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-[#000000] border border-[#282828]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-void border border-[#282828]">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
                 OFFLINE CLAIM PIN
@@ -609,7 +607,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <button
                 type="button"
                 onClick={() => setQrModalOpen(true)}
-                className="p-2.5 rounded-full bg-[#1c1c1c] border border-[#282828] text-white hover:border-white transition-colors"
+                className="p-2.5 rounded-full bg-carbon border border-[#282828] text-white hover:border-white transition-colors"
                 title="Show QR Code"
               >
                 <QrCodeIcon className="w-5 h-5" />
@@ -617,7 +615,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <button
                 type="button"
                 onClick={copyLink}
-                className="px-3.5 py-2 rounded-full bg-[#1c1c1c] border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-full bg-carbon border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5"
               >
                 {linkCopied ? (
                   <>
@@ -637,18 +635,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
           {/* Progress Bar & Status */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-[#808080] truncate max-w-xs">{currentFileName || statusMessage}</span>
+              <span className="text-steel truncate max-w-xs">{currentFileName || statusMessage}</span>
               <span className="text-white font-bold">{progressPercent}%</span>
             </div>
 
-            <div className="w-full h-2 bg-[#1c1c1c] rounded-full overflow-hidden border border-[#242424]">
+            <div className="w-full h-2 bg-carbon rounded-full overflow-hidden border border-[#242424]">
               <div
                 className="h-full bg-[#7089ba] transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
 
-            <div className="flex items-center justify-between text-[11px] font-mono text-[#808080] pt-1">
+            <div className="flex items-center justify-between text-[11px] font-mono text-steel pt-1">
               <span>
                 {currentChunkInfo.total > 0
                   ? `Chunk ${currentChunkInfo.current} / ${currentChunkInfo.total}`
@@ -678,7 +676,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
                 <span>Payload ready on local network. Receiver can claim PIN.</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-xs text-[#808080] font-mono">
+              <div className="flex items-center gap-2 text-xs text-steel font-mono">
                 <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-[#7089ba]" />
                 <span>Encrypting & streaming payload...</span>
               </div>
@@ -687,7 +685,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             <button
               type="button"
               onClick={cancelSession}
-              className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-[#808080] hover:text-white transition-colors"
+              className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-steel hover:text-white transition-colors"
             >
               Terminate Session
             </button>
