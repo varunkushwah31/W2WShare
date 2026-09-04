@@ -9,12 +9,12 @@ interface CadIllustrationProps {
  */
 export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-square max-w-[420px] rounded-2xl bg-[#1c1c1c] p-6 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
+    <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       {/* Stippled dot grid matrix background */}
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
-      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         CAD: ISO-8942 · 160x160mm
       </div>
 
@@ -155,10 +155,10 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
  */
 export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-square max-w-[420px] rounded-2xl bg-[#1c1c1c] p-6 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
+    <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
-      <div className="absolute top-3 left-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 left-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         CIPHER_STREAM: ACTIVE · AES-256-GCM
       </div>
 
@@ -208,7 +208,7 @@ export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ clas
             fill="#121212"
           />
 
-          {/* Animated Screen Display Scanlines / Code Lines */}
+          {/* Animated Screen Display Scanline / Code Lines */}
           <g className="animate-scanline">
             <line x1="215" y1="150" x2="270" y2="122" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 3" />
             <line x1="215" y1="160" x2="270" y2="132" stroke="#7089ba" strokeWidth="1" strokeDasharray="2 3" />
@@ -252,10 +252,10 @@ export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ clas
  */
 export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-square max-w-[420px] rounded-2xl bg-[#1c1c1c] p-6 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
+    <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
 
-      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-[#000000]/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         THRUST: P2P_WEBRTC_STREAM
       </div>
 
@@ -372,7 +372,7 @@ export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ cl
  */
 export const LaptopWandCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
+    <div className={`relative w-full aspect-4/3 rounded-2xl bg-carbon p-4 flex items-center justify-center overflow-hidden border border-carbon group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
@@ -441,7 +441,7 @@ export const LaptopWandCadIllustration: React.FC<CadIllustrationProps> = ({ clas
  */
 export const PedestalAwardCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
+    <div className={`relative w-full aspect-4/3 rounded-2xl bg-carbon p-4 flex items-center justify-center overflow-hidden border border-carbon group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
@@ -490,7 +490,7 @@ export const PedestalAwardCadIllustration: React.FC<CadIllustrationProps> = ({ c
  */
 export const LightningVortexCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
+    <div className={`relative w-full aspect-4/3 rounded-2xl bg-carbon p-4 flex items-center justify-center overflow-hidden border border-carbon group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
@@ -535,7 +535,7 @@ export const LightningVortexCadIllustration: React.FC<CadIllustrationProps> = ({
  */
 export const CoinStacksCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`relative w-full aspect-[4/3] rounded-2xl bg-[#1c1c1c] p-4 flex items-center justify-center overflow-hidden border border-[#1c1c1c] group hover:border-[#2a2a2a] transition-all ${className}`}>
+    <div className={`relative w-full aspect-4/3 rounded-2xl bg-carbon p-4 flex items-center justify-center overflow-hidden border border-carbon group hover:border-[#2a2a2a] transition-all ${className}`}>
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       <svg viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full relative z-10 select-none overflow-visible">
@@ -590,7 +590,7 @@ export const CoinStacksCadIllustration: React.FC<CadIllustrationProps> = ({ clas
  */
 export const HeroLightBeamStipple: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
-    <div className={`w-full max-w-[480px] h-[100px] flex items-center justify-center relative overflow-hidden ${className}`}>
+    <div className={`w-full max-w-120 h-25 flex items-center justify-center relative overflow-hidden ${className}`}>
       <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full opacity-70 overflow-visible">
         <g stroke="#7089ba" strokeWidth="0.8" strokeDasharray="2 4" className="animate-dash-flow">
           <line x1="200" y1="100" x2="60" y2="10" />

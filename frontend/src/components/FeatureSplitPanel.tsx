@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check } from '@phosphor-icons/react'
+import { CheckIcon } from '@phosphor-icons/react'
 
 export interface FeatureSplitPanelProps {
   eyebrow?: string
@@ -23,7 +23,7 @@ export const FeatureSplitPanel: React.FC<FeatureSplitPanelProps> = ({
   return (
     <div
       id={id}
-      className="w-full max-w-[1200px] mx-auto px-6 py-16 md:py-24 dashed-container my-12 rounded-2xl bg-[#000000]/60"
+      className="w-full max-w-300 mx-auto px-6 py-16 md:py-24 dashed-container my-12 rounded-2xl bg-void/60"
     >
       <div
         className={`grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center ${
@@ -33,7 +33,7 @@ export const FeatureSplitPanel: React.FC<FeatureSplitPanelProps> = ({
         {/* Text Content Column */}
         <div className={`space-y-6 ${reverse ? 'lg:order-2' : 'lg:order-1'}`}>
           {eyebrow && (
-            <div className="font-mono text-xs font-medium uppercase tracking-[0.08em] text-[#808080]">
+            <div className="font-mono text-xs font-medium uppercase tracking-[0.08em] text-steel">
               {eyebrow}
             </div>
           )}
@@ -42,7 +42,7 @@ export const FeatureSplitPanel: React.FC<FeatureSplitPanelProps> = ({
             {heading}
           </h3>
 
-          <p className="text-base text-[#ababab] leading-relaxed max-w-lg">
+          <p className="text-base text-ash leading-relaxed max-w-lg">
             {description}
           </p>
 
@@ -51,9 +51,9 @@ export const FeatureSplitPanel: React.FC<FeatureSplitPanelProps> = ({
             {items.map((item, index) => (
               <li key={index} className="flex items-start gap-3 text-sm text-white">
                 <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[#7089ba]">
-                  <Check className="w-4 h-4" weight="bold" />
+                  <CheckIcon className="w-4 h-4" weight="bold" />
                 </div>
-                <span className="leading-snug text-[#ffffff] font-normal">{item}</span>
+                <span className="leading-snug text-paper font-normal">{item}</span>
               </li>
             ))}
           </ul>

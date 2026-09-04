@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { ListIcon, XIcon, LightningIcon, UserCheckIcon, SignOutIcon } from '@phosphor-icons/react'
-import { authStore, type AuthUser } from '@/lib/auth'
+import React, {useEffect, useState} from 'react'
+import {LightningIcon, ListIcon, SignOutIcon, UserCheckIcon, XIcon} from '@phosphor-icons/react'
+import {authStore, type AuthUser} from '@/lib/auth'
 
 export type NavPageType = 'home' | 'features' | 'changelog' | 'security' | 'pricing' | 'blog'
 
@@ -22,8 +22,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [user, setUser] = useState<AuthUser | null>(() => authStore.getUser())
 
   useEffect(() => {
-    const unsub = authStore.subscribe((u) => setUser(u))
-    return unsub
+    return authStore.subscribe((u) => setUser(u))
   }, [])
 
   useEffect(() => {

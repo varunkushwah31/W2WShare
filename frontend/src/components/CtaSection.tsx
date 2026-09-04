@@ -7,12 +7,12 @@ interface CtaSectionProps {
 
 export const CtaSection: React.FC<CtaSectionProps> = ({ onOpenDemo }) => {
   return (
-    <section className="relative w-full max-w-[1200px] mx-auto px-6 py-28 dashed-container my-16 rounded-2xl bg-[#000000] overflow-hidden text-center">
+    <section className="relative w-full max-w-300 mx-auto px-6 py-28 dashed-container my-16 rounded-2xl bg-void overflow-hidden text-center">
       {/* Stippled dot grid matrix background */}
       <div className="absolute inset-0 bg-stipple-dense opacity-40 pointer-events-none" />
 
       {/* Central subtle periwinkle wash glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#7089ba]/10 blur-[90px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-75 bg-[#7089ba]/10 blur-[90px] rounded-full pointer-events-none" />
 
       {/* Content */}
       <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center space-y-6">
@@ -25,7 +25,7 @@ export const CtaSection: React.FC<CtaSectionProps> = ({ onOpenDemo }) => {
           Transfers without <br />the wait.
         </h2>
 
-        <p className="text-base sm:text-lg text-[#808080] max-w-lg leading-relaxed">
+        <p className="text-base sm:text-lg text-steel max-w-lg leading-relaxed">
           Zero-knowledge client-side encryption with local subnet gigabit throughput.
         </p>
 

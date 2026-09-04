@@ -124,7 +124,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
           <DialogTitle className="text-xl sm:text-2xl font-extrabold font-sans text-white">
             Offline & Campus Sharing Hub
           </DialogTitle>
-          <DialogDescription className="text-xs text-[#808080]">
+          <DialogDescription className="text-xs text-steel">
             Configure your local network interface, test AP isolation, or generate Wi-Fi auto-join QR codes.
           </DialogDescription>
         </DialogHeader>
@@ -136,7 +136,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
             onClick={() => setMode('campus')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               mode === 'campus'
-                ? 'bg-gradient-to-r from-blue-600 to-[#7089ba] text-white font-bold shadow-md shadow-blue-500/20'
+                ? 'bg-linear-to-r from-blue-600 to-[#7089ba] text-white font-bold shadow-md shadow-blue-500/20'
                 : 'text-[#808080] hover:text-white'
             }`}
           >
@@ -148,8 +148,8 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
             onClick={() => setMode('hotspot')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               mode === 'hotspot'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-md shadow-orange-500/20'
-                : 'text-[#808080] hover:text-white'
+                ? 'bg-linear-to-r from-amber-500 to-orange-600 text-white font-bold shadow-md shadow-orange-500/20'
+                : 'text-steel hover:text-white'
             }`}
           >
             <LightningIcon className="w-4 h-4" />
@@ -159,8 +159,8 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
         {/* Active Interface Quick Switcher */}
         {networkInfo?.interfaces && networkInfo.interfaces.length > 0 && (
-          <div className="space-y-1.5 pb-3 border-b border-[#1c1c1c]">
-            <span className="text-[11px] font-mono text-[#808080]">Select Active Network Adapter:</span>
+          <div className="space-y-1.5 pb-3 border-b border-carbon">
+            <span className="text-[11px] font-mono text-steel">Select Active Network Adapter:</span>
             <div className="flex flex-wrap items-center gap-2">
               {networkInfo.interfaces.map((iface) => {
                 const isSelected = selectedInterface?.ip === iface.ip
@@ -172,7 +172,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                     className={`px-3 py-1 rounded-md text-[11px] font-mono border transition-all cursor-pointer flex items-center gap-1.5 ${
                       isSelected
                         ? 'bg-[#1e293b] border-[#7089ba] text-white font-semibold'
-                        : 'bg-[#141414] border-[#222222] text-[#808080] hover:text-white hover:border-[#333333]'
+                        : 'bg-[#141414] border-[#222222] text-steel hover:text-white hover:border-[#333333]'
                     }`}
                   >
                     <WifiHighIcon className="w-3 h-3 text-[#7089ba]" />

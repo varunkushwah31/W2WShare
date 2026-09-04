@@ -67,7 +67,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
   return (
     <div className="space-y-8">
       {/* Radar Visual Header Banner */}
-      <div className="p-8 rounded-2xl bg-[#141414] border border-[#1c1c1c] flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+      <div className="p-8 rounded-2xl bg-[#141414] border border-carbon flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
 
         {/* Left Info */}
@@ -81,12 +81,12 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
             Subnet Peer Radar
           </h3>
 
-          <p className="text-xs text-[#808080] leading-relaxed">
+          <p className="text-xs text-steel leading-relaxed">
             Automatic UDP discovery broadcasts on port 8888 across your local Wi-Fi. Devices running W2W Share appear on your drafting table in real time.
           </p>
 
           {networkInfo && (
-            <div className="pt-2 flex flex-wrap items-center gap-3 text-[11px] font-mono text-[#808080]">
+            <div className="pt-2 flex flex-wrap items-center gap-3 text-[11px] font-mono text-steel">
               <span className="flex items-center gap-1 text-white">
                 <WifiHighIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 {networkInfo.primaryUrl}
@@ -106,11 +106,11 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
           <div className="absolute inset-20 rounded-full border border-[#141414]" />
 
           {/* Crosshairs */}
-          <div className="absolute inset-x-0 top-1/2 h-[1px] bg-[#1c1c1c]" />
-          <div className="absolute inset-y-0 left-1/2 w-[1px] bg-[#1c1c1c]" />
+          <div className="absolute inset-x-0 top-1/2 h-px bg-carbon" />
+          <div className="absolute inset-y-0 left-1/2 w-px bg-carbon" />
 
           {/* Sweeper beam */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-[#7089ba]/10 to-transparent animate-spin duration-[4000ms]" />
+          <div className="absolute inset-0 rounded-full bg-linear-to-tr from-transparent via-[#7089ba]/10 to-transparent animate-spin duration-4000" />
 
           {/* Center Origin Node */}
           <div className="w-4 h-4 rounded-full bg-white text-black flex items-center justify-center relative z-10 shadow-lg">
@@ -140,13 +140,13 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
       {/* Discovered Peers List */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="font-mono text-xs text-[#808080] uppercase tracking-wider">
+          <div className="font-mono text-xs text-steel uppercase tracking-wider">
             DISCOVERED PEER HARDWARE ({peers.length})
           </div>
           <button
             onClick={handleRefresh}
             type='button'
-            className="flex items-center gap-1.5 text-xs text-[#808080] hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-xs text-steel hover:text-white transition-colors"
           >
             <ArrowsClockwiseIcon className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
             <span>Refresh Scan</span>
@@ -154,12 +154,12 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
         </div>
 
         {peers.length === 0 ? (
-          <div className="p-10 rounded-2xl bg-[#141414] border border-[#1c1c1c] text-center space-y-3">
-            <WifiHighIcon className="w-10 h-10 text-[#4d4d4d] mx-auto animate-pulse" />
+          <div className="p-10 rounded-2xl bg-[#141414] border border-carbon text-center space-y-3">
+            <WifiHighIcon className="w-10 h-10 text-graphite mx-auto animate-pulse" />
             <div className="text-sm font-semibold text-white">
               Searching for peers on your local Wi-Fi subnet...
             </div>
-            <p className="text-xs text-[#808080] max-w-sm mx-auto">
+            <p className="text-xs text-steel max-w-sm mx-auto">
               Open W2W Share on your phone, laptop, or another browser tab on the same local network to auto-connect.
             </p>
           </div>
@@ -170,17 +170,17 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
               return (
                 <div
                   key={peer.deviceId}
-                  className="p-4 rounded-xl bg-[#141414] border border-[#1c1c1c] hover:border-[#2a2a2a] transition-all flex items-center justify-between gap-4 group"
+                  className="p-4 rounded-xl bg-[#141414] border border-carbon hover:border-[#2a2a2a] transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba] shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] shrink-0">
                       {isMobile ? <DeviceMobileIcon className="w-5 h-5" /> : <DesktopIcon className="w-5 h-5" />}
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-bold text-white font-sans">
                         {peer.deviceName || 'Local Device'}
                       </div>
-                      <div className="text-[11px] text-[#808080] font-mono flex items-center gap-2">
+                      <div className="text-[11px] text-steel font-mono flex items-center gap-2">
                         <span>{peer.ip}</span>
                         <span>·</span>
                         <span>{peer.os || 'OS Unknown'}</span>
@@ -205,8 +205,8 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
 
       {/* Local Network Interfaces Info Table */}
       {networkInfo?.interfaces && (
-        <div className="p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-3">
-          <div className="text-xs font-mono text-[#808080] uppercase tracking-wider flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-[#141414] border border-carbon space-y-3">
+          <div className="text-xs font-mono text-steel uppercase tracking-wider flex items-center justify-between">
             <span>NETWORK INTERFACE TOPOLOGY</span>
             <span className="text-[#7089ba] flex items-center gap-1">
               <ShieldCheckIcon className="w-3.5 h-3.5" />
@@ -218,11 +218,11 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
             <div className="p-3 rounded-xl bg-[#0d0d0d] border border-[#1f1f1f] text-xs font-mono flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div>
-                  <span className="text-[#808080]">Subnet Mode: </span>
+                  <span className="text-steel">Subnet Mode: </span>
                   <span className="text-white font-bold">{diagnostics.activeNetworkMode}</span>
                 </div>
                 <div>
-                  <span className="text-[#808080]">Radar UDP (8888): </span>
+                  <span className="text-steel">Radar UDP (8888): </span>
                   <span className={`font-bold ${diagnostics.udpDiscoveryActive ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {diagnostics.udpDiscoveryActive ? 'ACTIVE' : 'STANDALONE'}
                   </span>
@@ -239,7 +239,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
             </div>
           )}
 
-          <div className="divide-y divide-[#1c1c1c]">
+          <div className="divide-y divide-carbon">
             {networkInfo.interfaces.map((iface, idx) => (
               <div key={idx} className="py-2.5 flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-2">
@@ -250,12 +250,12 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
                     </span>
                   )}
                   {iface.isLoopback && (
-                    <span className="text-[9px] bg-[#1c1c1c] text-[#808080] px-1.5 py-0.2 rounded border border-[#282828]">
+                    <span className="text-[9px] bg-carbon text-steel px-1.5 py-0.2 rounded border border-[#282828]">
                       LOOPBACK
                     </span>
                   )}
                 </div>
-                <div className="text-[#808080]">{iface.ip}</div>
+                <div className="text-steel">{iface.ip}</div>
               </div>
             ))}
           </div>

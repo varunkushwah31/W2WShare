@@ -43,7 +43,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
   return (
     <section
       ref={containerRef}
-      className="relative pt-28 pb-10 flex flex-col items-center overflow-hidden dashed-divider-b bg-[#000000] cursor-default"
+      className="relative pt-28 pb-10 flex flex-col items-center overflow-hidden dashed-divider-b bg-void cursor-default"
       style={
         {
           '--mouse-x': '50%',
@@ -67,7 +67,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       />
 
       {/* Floating drafting coordinate watermark */}
-      <div className="hidden lg:block absolute bottom-6 left-8 font-mono text-[10px] text-[#4d4d4d] select-none pointer-events-none z-20">
+      <div className="hidden lg:block absolute bottom-6 left-8 font-mono text-[10px] text-graphite select-none pointer-events-none z-20">
         <div>DRAFTING TABLE: NEGATIVE_SPACE</div>
         <div className="text-[#7089ba]">
           POS_X: {coords.x}mm · POS_Y: {coords.y}mm · SCALE: 1.00
@@ -75,9 +75,9 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       </div>
 
       {/* Main Hero Content Stack (Tight, Balanced Spacing) */}
-      <div className="relative z-10 max-w-[840px] mx-auto px-6 text-center flex flex-col items-center animate-in fade-in duration-700">
+      <div className="relative z-10 max-w-210 mx-auto px-6 text-center flex flex-col items-center animate-in fade-in duration-700">
         {/* Eyebrow Chip with live beacon */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-[#1c1c1c]/80 backdrop-blur-md mb-6 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-carbon/80 backdrop-blur-md mb-6 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-[#7089ba] animate-ping" />
           <span className="font-mono text-[9px] uppercase tracking-[0.04em] text-white font-medium">
             W2W SHARE 1.0 · 100% OFFLINE E2EE
@@ -93,7 +93,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         </h1>
 
         {/* Subtitle in Steel #808080 */}
-        <p className="text-base sm:text-lg text-[#808080] max-w-[580px] mx-auto leading-relaxed mb-7">
+        <p className="text-base sm:text-lg text-steel max-w-145 mx-auto leading-relaxed mb-7">
           Zero-trust, P2P file transfers. Browser-native E2EE, subnet peer discovery, and direct WebRTC streaming with absolutely no cloud required.
         </p>
 
@@ -109,7 +109,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
           <button
             type="button"
             onClick={onOpenDemo}
-            className="px-6 py-2.5 rounded-full border border-[#282828] bg-[#1c1c1c]/90 text-white text-sm font-medium hover:border-white hover:bg-[#242424] transition-all cursor-pointer flex items-center gap-1.5"
+            className="px-6 py-2.5 rounded-full border border-[#282828] bg-carbon/90 text-white text-sm font-medium hover:border-white hover:bg-[#242424] transition-all cursor-pointer flex items-center gap-1.5"
           >
             <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
             <span>Claim by PIN</span>
@@ -118,15 +118,15 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       </div>
 
       {/* Bottom Radial Drafting Wash & Trusted By Badges */}
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 pt-2 flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-300 mx-auto px-6 pt-2 flex flex-col items-center">
         <HeroLightBeamStipple className="mb-3" />
 
-        <p className="text-xs text-[#808080] tracking-wide mb-4">
+        <p className="text-xs text-steel tracking-wide mb-4">
           Trusted across security teams, research labs, and air-gapped facilities
         </p>
 
         {/* Logo / Node Band */}
-        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 opacity-75 hover:opacity-100 transition-opacity font-mono text-xs text-[#808080]">
+        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 opacity-75 hover:opacity-100 transition-opacity font-mono text-xs text-steel">
           <div className="flex items-center gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
             <span className="w-2 h-2 rounded-full bg-[#7089ba]" />
             <span>DEFENSE LABS</span>

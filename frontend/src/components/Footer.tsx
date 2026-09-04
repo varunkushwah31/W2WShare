@@ -9,9 +9,9 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
   return (
-    <footer className="w-full border-t border-[#1c1c1c] bg-[#000000] pt-16 pb-12">
-      <div className="max-w-[1200px] mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-16 border-b border-[#1c1c1c]">
+    <footer className="w-full border-t border-carbon bg-void pt-16 pb-12">
+      <div className="max-w-300 mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-16 border-b border-carbon">
           {/* Brand & Technical Status */}
           <div className="md:col-span-5 space-y-4">
             <div className="flex items-center gap-2.5">
@@ -30,12 +30,12 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
               </span>
             </div>
 
-            <p className="text-xs text-[#808080] max-w-xs leading-relaxed">
+            <p className="text-xs text-steel max-w-xs leading-relaxed">
               Zero-knowledge, 100% offline peer-to-peer file & folder sharing platform. Client-side AES-256-GCM encryption with local subnet UDP discovery.
             </p>
 
             {/* System Status */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#141414] border border-[#282828] text-[10px] font-mono text-[#808080]">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#141414] border border-[#282828] text-[10px] font-mono text-steel">
               <span className="w-2 h-2 rounded-full bg-[#7089ba] animate-pulse" />
               <span>ALL SUBNET SERVICES OPERATIONAL · v1.0.0</span>
             </div>
@@ -48,7 +48,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
               <div className="font-mono text-xs uppercase tracking-wider text-white">
                 Product
               </div>
-              <ul className="space-y-2 text-xs text-[#808080]">
+              <ul className="space-y-2 text-xs text-steel">
                 <li>
                   <button onClick={() => onNavigate('home')} className="hover:text-white transition-colors cursor-pointer text-left">
                     Transfer Studio
@@ -56,7 +56,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
                 </li>
                 <li>
                   <button onClick={() => onNavigate('security')} className="hover:text-white transition-colors cursor-pointer text-left">
-                    Security Whitepaper
+                    Security White paper
                   </button>
                 </li>
                 <li>
@@ -77,7 +77,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
               <div className="font-mono text-xs uppercase tracking-wider text-white">
                 Engineering
               </div>
-              <ul className="space-y-2 text-xs text-[#808080]">
+              <ul className="space-y-2 text-xs text-steel">
                 <li>
                   <button onClick={() => onNavigate('blog')} className="hover:text-white transition-colors cursor-pointer text-left">
                     Engineering Blog
@@ -101,7 +101,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
               <div className="font-mono text-xs uppercase tracking-wider text-white">
                 Legal
               </div>
-              <ul className="space-y-2 text-xs text-[#808080]">
+              <ul className="space-y-2 text-xs text-steel">
                 <li>
                   <button onClick={() => onOpenLegal('privacy')} className="hover:text-white transition-colors cursor-pointer text-left">
                     Privacy Policy
@@ -128,7 +128,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
         </div>
 
         {/* Bottom bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#4d4d4d] font-mono">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-graphite font-mono">
           <div>© 2026 W2W Share Inc. All rights reserved. 100% Offline & Open Architecture.</div>
           <div className="flex items-center gap-6">
             <span>SPEC: 1.0.0</span>

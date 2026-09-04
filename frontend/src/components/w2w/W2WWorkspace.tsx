@@ -67,17 +67,17 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   ]
 
   return (
-    <section id={id} className="w-full max-w-[1200px] mx-auto px-6 py-8">
+    <section id={id} className="w-full max-w-300 mx-auto px-6 py-8">
       {/* Container with Dashed Containment */}
-      <div className="dashed-container rounded-2xl bg-[#000000] p-6 sm:p-10 space-y-8 relative overflow-hidden">
+      <div className="dashed-container rounded-2xl bg-void p-6 sm:p-10 space-y-8 relative overflow-hidden">
         {/* Top Header & Tab Navigation Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-[#1c1c1c] pb-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-carbon pb-6">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
                 OFFLINE PEER STUDIO
               </span>
-              <span className="font-mono text-[10px] text-[#808080]">
+              <span className="font-mono text-[10px] text-steel">
                 SPEC: 1.0.0 · AES-256-GCM
               </span>
               <button
@@ -108,7 +108,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer ${
                   activeTab === t.id
                     ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-[#808080] hover:text-white'
+                    : 'text-steel hover:text-white'
                 }`}
               >
                 {t.icon}

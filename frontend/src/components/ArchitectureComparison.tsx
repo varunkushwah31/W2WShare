@@ -48,25 +48,25 @@ export const ArchitectureComparison: React.FC = () => {
   ]
 
   return (
-    <section className="w-full max-w-[1200px] mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-[#000000]/60">
+    <section className="w-full max-w-300 mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-void/60">
       <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
-        <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
+        <div className="font-mono text-xs uppercase tracking-[0.08em] text-steel flex items-center justify-center gap-1.5">
           <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
           <span>TECHNICAL SPECIFICATIONS</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
           Zero Cloud vs Legacy Sharing
         </h2>
-        <p className="text-sm text-[#808080]">
+        <p className="text-sm text-steel">
           Compare security primitives, throughput, and zero-knowledge operational mechanics.
         </p>
       </div>
 
       {/* Comparison Matrix Table */}
-      <div className="rounded-2xl bg-[#141414] border border-[#1c1c1c] overflow-hidden">
+      <div className="rounded-2xl bg-[#141414] border border-carbon overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#000000] text-[#808080] uppercase tracking-wider text-[10px] border-b border-[#1c1c1c]">
+            <thead className="bg-void text-steel uppercase tracking-wider text-[10px] border-b border-carbon">
               <tr>
                 <th className="py-4 px-6">Capability / Metric</th>
                 <th className="py-4 px-6 text-[#7089ba] font-bold">W2W Share (Offline Architecture)</th>
@@ -74,7 +74,7 @@ export const ArchitectureComparison: React.FC = () => {
                 <th className="py-4 px-6">Apple AirDrop</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1c1c1c]">
+            <tbody className="divide-y divide-carbon">
               {specs.map((s, idx) => (
                 <tr
                   key={idx}
@@ -83,19 +83,19 @@ export const ArchitectureComparison: React.FC = () => {
                   }`}
                 >
                   <td className="py-4 px-6 font-medium text-white">{s.feature}</td>
-                  <td className="py-4 px-6 text-[#ffffff] font-semibold flex items-center gap-2">
+                  <td className="py-4 px-6 text-paper font-semibold flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full bg-[#7089ba]/20 text-[#7089ba] flex items-center justify-center shrink-0">
                       <CheckIcon className="w-3 h-3" weight="bold" />
                     </div>
                     <span>{s.w2w}</span>
                   </td>
-                  <td className="py-4 px-6 text-[#808080]">
+                  <td className="py-4 px-6 text-steel">
                     <div className="flex items-center gap-2">
-                      <XIcon className="w-3.5 h-3.5 text-[#4d4d4d]" />
+                      <XIcon className="w-3.5 h-3.5 text-graphite" />
                       <span>{s.cloud}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-[#808080]">{s.airdrop}</td>
+                  <td className="py-4 px-6 text-steel">{s.airdrop}</td>
                 </tr>
               ))}
             </tbody>

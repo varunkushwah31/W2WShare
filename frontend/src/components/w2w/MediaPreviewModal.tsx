@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { DownloadSimple, FileText, Image as ImageIcon, MusicNotes, Video as VideoIcon } from '@phosphor-icons/react'
+import { DownloadSimpleIcon, FileTextIcon, ImageIcon, MusicNotesIcon, VideoIcon } from '@phosphor-icons/react'
 
 export interface MediaPreviewItem {
   fileName: string
@@ -61,9 +61,9 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
           <div className="flex items-center gap-2">
             {isImage && <ImageIcon className="w-5 h-5 text-[#7089ba]" />}
             {isVideo && <VideoIcon className="w-5 h-5 text-[#7089ba]" />}
-            {isAudio && <MusicNotes className="w-5 h-5 text-[#7089ba]" />}
-            {isPdf && <FileText className="w-5 h-5 text-[#7089ba]" />}
-            {isText && !isPdf && <FileText className="w-5 h-5 text-[#7089ba]" />}
+            {isAudio && <MusicNotesIcon className="w-5 h-5 text-[#7089ba]" />}
+            {isPdf && <FileTextIcon className="w-5 h-5 text-[#7089ba]" />}
+            {isText && !isPdf && <FileTextIcon className="w-5 h-5 text-[#7089ba]" />}
             <DialogTitle className="text-base font-semibold truncate max-w-md">
               {item.fileName}
             </DialogTitle>
@@ -73,7 +73,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
             download={item.fileName}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all"
           >
-            <DownloadSimple className="w-3.5 h-3.5" />
+            <DownloadSimpleIcon className="w-3.5 h-3.5" />
             <span>Save</span>
           </a>
         </DialogHeader>
@@ -100,7 +100,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
           {isAudio && (
             <div className="w-full py-8 px-4 flex flex-col items-center space-y-4">
               <div className="w-16 h-16 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba]">
-                <MusicNotes className="w-8 h-8" />
+                <MusicNotesIcon className="w-8 h-8" />
               </div>
               <audio src={item.blobUrl} controls className="w-full max-w-md" />
             </div>
@@ -122,7 +122,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
 
           {!isImage && !isVideo && !isAudio && !isPdf && !isText && (
             <div className="text-center py-12 space-y-3">
-              <FileText className="w-12 h-12 text-[#4d4d4d] mx-auto" />
+              <FileTextIcon className="w-12 h-12 text-[#4d4d4d] mx-auto" />
               <p className="text-sm text-[#808080]">
                 Binary file format. Preview not available.
               </p>

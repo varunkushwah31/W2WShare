@@ -32,10 +32,10 @@ export const AiAnalyticsGrid: React.FC = () => {
   ]
 
   return (
-    <section className="w-full max-w-[1200px] mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-[#000000]/60">
+    <section className="w-full max-w-300 mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-void/60">
       {/* Centered Heading */}
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-        <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
+        <div className="font-mono text-xs uppercase tracking-[0.08em] text-steel flex items-center justify-center gap-1.5">
           <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
           <span>SYSTEM ARCHITECTURE</span>
         </div>
@@ -49,7 +49,7 @@ export const AiAnalyticsGrid: React.FC = () => {
         {cards.map((card) => (
           <div
             key={card.title}
-            className="flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-[#141414] border border-[#1c1c1c] hover:border-[#2a2a2a] transition-all group"
+            className="flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-[#141414] border border-carbon hover:border-[#2a2a2a] transition-all group"
           >
             <div className="w-full mb-6 flex justify-center group-hover:scale-[1.02] transition-transform duration-300">
               {card.illustration}
@@ -57,7 +57,7 @@ export const AiAnalyticsGrid: React.FC = () => {
             <h3 className="text-lg sm:text-xl font-bold text-white mb-2 font-sans">
               {card.title}
             </h3>
-            <p className="text-sm text-[#808080] max-w-sm leading-relaxed">
+            <p className="text-sm text-steel max-w-sm leading-relaxed">
               {card.description}
             </p>
           </div>
