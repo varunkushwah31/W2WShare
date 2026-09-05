@@ -173,6 +173,22 @@ function resolveApiBase(backendUrl: string): string {
 const RAW_BACKEND_URL = stripTrailingSlashes(
   (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '') as string
 )
+
+export function getActiveBackendUrl(): string {
+  if (typeof window !== 'undefined') {
+    const override = localStorage.getItem('w2w_backend_url')
+    if (override?.trim()) {
+      return stripTrailingSlashes(override.trim())
+    }
+  }
+  return RAW_BACKEND_URL
+}
+
+export function getApiBase(): string {
+  return resolveApiBase(getActiveBackendUrl())
+}
+
+// Fallback constant for backwards compatibility
 export const API_BASE = resolveApiBase(RAW_BACKEND_URL)
 
 export function getWebSocketUrl(path = '/ws/signaling'): string {
@@ -184,28 +200,49 @@ export function getWebSocketUrl(path = '/ws/signaling'): string {
     return `${wsBase}${cleanPath}`
   }
 
-  // 2. Derived from VITE_API_URL or VITE_BACKEND_URL
-  if (RAW_BACKEND_URL) {
+  // 2. Derived from active backend URL (runtime override or env var)
+  const activeBackend = getActiveBackendUrl()
+  if (activeBackend) {
     try {
-      const parsed = new URL(RAW_BACKEND_URL)
+      const fullUrl = activeBackend.startsWith('http') ? activeBackend : `https://${activeBackend}`
+      const parsed = new URL(fullUrl)
       const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
       return `${wsProto}//${parsed.host}${cleanPath}`
     } catch {
-      // Ignore URL parse error and fallback
+      // Fallback to window.location
     }
   }
 
   // 3. Fallback to current browser location (monolith or local dev proxy)
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.host || 'localhost:8080'
+  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = typeof window !== 'undefined' ? (window.location.host || 'localhost:8080') : 'localhost:8080'
   return `${protocol}//${host}${cleanPath}`
 }
 
 export const api = {
+  // Runtime Backend Configuration
+  getCustomBackendUrl(): string | null {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem('w2w_backend_url')
+  },
+
+  setCustomBackendUrl(url: string): void {
+    if (typeof window === 'undefined') return
+    if (!url?.trim()) {
+      localStorage.removeItem('w2w_backend_url')
+    } else {
+      localStorage.setItem('w2w_backend_url', stripTrailingSlashes(url.trim()))
+    }
+  },
+
+  clearCustomBackendUrl(): void {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem('w2w_backend_url')
+  },
   // Network
   async getNetworkInfo(): Promise<NetworkInfoResponse> {
     try {
-      const res = await fetch(`${API_BASE}/network/info`)
+      const res = await fetch(`${getApiBase()}/network/info`)
       if (res.ok) {
         return await res.json()
       }
@@ -232,7 +269,7 @@ export const api = {
 
   async getNetworkDiagnostics(): Promise<NetworkDiagnosticsResponse> {
     try {
-      const res = await fetch(`${API_BASE}/network/diagnostics`)
+      const res = await fetch(`${getApiBase()}/network/diagnostics`)
       if (res.ok) {
         return await res.json()
       }
@@ -259,7 +296,7 @@ export const api = {
       authType,
       size: String(size),
     })
-    return `${API_BASE}/network/wifi-qr?${params.toString()}`
+    return `${getApiBase()}/network/wifi-qr?${params.toString()}`
   },
 
   getTransferQrUrl(url: string, size = 400): string {
@@ -267,12 +304,12 @@ export const api = {
       text: url,
       size: String(size),
     })
-    return `${API_BASE}/transfer/qr?${params.toString()}`
+    return `${getApiBase()}/transfer/qr?${params.toString()}`
   },
 
   async getDiscoveredPeers(): Promise<DiscoveredPeer[]> {
     try {
-      const res = await fetch(`${API_BASE}/network/peers`)
+      const res = await fetch(`${getApiBase()}/network/peers`)
       if (res.ok) {
         return await res.json()
       }
@@ -284,7 +321,7 @@ export const api = {
 
   async triggerPeerScan(): Promise<DiscoveredPeer[]> {
     try {
-      const res = await fetch(`${API_BASE}/network/peers/scan`, {
+      const res = await fetch(`${getApiBase()}/network/peers/scan`, {
         method: 'POST',
       })
       if (res.ok) {
@@ -298,7 +335,7 @@ export const api = {
 
   async getHealth(): Promise<{ status: string }> {
     try {
-      const res = await fetch(`${API_BASE}/network/health`)
+      const res = await fetch(`${getApiBase()}/network/health`)
       return await res.json()
     } catch {
       return { status: 'STANDALONE_UI' }
@@ -308,7 +345,7 @@ export const api = {
 
   // Transfer Sessions
   async createSession(req: CreateSessionRequest = {}): Promise<CreateSessionResponse> {
-    const res = await fetch(`${API_BASE}/transfer/session/create`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -318,19 +355,19 @@ export const api = {
   },
 
   async getSession(sessionId: string): Promise<TransferSessionDetails> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}`)
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}`)
     if (!res.ok) throw new Error('Failed to get session details')
     return await res.json()
   },
 
   async getSessionByPin(pin: string): Promise<TransferSessionDetails> {
-    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}`)
+    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}`)
     if (!res.ok) throw new Error(`No active session found with PIN: ${pin}`)
     return await res.json()
   },
 
   async joinSession(sessionId: string, pin: string, receiverId?: string): Promise<JoinSessionResponse> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/join`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin, receiverId }),
@@ -340,7 +377,7 @@ export const api = {
   },
 
   async offerBatch(sessionId: string, batch: FileMetadata[]): Promise<void> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/batch-offer`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/batch-offer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch),
@@ -355,7 +392,7 @@ export const api = {
     data: Uint8Array
   ): Promise<void> {
     const res = await fetch(
-      `${API_BASE}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`,
+      `${getApiBase()}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -371,20 +408,20 @@ export const api = {
     chunkIndex: number
   ): Promise<ArrayBuffer> {
     const res = await fetch(
-      `${API_BASE}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`
+      `${getApiBase()}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`
     )
     if (!res.ok) throw new Error(`Failed to download chunk ${chunkIndex}`)
     return await res.arrayBuffer()
   },
 
   async getSessionStatus(sessionId: string): Promise<SessionStatusResponse> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/status`)
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/status`)
     if (!res.ok) throw new Error('Failed to get session resumption status')
     return await res.json()
   },
 
   async markTransferComplete(sessionId: string): Promise<{ status: string; burned: boolean }> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/complete`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/complete`, {
       method: 'POST',
     })
     if (!res.ok) throw new Error('Failed to mark transfer complete')
@@ -392,14 +429,14 @@ export const api = {
   },
 
   async cancelSession(sessionId: string): Promise<void> {
-    await fetch(`${API_BASE}/transfer/session/${sessionId}`, {
+    await fetch(`${getApiBase()}/transfer/session/${sessionId}`, {
       method: 'DELETE',
     })
   },
 
   // Clipboard
   async saveClipboard(sessionId: string, encryptedText: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/clipboard`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/clipboard`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: encryptedText }),
@@ -408,13 +445,13 @@ export const api = {
   },
 
   async getClipboard(sessionId: string): Promise<{ text: string }> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/clipboard`)
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/clipboard`)
     if (!res.ok) throw new Error('Failed to get clipboard')
     return await res.json()
   },
 
   async saveClipboardByPin(pin: string, encryptedText: string): Promise<{ sessionId?: string }> {
-    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/clipboard`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/clipboard`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: encryptedText }),
@@ -424,14 +461,14 @@ export const api = {
   },
 
   async getClipboardByPin(pin: string): Promise<{ text: string; sessionId?: string }> {
-    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/clipboard`)
+    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/clipboard`)
     if (!res.ok) throw new Error('Failed to get clipboard by PIN')
     return await res.json()
   },
 
   // Chat
   async addChatMessage(sessionId: string, content: string, senderRole = 'Sender'): Promise<ChatMessage> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/chat`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, senderRole }),
@@ -442,13 +479,13 @@ export const api = {
   },
 
   async getChatHistory(sessionId: string): Promise<ChatMessage[]> {
-    const res = await fetch(`${API_BASE}/transfer/session/${sessionId}/chat`)
+    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/chat`)
     if (!res.ok) throw new Error('Failed to fetch chat history')
     return await res.json()
   },
 
   async addChatMessageByPin(pin: string, content: string, senderRole = 'Sender'): Promise<ChatMessage> {
-    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/chat`, {
+    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, senderRole }),
@@ -459,7 +496,7 @@ export const api = {
   },
 
   async getChatHistoryByPin(pin: string): Promise<ChatMessage[]> {
-    const res = await fetch(`${API_BASE}/transfer/session/by-pin/${pin}/chat`)
+    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/chat`)
     if (!res.ok) throw new Error('Failed to fetch chat history by PIN')
     return await res.json()
   },
@@ -468,8 +505,8 @@ export const api = {
   async getAuditLedger(userId?: string): Promise<AuditRecord[]> {
     try {
       const url = userId
-        ? `${API_BASE}/audit/ledger?userId=${encodeURIComponent(userId)}`
-        : `${API_BASE}/audit/ledger`
+        ? `${getApiBase()}/audit/ledger?userId=${encodeURIComponent(userId)}`
+        : `${getApiBase()}/audit/ledger`
       const res = await fetch(url)
       if (res.ok) {
         return await res.json()
@@ -487,7 +524,7 @@ export const api = {
   },
 
   async recordAuditTransaction(record: Partial<AuditRecord>): Promise<AuditRecord> {
-    const res = await fetch(`${API_BASE}/audit/ledger`, {
+    const res = await fetch(`${getApiBase()}/audit/ledger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(record),
@@ -510,7 +547,7 @@ export const api = {
       formData.append('userId', userId)
     }
 
-    const res = await fetch(`${API_BASE}/audit/ledger/persist`, {
+    const res = await fetch(`${getApiBase()}/audit/ledger/persist`, {
       method: 'POST',
       body: formData,
     })
@@ -519,11 +556,11 @@ export const api = {
   },
 
   getAuditFileDownloadUrl(transactionId: string): string {
-    return `${API_BASE}/audit/ledger/${transactionId}/download`
+    return `${getApiBase()}/audit/ledger/${transactionId}/download`
   },
 
   async downloadAuditFile(transactionId: string, fileName: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/audit/ledger/${transactionId}/download`)
+    const res = await fetch(`${getApiBase()}/audit/ledger/${transactionId}/download`)
     if (res.status === 410) {
       throw new Error('This file has expired after the 7-day retention limit and was automatically purged.')
     }
@@ -546,14 +583,14 @@ export const api = {
   },
 
   async getAuditReceipt(transactionId: string): Promise<AuditReceipt> {
-    const res = await fetch(`${API_BASE}/audit/ledger/${transactionId}/receipt`)
+    const res = await fetch(`${getApiBase()}/audit/ledger/${transactionId}/receipt`)
     if (!res.ok) throw new Error('Failed to fetch audit receipt')
     return await res.json()
   },
 
   async clearAuditLedger(): Promise<void> {
     try {
-      await fetch(`${API_BASE}/audit/ledger`, { method: 'DELETE' })
+      await fetch(`${getApiBase()}/audit/ledger`, { method: 'DELETE' })
     } catch {
       // Ignore
     }
@@ -561,7 +598,7 @@ export const api = {
   },
 
   async deleteAuditRecord(transactionId: string): Promise<void> {
-    await fetch(`${API_BASE}/audit/ledger/${transactionId}`, { method: 'DELETE' })
+    await fetch(`${getApiBase()}/audit/ledger/${transactionId}`, { method: 'DELETE' })
   },
 }
 

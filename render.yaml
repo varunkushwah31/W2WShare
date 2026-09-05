@@ -1,3 +1,5 @@
+# Render Blueprint Specification for W2W-Share Backend
+# Docs: https://render.com/docs/blueprint-spec
 services:
   - type: web
     name: w2w-share-backend
@@ -6,6 +8,7 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
+    autoDeploy: true
     envVars:
       - key: PORT
         value: "8080"
