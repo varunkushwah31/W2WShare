@@ -38,5 +38,7 @@ class PeerDiscoveryServiceTest {
         assertEquals("node-1", peer.nodeId());
         assertEquals("macOS", peer.os());
         assertEquals("MacBook-Pro", peer.deviceName());
+
+        assertDoesNotThrow(() -> peerDiscoveryService.triggerScan());
     }
 }

@@ -5,6 +5,7 @@ import com.w2w.share.dto.NetworkDiagnosticsResponse;
 import com.w2w.share.service.INetworkDiscoveryService;
 import com.w2w.share.service.IPeerDiscoveryService;
 import com.w2w.share.service.IQrCodeService;
+import com.w2w.share.service.PeerDiscoveryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -12,6 +13,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -78,5 +81,31 @@ class NetworkControllerTest {
                         .param("authType", "WPA"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_PNG_VALUE));
+    }
+
+    @Test
+    void testGetDiscoveredPeers() throws Exception {
+        PeerDiscoveryService.DiscoveredPeer peer = new PeerDiscoveryService.DiscoveredPeer(
+                "dev-1", "node-1", "Galaxy S24", "192.168.1.101", 8080, "Android", "http://192.168.1.101:8080", System.currentTimeMillis()
+        );
+        when(peerDiscoveryService.getDiscoveredPeers()).thenReturn(List.of(peer));
+
+        mockMvc.perform(get("/api/network/peers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("dev-1"))
+                .andExpect(jsonPath("$[0].deviceName").value("Galaxy S24"));
+    }
+
+    @Test
+    void testTriggerPeerScan() throws Exception {
+        PeerDiscoveryService.DiscoveredPeer peer = new PeerDiscoveryService.DiscoveredPeer(
+                "dev-2", "node-2", "iPhone 15", "192.168.1.102", 8080, "iOS", "http://192.168.1.102:8080", System.currentTimeMillis()
+        );
+        when(peerDiscoveryService.getDiscoveredPeers()).thenReturn(List.of(peer));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/network/peers/scan"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("dev-2"))
+                .andExpect(jsonPath("$[0].deviceName").value("iPhone 15"));
     }
 }

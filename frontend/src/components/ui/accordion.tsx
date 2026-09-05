@@ -87,7 +87,7 @@ const Accordion = React.forwardRef<HTMLDivElement, AccordionProps>(
           ;(onValueChange as ((val: string[]) => void) | undefined)?.(nextList)
         }
       },
-      [collapsible, onValueChange, setUncontrolledValue, type]
+      [collapsible, currentValue, isControlled, onValueChange, setUncontrolledValue, type]
     )
 
     const contextValue = React.useMemo(
@@ -97,7 +97,7 @@ const Accordion = React.forwardRef<HTMLDivElement, AccordionProps>(
         type,
         collapsible,
       }),
-      [collapsible, handleItemToggle, type]
+      [collapsible, currentValue, handleItemToggle, type]
     )
 
     return (
@@ -132,7 +132,7 @@ const AccordionItem = React.forwardRef<HTMLDivElement, AccordionItemProps>(
 
     const itemContextValue = React.useMemo(
       () => ({ value, isOpen, triggerId, contentId }),
-      [isOpen, value]
+      [contentId, isOpen, triggerId, value]
     )
 
     return (
@@ -230,15 +230,16 @@ const AccordionContent = React.forwardRef<HTMLElement, AccordionContentProps>(
         id={item.contentId}
         aria-labelledby={item.triggerId}
         data-state={item.isOpen ? "open" : "closed"}
+        style={{
+          gridTemplateRows: item.isOpen ? "1fr" : "0fr",
+        }}
         className={cn(
           "grid transition-[grid-template-rows,opacity] duration-250 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          item.isOpen
-            ? "grid-rows-[1fr] opacity-100"
-            : "grid-rows-0 opacity-0 pointer-events-none"
+          item.isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         {...props}
       >
-        <div className="overflow-hidden">
+        <div className="min-h-0 overflow-hidden">
           <div className={cn("pt-0 pb-5 text-sm text-ash leading-relaxed", className)}>
             {children}
           </div>

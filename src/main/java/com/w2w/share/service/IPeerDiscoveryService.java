@@ -12,5 +12,7 @@ public interface IPeerDiscoveryService {
 
     void evictStalePeers();
 
+    void triggerScan();
+
     List<PeerDiscoveryService.DiscoveredPeer> getDiscoveredPeers();
 }

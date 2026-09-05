@@ -282,6 +282,20 @@ export const api = {
     return []
   },
 
+  async triggerPeerScan(): Promise<DiscoveredPeer[]> {
+    try {
+      const res = await fetch(`${API_BASE}/network/peers/scan`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        return await res.json()
+      }
+    } catch {
+      // Fallback to GET peers
+    }
+    return this.getDiscoveredPeers()
+  },
+
   async getHealth(): Promise<{ status: string }> {
     try {
       const res = await fetch(`${API_BASE}/network/health`)

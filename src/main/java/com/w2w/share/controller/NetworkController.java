@@ -93,6 +93,12 @@ public class NetworkController {
         return ResponseEntity.ok(peerDiscoveryService.getDiscoveredPeers());
     }
 
+    @PostMapping("/peers/scan")
+    public ResponseEntity<List<PeerDiscoveryService.DiscoveredPeer>> triggerPeerScan() {
+        peerDiscoveryService.triggerScan();
+        return ResponseEntity.ok(peerDiscoveryService.getDiscoveredPeers());
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> getHealth() {
         return ResponseEntity.ok(Map.of("status", "UP"));

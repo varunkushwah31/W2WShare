@@ -111,7 +111,8 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
 
     private void parseAndStorePeer(DatagramPacket packet) throws IOException {
         String json = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
-        Map<String, Object> map = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {
+        });
 
         String peerNodeId = map.containsKey(KEY_DEVICE_ID) ? String.valueOf(map.get(KEY_DEVICE_ID)) : (String) map.get(KEY_NODE_ID);
         if (peerNodeId != null && !peerNodeId.equals(this.nodeId)) {
@@ -119,7 +120,7 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
             String peerIp = packet.getAddress().getHostAddress();
             int peerPort = map.containsKey(KEY_PORT) ? ((Number) map.get(KEY_PORT)).intValue() : 8080;
             String peerOs = map.containsKey(KEY_OS) ? String.valueOf(map.get(KEY_OS)) : System.getProperty(PROP_OS_NAME, "Unknown");
-            String peerUrl = "http://" + peerIp + ":" + peerPort;
+            String peerUrl = "https://" + peerIp + ":" + peerPort;
 
             peers.put(peerNodeId, new DiscoveredPeer(
                     peerNodeId,
@@ -150,16 +151,47 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
             );
 
             byte[] bytes = objectMapper.writeValueAsBytes(announcement);
-            DatagramPacket packet = new DatagramPacket(
-                    bytes,
-                    bytes.length,
-                    InetAddress.getByName(AppConstants.BROADCAST_ADDRESS),
-                    AppConstants.DISCOVERY_PORT
-            );
 
-            socket.send(packet);
-        } catch (SocketException | UnknownHostException e) {
-            log.debug("Subnet broadcast announcement skipped or unreachable: {}", e.getMessage());
+            // 1. Send to global broadcast 255.255.255.255
+            try {
+                DatagramPacket globalPacket = new DatagramPacket(
+                        bytes,
+                        bytes.length,
+                        InetAddress.getByName(AppConstants.BROADCAST_ADDRESS),
+                        AppConstants.DISCOVERY_PORT
+                );
+                socket.send(globalPacket);
+            } catch (Exception e) {
+                log.debug("Global broadcast skipped: {}", e.getMessage());
+            }
+
+            // 2. Multi-homed interface-directed broadcast across all active network adapters
+            try {
+                Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+                while (interfaces.hasMoreElements()) {
+                    NetworkInterface iface = interfaces.nextElement();
+                    if (!iface.isUp() || iface.isLoopback() || iface.isVirtual()) continue;
+
+                    for (InterfaceAddress address : iface.getInterfaceAddresses()) {
+                        InetAddress broadcast = address.getBroadcast();
+                        if (broadcast != null) {
+                            try {
+                                DatagramPacket directedPacket = new DatagramPacket(
+                                        bytes,
+                                        bytes.length,
+                                        broadcast,
+                                        AppConstants.DISCOVERY_PORT
+                                );
+                                socket.send(directedPacket);
+                            } catch (Exception ex) {
+                                log.trace("Could not send broadcast to {}: {}", broadcast, ex.getMessage());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                log.debug("Subnet interface iteration encountered error: {}", ex.getMessage());
+            }
         } catch (IOException ioe) {
             log.warn("IO error broadcasting subnet announcement: {}", ioe.getMessage());
         } catch (Exception e) {
@@ -176,6 +208,12 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
         } catch (Exception e) {
             log.warn("Error during stale peer eviction: {}", e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void triggerScan() {
+        broadcastAnnouncement();
+        evictStalePeers();
     }
 
     @Override

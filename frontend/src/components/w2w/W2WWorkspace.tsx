@@ -38,6 +38,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
     return initialTab
   })
   const [selectedInterface, setSelectedInterface] = useState<NetworkInterfaceDto | null>(null)
+  const [targetPeer, setTargetPeer] = useState<import('@/lib/api').DiscoveredPeer | null>(null)
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false)
 
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab)
@@ -152,11 +153,18 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
 
         {/* Tab Viewport - SendPanel / Receive / Radar is immediately visible with zero clutter */}
         <div className="transition-all duration-200">
-          {activeTab === 'send' && <SendPanel selectedInterface={selectedInterface} />}
+          {activeTab === 'send' && (
+            <SendPanel
+              selectedInterface={selectedInterface}
+              targetPeer={targetPeer}
+              onClearTargetPeer={() => setTargetPeer(null)}
+            />
+          )}
           {activeTab === 'receive' && <ReceivePanel />}
           {activeTab === 'radar' && (
             <PeerRadarPanel
-              onSelectPeer={() => {
+              onSelectPeer={(peer) => {
+                setTargetPeer(peer)
                 setActiveTab('send')
               }}
             />

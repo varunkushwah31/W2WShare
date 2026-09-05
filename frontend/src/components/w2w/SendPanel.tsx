@@ -44,6 +44,8 @@ const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunking
 
 interface SendPanelProps {
   selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
+  targetPeer?: import('@/lib/api').DiscoveredPeer | null
+  onClearTargetPeer?: () => void
 }
 
 const resolveJoinUrl = (
@@ -206,7 +208,11 @@ async function recordSentAuditLog(
   }
 }
 
-export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
+export const SendPanel: React.FC<SendPanelProps> = ({
+  selectedInterface,
+  targetPeer,
+  onClearTargetPeer,
+}) => {
   const [files, setFiles] = useState<SelectedFileItem[]>([])
   const [burnAfter, setBurnAfter] = useState(false)
   const [expiryMinutes, setExpiryMinutes] = useState(15)
@@ -662,6 +668,32 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
 
   return (
     <div className="space-y-6">
+      {/* Target Peer Radar Beacon Banner */}
+      {targetPeer && !pin && (
+        <div className="p-4 rounded-xl bg-[#7089ba]/10 border border-[#7089ba]/30 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <div className="min-w-0">
+              <div className="text-xs font-mono text-[#7089ba] uppercase tracking-wider">
+                Direct Target Peer Selected
+              </div>
+              <div className="text-sm font-bold text-white truncate">
+                {targetPeer.deviceName} <span className="font-mono text-steel text-xs font-normal">({targetPeer.ip}:{targetPeer.port})</span>
+              </div>
+            </div>
+          </div>
+          {onClearTargetPeer && (
+            <button
+              type="button"
+              onClick={onClearTargetPeer}
+              className="px-2.5 py-1 rounded-lg bg-carbon hover:bg-[#282828] text-[11px] font-mono text-steel hover:text-white transition-colors cursor-pointer"
+            >
+              Clear Peer
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Dropzone Container */}
       {!pin && (
         <div

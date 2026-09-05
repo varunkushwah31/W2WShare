@@ -54,7 +54,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
     setScanning(true)
     try {
       const [peersData, netData] = await Promise.all([
-        api.getDiscoveredPeers(),
+        api.triggerPeerScan(),
         api.getNetworkInfo(),
       ])
       setPeers(peersData)
