@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigation, type NavPageType } from './components/Navigation'
 import { Hero } from './components/Hero'
-import { W2WWorkspace } from './components/w2w/W2WWorkspace'
+import { W2WWorkspace, type W2WTabType } from './components/w2w/W2WWorkspace'
 import { FeatureSplitPanel } from './components/FeatureSplitPanel'
 import {
   GearChassisCadIllustration,
@@ -15,19 +15,48 @@ import { FaqSection } from './components/FaqSection'
 import { CtaSection } from './components/CtaSection'
 import { Footer } from './components/Footer'
 import { BookDemoModal } from './components/BookDemoModal'
+import { MobileCompanionModal } from './components/w2w/MobileCompanionModal'
 
 // Full Sub-Pages
 import { ChangelogPage } from './components/pages/ChangelogPage'
 import { SecurityWhitepaperPage } from './components/pages/SecurityWhitepaperPage'
-import { EnterprisePricingPage } from './components/pages/EnterprisePricingPage'
 import { EngineeringBlogPage } from './components/pages/EngineeringBlogPage'
+import { UserGuidePage } from './components/pages/UserGuidePage'
 import { LegalModal, type LegalDocType } from './components/pages/LegalModal'
 
 export function App() {
   const [currentPage, setCurrentPage] = useState<NavPageType>('home')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'demo' | 'login'>('demo')
+  const [mobileCompanionOpen, setMobileCompanionOpen] = useState(false)
   const [legalModalType, setLegalModalType] = useState<LegalDocType | null>(null)
+
+  // MangoShare-style deep link detection: auto-switch to receive vault
+  const [initialWorkspaceTab, setInitialWorkspaceTab] = useState<W2WTabType>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('pin') || params.get('code') || params.get('mode') === 'receiver') {
+        return 'receive'
+      }
+    }
+    return 'send'
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('pin') || params.get('code') || params.get('mode') === 'receiver') {
+        setInitialWorkspaceTab('receive')
+        // Smoothly scroll down to workspace for direct receiving
+        setTimeout(() => {
+          const el = document.getElementById('workspace')
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' })
+          }
+        }, 150)
+      }
+    }
+  }, [])
 
   const handleOpenDemo = () => {
     setModalMode('demo')
@@ -52,6 +81,7 @@ export function App() {
         onNavigate={handleNavigate}
         onOpenDemo={handleOpenDemo}
         onOpenLogin={handleOpenLogin}
+        onOpenMobileApp={() => setMobileCompanionOpen(true)}
       />
 
       {/* Main Content Router */}
@@ -62,7 +92,11 @@ export function App() {
             <Hero onOpenDemo={handleOpenDemo} />
 
             {/* 2. Interactive W2W Share Live Terminal Workspace */}
-            <W2WWorkspace id="workspace" initialTab="send" />
+            <W2WWorkspace
+              id="workspace"
+              initialTab={initialWorkspaceTab}
+              onOpenMobileApp={() => setMobileCompanionOpen(true)}
+            />
 
             {/* Section 2 Intro Header */}
             <div className="pt-20 pb-4 text-center max-w-3xl mx-auto px-6">
@@ -135,19 +169,16 @@ export function App() {
           </>
         )}
 
+        {currentPage === 'guide' && (
+          <UserGuidePage onBack={() => handleNavigate('home')} />
+        )}
+
         {currentPage === 'changelog' && (
           <ChangelogPage onBack={() => handleNavigate('home')} />
         )}
 
         {currentPage === 'security' && (
           <SecurityWhitepaperPage onBack={() => handleNavigate('home')} />
-        )}
-
-        {currentPage === 'pricing' && (
-          <EnterprisePricingPage
-            onBack={() => handleNavigate('home')}
-            onOpenDemo={handleOpenDemo}
-          />
         )}
 
         {currentPage === 'blog' && (
@@ -172,6 +203,12 @@ export function App() {
       <LegalModal
         type={legalModalType}
         onClose={() => setLegalModalType(null)}
+      />
+
+      {/* Mobile Companion PWA & QR Modal */}
+      <MobileCompanionModal
+        isOpen={mobileCompanionOpen}
+        onClose={() => setMobileCompanionOpen(false)}
       />
     </div>
   )

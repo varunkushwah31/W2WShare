@@ -231,9 +231,9 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="px-3 py-1 rounded-lg bg-[#222] hover:bg-[#333] text-white text-[11px] font-mono flex items-center gap-1.5 transition-all cursor-pointer border border-[#333]"
+                className="px-3 py-1 rounded-lg bg-[#222] hover:bg-[#333] hover:border-[#7089ba]/40 text-white text-[11px] font-mono flex items-center gap-1.5 transition-all cursor-pointer border border-[#333]"
               >
-                <LightningIcon className="w-3.5 h-3.5 text-amber-400" />
+                <LightningIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 <span>Hotspot & Campus Config</span>
               </button>
             </div>

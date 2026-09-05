@@ -86,26 +86,26 @@
   body {
     background-color: var(--color-void);
     color: var(--color-paper);
-    font-family: var(--font-raveo-variable);
+    font-family: var(--font-raveo-variable), system-ui;
     overflow-x: hidden;
   }
   
   /* Signature Raveo 1000 display typography */
   .font-raveo-1000 {
-    font-family: var(--font-raveo-variable);
+    font-family: var(--font-raveo-variable), system-ui;
     font-weight: 800;
     letter-spacing: -0.04em;
     line-height: 1.10;
   }
   
   .font-raveo-500 {
-    font-family: var(--font-raveo-variable);
+    font-family: var(--font-raveo-variable),system-ui;
     font-weight: 500;
     letter-spacing: -0.01em;
   }
 
   .font-geist-mono {
-    font-family: var(--font-geist-mono);
+    font-family: var(--font-geist-mono),system-ui;
     letter-spacing: 0.02em;
   }
 }
@@ -237,4 +237,45 @@
 
 .animate-scanline {
   animation: scanlinePulse 2s ease-in-out infinite;
+}
+
+/* Cyber-Grid & Neon aesthetics inspired by MangoShare */
+.cyber-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(112, 137, 186, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(112, 137, 186, 0.05) 1px, transparent 1px);
+}
+
+.cyber-grid-dense {
+  background-size: 16px 16px;
+  background-image: 
+    linear-gradient(to right, rgba(112, 137, 186, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(112, 137, 186, 0.04) 1px, transparent 1px);
+}
+
+@keyframes pulseNeon {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(112, 137, 186, 0.25), 0 0 15px rgba(112, 137, 186, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(112, 137, 186, 0.5), 0 0 25px rgba(112, 137, 186, 0.25);
+  }
+}
+
+.animate-pulse-neon {
+  animation: pulseNeon 2.5s ease-in-out infinite;
+}
+
+@keyframes pulseNeonCyan {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(112, 137, 186, 0.25), 0 0 15px rgba(112, 137, 186, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(112, 137, 186, 0.5), 0 0 30px rgba(112, 137, 186, 0.25);
+  }
+}
+
+.animate-pulse-cyan {
+  animation: pulseNeonCyan 2s ease-in-out infinite;
 }

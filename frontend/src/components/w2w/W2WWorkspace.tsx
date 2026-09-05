@@ -12,6 +12,7 @@ import {
   BroadcastIcon,
   ClipboardTextIcon,
   ShieldCheckIcon,
+  DeviceMobileIcon,
 } from '@phosphor-icons/react'
 
 export type W2WTabType = 'send' | 'receive' | 'radar' | 'clipboard' | 'ledger'
@@ -19,15 +20,42 @@ export type W2WTabType = 'send' | 'receive' | 'radar' | 'clipboard' | 'ledger'
 interface W2WWorkspaceProps {
   initialTab?: W2WTabType
   id?: string
+  onOpenMobileApp?: () => void
 }
 
 export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   initialTab = 'send',
   id = 'workspace',
+  onOpenMobileApp,
 }) => {
-  const [activeTab, setActiveTab] = useState<W2WTabType>(initialTab)
+  const [activeTab, setActiveTab] = useState<W2WTabType>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('pin') || params.get('code') || params.get('mode') === 'receiver') {
+        return 'receive'
+      }
+    }
+    return initialTab
+  })
   const [selectedInterface, setSelectedInterface] = useState<NetworkInterfaceDto | null>(null)
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false)
+
+  // Sync activeTab when initialTab changes (e.g. from parent App deep link)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
+
+  // MangoShare-style auto mode switch if URL contains pin/code
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('pin') || params.get('code') || params.get('mode') === 'receiver') {
+        setActiveTab('receive')
+      }
+    }
+  }, [])
 
   useEffect(() => {
     api.getNetworkInfo().then((net) => {
@@ -68,8 +96,8 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
 
   return (
     <section id={id} className="w-full max-w-300 mx-auto px-6 py-8">
-      {/* Container with Dashed Containment */}
-      <div className="dashed-container rounded-2xl bg-void p-6 sm:p-10 space-y-8 relative overflow-hidden">
+      {/* Container with Dashed Containment & Cyber-Grid */}
+      <div className="dashed-container rounded-2xl bg-void cyber-grid p-6 sm:p-10 space-y-8 relative overflow-hidden">
         {/* Top Header & Tab Navigation Bar */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-carbon pb-6">
           <div>
@@ -92,6 +120,19 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
                 </span>
                 <span className="text-[#7089ba] ml-0.5">⚙ Config</span>
               </button>
+
+              {onOpenMobileApp && (
+                <button
+                  type="button"
+                  onClick={onOpenMobileApp}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#7089ba]/10 hover:bg-[#7089ba]/20 border border-[#7089ba]/30 hover:border-[#7089ba]/60 text-[10px] font-mono text-[#7089ba] transition-all cursor-pointer"
+                  title="Open Mobile Companion QR & PWA Setup"
+                >
+                  <DeviceMobileIcon className="w-3 h-3 text-[#7089ba]" />
+                  <span className="font-semibold">Mobile Client</span>
+                  <span className="text-[8px] bg-[#7089ba]/20 px-1 rounded text-[#7089ba] font-bold">PWA</span>
+                </button>
+              )}
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
               Encrypted Peer Sharing Terminal

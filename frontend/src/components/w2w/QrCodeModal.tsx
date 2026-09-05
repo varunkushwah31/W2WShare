@@ -91,7 +91,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'wifi'
-                ? 'bg-amber-500 text-black font-bold shadow'
+                ? 'bg-white text-black font-semibold shadow'
                 : 'text-steel hover:text-white'
             }`}
           >
@@ -214,7 +214,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
               }}
-              className="w-full py-2.5 px-4 rounded-full bg-amber-400 text-black font-semibold text-xs hover:bg-amber-300 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
             >
               {copied ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
               <span>{copied ? 'Wi-Fi Credentials Copied!' : 'Copy Wi-Fi SSID & Password'}</span>
@@ -226,7 +226,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             download={activeTab === 'claim' ? `w2w-qr-${pin}.png` : `w2w-wifi-${hotspotSsid}.png`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full py-2 px-4 rounded-full bg-carbon border border-[#282828] text-neutral-300 font-medium text-xs hover:text-white hover:border-neutral-500 flex items-center justify-center gap-2 transition-all"
+            className="w-full py-2 px-4 rounded-full bg-carbon border border-[#282828] text-neutral-300 font-medium text-xs hover:text-white hover:border-[#7089ba]/50 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <DownloadSimpleIcon className="w-3.5 h-3.5" />
             <span>Download QR Code Image</span>

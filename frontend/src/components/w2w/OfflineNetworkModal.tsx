@@ -110,7 +110,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-[#222222] bg-[#0f0f0f] text-white p-6 sm:p-8 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border border-carbon bg-[#141414] text-white p-6 sm:p-8 rounded-2xl shadow-2xl">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20 font-bold">
@@ -130,14 +130,14 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
         </DialogHeader>
 
         {/* Dual Mode Switcher Pills */}
-        <div className="flex items-center p-1 rounded-xl bg-[#141414] border border-[#262626] my-4">
+        <div className="flex items-center p-1 rounded-xl bg-void border border-[#262626] my-4">
           <button
             type="button"
             onClick={() => setMode('campus')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               mode === 'campus'
-                ? 'bg-linear-to-r from-blue-600 to-[#7089ba] text-white font-bold shadow-md shadow-blue-500/20'
-                : 'text-[#808080] hover:text-white'
+                ? 'bg-white text-black font-semibold shadow-sm'
+                : 'text-steel hover:text-white'
             }`}
           >
             <GraduationCapIcon className="w-4 h-4" />
@@ -148,7 +148,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
             onClick={() => setMode('hotspot')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               mode === 'hotspot'
-                ? 'bg-linear-to-r from-amber-500 to-orange-600 text-white font-bold shadow-md shadow-orange-500/20'
+                ? 'bg-white text-black font-semibold shadow-sm'
                 : 'text-steel hover:text-white'
             }`}
           >
@@ -285,12 +285,12 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
         {/* MODE 2: OFFLINE HOTSPOT CONTENT */}
         {mode === 'hotspot' && (
           <div className="space-y-4 pt-2">
-            <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-900/30 text-amber-200 text-xs space-y-1.5">
-              <div className="flex items-center gap-2 font-bold text-amber-400 font-sans">
+            <div className="p-4 rounded-xl bg-[#7089ba]/10 border border-[#7089ba]/25 text-white text-xs space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-[#7089ba] font-sans">
                 <LightningIcon className="w-4 h-4" />
                 <span>100% Offline Hotspot (Zero Mobile Data / No Firewall Limits)</span>
               </div>
-              <p className="text-amber-200/80 leading-relaxed text-xs">
+              <p className="text-steel leading-relaxed text-xs">
                 Turn on your hotspot with Mobile Data OFF. Devices connect directly via local Wi-Fi at 50–100+ MB/s.
               </p>
             </div>
@@ -300,7 +300,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               <div className="p-4 rounded-xl bg-[#141414] border border-[#222222] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-mono text-[#808080] uppercase tracking-wider flex items-center gap-1">
-                    <QrCodeIcon className="w-3.5 h-3.5 text-amber-400" />
+                    <QrCodeIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                     Auto-Connect Wi-Fi QR
                   </span>
                 </div>

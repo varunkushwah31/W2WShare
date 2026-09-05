@@ -134,12 +134,12 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
 
           <div className="flex items-center gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
             <span className="text-[#7089ba]">❖</span>
-            <span>SYNTHETIX CORE</span>
+            <span>SYNTHETIC CORE</span>
           </div>
 
           <div className="flex items-center gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
             <div className="w-3.5 h-3.5 rounded border border-[#7089ba] flex items-center justify-center text-[9px] text-[#7089ba]">⬡</div>
-            <span>AIRGAP APPLIANCE</span>
+            <span>AIR GAP APPLIANCE</span>
           </div>
 
           <div className="flex items-center gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">

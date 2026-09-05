@@ -1,14 +1,22 @@
 import React, {useEffect, useState} from 'react'
-import {LightningIcon, ListIcon, SignOutIcon, UserCheckIcon, XIcon} from '@phosphor-icons/react'
+import {
+  LightningIcon,
+  ListIcon,
+  SignOutIcon,
+  UserCheckIcon,
+  XIcon,
+  DeviceMobileIcon,
+} from '@phosphor-icons/react'
 import {authStore, type AuthUser} from '@/lib/auth'
 
-export type NavPageType = 'home' | 'features' | 'changelog' | 'security' | 'pricing' | 'blog'
+export type NavPageType = 'home' | 'features' | 'changelog' | 'security' | 'blog' | 'guide'
 
 interface NavigationProps {
   currentPage: NavPageType
   onNavigate: (page: NavPageType) => void
   onOpenDemo: () => void
   onOpenLogin: () => void
+  onOpenMobileApp?: () => void
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -16,6 +24,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onNavigate,
   onOpenDemo,
   onOpenLogin,
+  onOpenMobileApp,
 }) => {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -51,9 +60,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const navLinks = [
     { id: 'home' as const, label: 'Studio' },
+    { id: 'guide' as const, label: 'How to Use' },
     { id: 'security' as const, label: 'Security' },
     { id: 'changelog' as const, label: 'Updates' },
-    { id: 'pricing' as const, label: 'Pricing' },
     { id: 'blog' as const, label: 'Blog' },
   ]
 
@@ -150,6 +159,19 @@ export const Navigation: React.FC<NavigationProps> = ({
               </button>
             )}
 
+            {onOpenMobileApp && (
+              <button
+                type="button"
+                onClick={onOpenMobileApp}
+                className="px-3 py-1.5 rounded-full bg-[#181818] hover:bg-[#222222] text-[#7089ba] hover:text-white text-xs font-mono border border-[#7089ba]/30 hover:border-[#7089ba]/60 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                title="Open W2W Mobile Companion QR & PWA Setup"
+              >
+                <DeviceMobileIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                <span className="hidden lg:inline">Mobile App</span>
+                <span className="text-[9px] bg-[#7089ba]/20 text-[#7089ba] px-1.5 py-0.5 rounded font-bold">PWA</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenDemo}
@@ -221,6 +243,20 @@ export const Navigation: React.FC<NavigationProps> = ({
                 className="w-full py-2.5 rounded-full border border-[#282828] text-sm text-white hover:bg-[#1c1c1c]"
               >
                 Login
+              </button>
+            )}
+
+            {onOpenMobileApp && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  onOpenMobileApp()
+                }}
+                className="w-full py-2.5 rounded-full border border-[#7089ba]/40 bg-[#7089ba]/10 text-[#7089ba] font-mono text-sm flex items-center justify-center gap-2 hover:bg-[#7089ba]/20 transition-all cursor-pointer"
+              >
+                <DeviceMobileIcon className="w-4 h-4" />
+                <span>Open Mobile Companion (PWA)</span>
               </button>
             )}
 

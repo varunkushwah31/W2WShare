@@ -322,7 +322,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setQrModalOpen(true)}
-                className="p-2 rounded-xl bg-void border border-[#282828] text-white hover:border-white text-xs transition-colors"
+                className="p-2 rounded-xl bg-void border border-[#282828] text-white hover:border-white text-xs transition-colors cursor-pointer"
                 title="Show Pairing QR"
               >
                 <QrCodeIcon className="w-4 h-4" />
@@ -330,7 +330,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
               <button
                 type="button"
                 onClick={handleCreateNewSession}
-                className="px-3 py-1.5 rounded-xl border border-[#282828] text-white text-xs hover:border-white transition-colors"
+                className="px-3 py-1.5 rounded-xl border border-[#282828] text-white text-xs hover:border-white transition-colors cursor-pointer"
               >
                 New Session
               </button>
@@ -490,7 +490,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                     type="button"
                     onClick={handleClearChat}
                     title="Clear Chat"
-                    className="p-1 rounded text-steel hover:text-[#eb5757] transition-colors"
+                    className="p-1 rounded text-steel hover:text-[#eb5757] transition-colors cursor-pointer"
                   >
                     <TrashIcon className="w-3.5 h-3.5" />
                   </button>

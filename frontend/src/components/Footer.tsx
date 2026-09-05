@@ -55,13 +55,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('security')} className="hover:text-white transition-colors cursor-pointer text-left">
-                    Security White paper
+                  <button onClick={() => onNavigate('guide')} className="hover:text-white transition-colors cursor-pointer text-left">
+                    How to Use & Features
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('pricing')} className="hover:text-white transition-colors cursor-pointer text-left">
-                    Enterprise Pricing
+                  <button onClick={() => onNavigate('security')} className="hover:text-white transition-colors cursor-pointer text-left">
+                    Security White paper
                   </button>
                 </li>
                 <li>

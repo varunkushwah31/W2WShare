@@ -19,12 +19,31 @@ import {
   ShieldCheckIcon,
   ArrowsClockwiseIcon,
   CheckCircleIcon,
+  VideoCameraIcon,
+  MusicNotesIcon,
+  ArchiveIcon,
+  CodeIcon,
 } from '@phosphor-icons/react'
+
+export type FileCategoryType = 'image' | 'video' | 'audio' | 'archive' | 'code' | 'document' | 'other'
+
+export const detectFileTypeCategory = (fileName: string, mimeType: string): FileCategoryType => {
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  if (mimeType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) return 'image'
+  if (mimeType.startsWith('video/') || ['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(ext)) return 'video'
+  if (mimeType.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(ext)) return 'audio'
+  if (['zip', 'tar', 'gz', 'rar', '7z', 'bz2', 'xz'].includes(ext)) return 'archive'
+  if (['js', 'ts', 'tsx', 'jsx', 'py', 'java', 'cpp', 'c', 'json', 'html', 'css', 'yml', 'yaml', 'xml', 'md', 'sql', 'sh'].includes(ext)) return 'code'
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'].includes(ext)) return 'document'
+  return 'other'
+}
 
 interface SelectedFileItem {
   file: File
   relativePath: string
   size: number
+  previewUrl?: string
+  typeCategory: FileCategoryType
 }
 
 interface PreparedFile {
@@ -45,14 +64,14 @@ const resolveJoinUrl = (
   selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
 ): string => {
   if (selectedInterface?.url) {
-    return `${selectedInterface.url}/?pin=${pin}`
+    return `${selectedInterface.url}/?pin=${pin}&code=${pin}&mode=receiver`
   }
   if (typeof window === 'undefined') return sessionJoinUrl
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   if (!isLocal && window.location.origin) {
-    return `${window.location.origin}/?pin=${pin}`
+    return `${window.location.origin}/?pin=${pin}&code=${pin}&mode=receiver`
   }
-  return sessionJoinUrl || `${window.location.origin}/?pin=${pin}`
+  return sessionJoinUrl ? `${sessionJoinUrl}&code=${pin}&mode=receiver` : `${window.location.origin}/?pin=${pin}&code=${pin}&mode=receiver`
 }
 
 const prepareSingleFile = async (
@@ -118,9 +137,13 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
   const [currentFileName, setCurrentFileName] = useState('')
   const [currentChunkInfo, setCurrentChunkInfo] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
   const [transferSpeedMbps, setTransferSpeedMbps] = useState(0)
+  const [transferEtaSeconds, setTransferEtaSeconds] = useState<number | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
+
+  // Real-time Peer Connection Presence (MangoShare inspired)
+  const [peerConnected, setPeerConnected] = useState(false)
 
   // Telemetry & WebRTC state
   const [isDirectP2p, setIsDirectP2p] = useState(false)
@@ -185,9 +208,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       try {
         const signal = JSON.parse(event.data)
         if (signal.type === 'PEER_CONNECTED') {
+          setPeerConnected(true)
           soundEngine.peerConnect()
           // Initiate WebRTC offer to the connected peer
           await rtc.initSenderOffer()
+        } else if (signal.type === 'PEER_DISCONNECTED') {
+          setPeerConnected(false)
         } else if (signal.type === 'WEBRTC_ANSWER' && signal.payload) {
           await rtc.handleRemoteAnswer(signal.payload)
         } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
@@ -228,10 +254,14 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     if (e.target.files && e.target.files.length > 0) {
       const items: SelectedFileItem[] = []
       for (const file of Array.from(e.target.files)) {
+        const typeCategory = detectFileTypeCategory(file.name, file.type)
+        const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
         items.push({
           file,
           relativePath: file.webkitRelativePath || file.name,
           size: file.size,
+          previewUrl,
+          typeCategory,
         })
       }
       setFiles((prev) => [...prev, ...items])
@@ -239,19 +269,34 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
   }
 
   const addFiles = (newFiles: File[]) => {
-    const items: SelectedFileItem[] = newFiles.map((f) => ({
-      file: f,
-      relativePath: f.name,
-      size: f.size,
-    }))
+    const items: SelectedFileItem[] = newFiles.map((f) => {
+      const typeCategory = detectFileTypeCategory(f.name, f.type)
+      const previewUrl = typeCategory === 'image' ? URL.createObjectURL(f) : undefined
+      return {
+        file: f,
+        relativePath: f.name,
+        size: f.size,
+        previewUrl,
+        typeCategory,
+      }
+    })
     setFiles((prev) => [...prev, ...items])
   }
 
   const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setFiles((prev) => {
+      const item = prev[index]
+      if (item?.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const clearFiles = () => {
+    files.forEach((f) => {
+      if (f.previewUrl) URL.revokeObjectURL(f.previewUrl)
+    })
     setFiles([])
     setTransferDone(false)
   }
@@ -297,6 +342,10 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
         if (elapsedSec > 0) {
           const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
           setTransferSpeedMbps(speed)
+          const remainingBytes = Math.max(0, totalEncrypted - uploadedBytesTotal)
+          if (speed > 0) {
+            setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+          }
         }
 
         const percent = Math.min(
@@ -307,6 +356,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
         setStatusMessage(`Streaming chunk ${cIdx + 1}/${totalChunks}`)
       }
     }
+    setTransferEtaSeconds(0)
   }
 
   const startTransfer = async () => {
@@ -501,30 +551,52 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             <button
               type="button"
               onClick={clearFiles}
-              className="text-xs text-steel hover:text-[#eb5757] transition-colors"
+              className="text-xs text-steel hover:text-[#eb5757] transition-colors cursor-pointer"
             >
               Clear All
             </button>
           </div>
 
-          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+          <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
             {files.map((item, idx) => (
               <div
                 key={`${item.relativePath}-${item.size}-${idx}`}
-                className="flex items-center justify-between p-2 rounded bg-carbon border border-[#242424] text-xs"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-carbon border border-[#242424] text-xs hover:border-[#333] transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0 pr-2">
-                  <FileIcon className="w-4 h-4 text-[#7089ba] shrink-0" />
-                  <span className="truncate text-white font-mono">{item.relativePath}</span>
+                <div className="flex items-center gap-3 min-w-0 pr-2">
+                  {item.previewUrl ? (
+                    <img
+                      src={item.previewUrl}
+                      alt={item.relativePath}
+                      className="w-10 h-10 rounded-lg object-cover border border-[#7089ba]/30 shrink-0 bg-black"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#282828] flex items-center justify-center shrink-0">
+                      {item.typeCategory === 'video' && <VideoCameraIcon className="w-5 h-5 text-purple-400" />}
+                      {item.typeCategory === 'audio' && <MusicNotesIcon className="w-5 h-5 text-pink-400" />}
+                      {item.typeCategory === 'archive' && <ArchiveIcon className="w-5 h-5 text-amber-400" />}
+                      {item.typeCategory === 'code' && <CodeIcon className="w-5 h-5 text-emerald-400" />}
+                      {item.typeCategory === 'document' && <FileIcon className="w-5 h-5 text-blue-400" />}
+                      {item.typeCategory === 'other' && <FileIcon className="w-5 h-5 text-[#7089ba]" />}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="truncate text-white font-mono font-medium">{item.relativePath}</div>
+                    <div className="flex items-center gap-2 text-[10px] text-steel font-mono mt-0.5">
+                      <span className="uppercase text-[#7089ba] font-bold">[{item.typeCategory}]</span>
+                      <span>·</span>
+                      <span>{formatBytes(item.size)}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-steel font-mono">{formatBytes(item.size)}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(idx)}
-                    className="text-steel hover:text-white"
+                    className="p-1.5 rounded-lg text-steel hover:text-[#eb5757] hover:bg-[#eb5757]/10 transition-colors cursor-pointer"
+                    title="Remove file"
                   >
-                    <TrashIcon className="w-3.5 h-3.5" />
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -576,7 +648,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             type="button"
             onClick={startTransfer}
             disabled={isTransferring}
-            className="w-full py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
             <ShieldCheckIcon className="w-4 h-4" />
             <span>Generate Encrypted Transfer Vault</span>
@@ -590,8 +662,13 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
           {/* PIN Banner */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-void border border-[#282828]">
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
-                OFFLINE CLAIM PIN
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
+                  OFFLINE CLAIM PIN / ROOM CODE
+                </span>
+                <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-1.5 py-0.2 rounded border border-[#7089ba]/20 font-bold">
+                  MANGO-P2P READY
+                </span>
               </div>
               <div className="font-mono text-3xl sm:text-4xl font-extrabold tracking-widest text-white mt-1">
                 {pin}
@@ -602,7 +679,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <button
                 type="button"
                 onClick={() => setQrModalOpen(true)}
-                className="p-2.5 rounded-full bg-carbon border border-[#282828] text-white hover:border-white transition-colors"
+                className="p-2.5 rounded-full bg-carbon border border-[#282828] text-white hover:border-[#7089ba]/60 hover:text-[#7089ba] transition-all cursor-pointer"
                 title="Show QR Code"
               >
                 <QrCodeIcon className="w-5 h-5" />
@@ -610,12 +687,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
               <button
                 type="button"
                 onClick={copyLink}
-                className="px-3.5 py-2 rounded-full bg-carbon border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-full bg-carbon border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 {linkCopied ? (
                   <>
-                    <CheckIcon className="w-3.5 h-3.5 text-[#7089ba]" weight="bold" />
-                    <span>Copied</span>
+                    <CheckIcon className="w-3.5 h-3.5 text-emerald-400" weight="bold" />
+                    <span className="text-emerald-400">Copied</span>
                   </>
                 ) : (
                   <>
@@ -627,16 +704,61 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             </div>
           </div>
 
+          {/* Real-Time Peer Presence Banner (Inspired by MangoShare) */}
+          <div
+            className={`p-3.5 rounded-xl border font-mono text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-all ${
+              peerConnected
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-sm'
+                : 'bg-amber-400/10 border-amber-400/30 text-amber-300'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                  peerConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
+                }`}
+              />
+              <div>
+                <div className="font-bold flex items-center gap-2">
+                  <span>{peerConnected ? 'RECEIVER CONNECTED' : 'WAITING FOR RECEIVER TO JOIN...'}</span>
+                  {isDirectP2p && (
+                    <span className="text-[9px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-400/30">
+                      WEBRTC P2P
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-steel mt-0.5">
+                  {peerConnected
+                    ? 'Direct peer data tunnel ready. Binary chunks streaming in real-time.'
+                    : 'Share 6-digit PIN code or QR with peer on local Wi-Fi / Hotspot.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-black/60 border border-current font-mono">
+                {peerConnected ? 'TUNNEL_READY' : 'LISTENING_PORT_8888'}
+              </span>
+            </div>
+          </div>
+
           {/* Progress Bar & Status */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-steel truncate max-w-xs">{currentFileName || statusMessage}</span>
-              <span className="text-white font-bold">{progressPercent}%</span>
+              <div className="flex items-center gap-2 font-bold">
+                {transferEtaSeconds !== null && transferEtaSeconds > 0 && (
+                  <span className="text-[#7089ba] font-mono text-[11px]">
+                    ETA: ~{transferEtaSeconds < 60 ? `${transferEtaSeconds}s` : `${Math.floor(transferEtaSeconds / 60)}m ${transferEtaSeconds % 60}s`}
+                  </span>
+                )}
+                <span className="text-white">{progressPercent}%</span>
+              </div>
             </div>
 
-            <div className="w-full h-2 bg-carbon rounded-full overflow-hidden border border-[#242424]">
+            <div className="w-full h-2.5 bg-carbon rounded-full overflow-hidden border border-[#242424] relative">
               <div
-                className="h-full bg-[#7089ba] transition-all duration-300"
+                className="h-full bg-linear-to-r from-[#7089ba] to-[#9bb2e5] transition-all duration-300 relative"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -644,10 +766,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             <div className="flex items-center justify-between text-[11px] font-mono text-steel pt-1">
               <span>
                 {currentChunkInfo.total > 0
-                  ? `Chunk ${currentChunkInfo.current} / ${currentChunkInfo.total}`
+                  ? `Chunk ${currentChunkInfo.current} / ${currentChunkInfo.total} (2MB slices)`
                   : statusMessage}
               </span>
-              {transferSpeedMbps > 0 && <span>{transferSpeedMbps.toFixed(2)} MB/s</span>}
+              {transferSpeedMbps > 0 && (
+                <span className="text-emerald-400 font-semibold">{transferSpeedMbps.toFixed(2)} MB/s</span>
+              )}
             </div>
           </div>
 
@@ -680,7 +804,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
             <button
               type="button"
               onClick={cancelSession}
-              className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-steel hover:text-white transition-colors"
+              className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-steel hover:text-[#eb5757] hover:border-[#eb5757]/40 transition-colors cursor-pointer"
             >
               Terminate Session
             </button>

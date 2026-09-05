@@ -86,7 +86,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md border border-[#222222] bg-[#121212] text-white p-6 sm:p-8 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-md border border-carbon bg-[#141414] text-white p-6 sm:p-8 rounded-2xl shadow-2xl">
         <DialogHeader className="space-y-2 mb-2 text-left">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/25 flex items-center gap-1 font-medium">
