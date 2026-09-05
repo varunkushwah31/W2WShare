@@ -29,23 +29,37 @@ public class TransferController {
 
     private static final String PARAM_STATUS = "status";
     private static final String STATUS_SAVED = "SAVED";
+    private static final String ERR_INVALID_PIN = "Invalid pairing PIN: ";
+    private static final String KEY_SESSION_ID = "sessionId";
 
     private final ISessionService sessionService;
     private final IStorageService storageService;
     private final INetworkDiscoveryService networkDiscoveryService;
     private final ITransferMetricsService metricsService;
     private final IQrCodeService qrCodeService;
+    private final com.w2w.share.config.SignalingWebSocketHandler signalingHandler;
 
     public TransferController(ISessionService sessionService,
                               IStorageService storageService,
                               INetworkDiscoveryService networkDiscoveryService,
                               ITransferMetricsService metricsService,
                               IQrCodeService qrCodeService) {
+        this(sessionService, storageService, networkDiscoveryService, metricsService, qrCodeService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TransferController(ISessionService sessionService,
+                              IStorageService storageService,
+                              INetworkDiscoveryService networkDiscoveryService,
+                              ITransferMetricsService metricsService,
+                              IQrCodeService qrCodeService,
+                              @org.springframework.beans.factory.annotation.Autowired(required = false) com.w2w.share.config.SignalingWebSocketHandler signalingHandler) {
         this.sessionService = sessionService;
         this.storageService = storageService;
         this.networkDiscoveryService = networkDiscoveryService;
         this.metricsService = metricsService;
         this.qrCodeService = qrCodeService;
+        this.signalingHandler = signalingHandler;
     }
 
     @org.springframework.beans.factory.annotation.Value("${w2w.frontend-url:}")
@@ -75,14 +89,30 @@ public class TransferController {
         ));
     }
 
+    private static String stripTrailingSlashes(String url) {
+        if (url == null) return "";
+        String trimmed = url.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    private static String buildHostUrl(String scheme, String host, int port) {
+        if (port > 0 && port != 80 && port != 443) {
+            return scheme + "://" + host + ":" + port;
+        }
+        return scheme + "://" + host;
+    }
+
     private String resolveBaseUrl(HttpServletRequest httpRequest) {
         if (configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()) {
-            return configuredFrontendUrl.replaceAll("/+$", "");
+            return stripTrailingSlashes(configuredFrontendUrl);
         }
         if (httpRequest != null) {
             String origin = httpRequest.getHeader("Origin");
             if (origin != null && !origin.isBlank() && !origin.equals("null")) {
-                return origin.replaceAll("/+$", "");
+                return stripTrailingSlashes(origin);
             }
             String referer = httpRequest.getHeader("Referer");
             if (referer != null && !referer.isBlank()) {
@@ -92,12 +122,10 @@ public class TransferController {
                     String host = uri.getHost();
                     int port = uri.getPort();
                     if (scheme != null && host != null) {
-                        return (port > 0 && port != 80 && port != 443)
-                                ? scheme + "://" + host + ":" + port
-                                : scheme + "://" + host;
+                        return buildHostUrl(scheme, host, port);
                     }
-                } catch (Exception ignored) {
-                    // fallback
+                } catch (Exception _) {
+                    // Fallback to primary network URL
                 }
             }
         }
@@ -139,9 +167,66 @@ public class TransferController {
     @GetMapping("/session/by-pin/{pin}")
     public ResponseEntity<TransferSessionDetailsResponse> getSessionByPin(@PathVariable String pin) {
         TransferSession session = sessionService.getSessionByPin(pin)
-                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+                .orElseThrow(() -> new InvalidPinException(ERR_INVALID_PIN + pin));
 
         return ResponseEntity.ok(TransferSessionDetailsResponse.from(session));
+    }
+
+    @GetMapping("/session/room/{pin}/status")
+    public ResponseEntity<RoomStatusResponse> getRoomStatusByPin(@PathVariable String pin) {
+        TransferSession session = sessionService.getSessionByPin(pin)
+                .orElseThrow(() -> new InvalidPinException("Room with PIN " + pin + " not found or expired"));
+        return ResponseEntity.ok(buildRoomStatusResponse(session));
+    }
+
+    @GetMapping("/session/{sessionId}/room")
+    public ResponseEntity<RoomStatusResponse> getRoomStatusBySessionId(@PathVariable String sessionId) {
+        TransferSession session = sessionService.getRequiredSession(sessionId);
+        return ResponseEntity.ok(buildRoomStatusResponse(session));
+    }
+
+    private int resolveReceiverCount(TransferSession session, String sid) {
+        if (signalingHandler != null) {
+            return signalingHandler.getReceiverCount(sid);
+        }
+        return session.getReceiverId() != null ? 1 : 0;
+    }
+
+    private int resolveTotalPeers(String sid, boolean senderOnline, int receiverCount) {
+        if (signalingHandler != null) {
+            return signalingHandler.getConnectedPeerCount(sid);
+        }
+        int senderCount = senderOnline ? 1 : 0;
+        return senderCount + receiverCount;
+    }
+
+    private RoomStatusResponse buildRoomStatusResponse(TransferSession session) {
+        String sid = session.getSessionId();
+        boolean senderOnline = signalingHandler != null ? signalingHandler.isSenderOnline(sid) : (session.getSenderId() != null);
+        int receiverCount = resolveReceiverCount(session, sid);
+        int totalPeers = resolveTotalPeers(sid, senderOnline, receiverCount);
+
+        List<FileMetadata> batch = session.getFileBatch();
+        int totalFiles = batch.size();
+        long totalBytes = batch.stream()
+                .mapToLong(m -> m.fileSize() != null ? m.fileSize() : 0L)
+                .sum();
+        boolean webrtcReady = (totalPeers >= 2);
+
+        return new RoomStatusResponse(
+                session.getSessionId(),
+                session.getPin(),
+                session.getStatus().name(),
+                senderOnline,
+                receiverCount,
+                totalPeers,
+                totalFiles,
+                totalBytes,
+                session.isBurnAfterReading(),
+                session.getUploadedChunks(),
+                session.getDownloadedChunks(),
+                webrtcReady
+        );
     }
 
     @PostMapping("/session/{sessionId}/join")
@@ -155,6 +240,10 @@ public class TransferController {
         String clientIp = httpRequest != null ? httpRequest.getRemoteAddr() : "unknown-ip";
 
         TransferSession session = sessionService.joinSessionWithRateLimit(pin, receiverId, clientIp);
+        if (sessionId != null && !sessionId.isBlank() && !sessionId.equalsIgnoreCase(session.getSessionId())) {
+            throw new InvalidPinException(ERR_INVALID_PIN + pin);
+        }
+
         return ResponseEntity.ok(new JoinSessionResponse(
                 session.getSessionId(),
                 session.getPin(),
@@ -316,18 +405,18 @@ public class TransferController {
             @RequestBody(required = false) ClipboardSyncRequest request) {
 
         TransferSession session = sessionService.getSessionByPin(pin)
-                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+                .orElseThrow(() -> new InvalidPinException(ERR_INVALID_PIN + pin));
         String text = (request != null && request.text() != null) ? request.text() : "";
         sessionService.setEncryptedClipboardText(session.getSessionId(), text);
-        return ResponseEntity.ok(Map.of(PARAM_STATUS, STATUS_SAVED, "sessionId", session.getSessionId()));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, STATUS_SAVED, KEY_SESSION_ID, session.getSessionId()));
     }
 
     @GetMapping("/session/by-pin/{pin}/clipboard")
     public ResponseEntity<Map<String, String>> getClipboardByPin(@PathVariable String pin) {
         TransferSession session = sessionService.getSessionByPin(pin)
-                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+                .orElseThrow(() -> new InvalidPinException(ERR_INVALID_PIN + pin));
         String text = session.getEncryptedClipboardText();
-        return ResponseEntity.ok(Map.of("text", text != null ? text : "", "sessionId", session.getSessionId()));
+        return ResponseEntity.ok(Map.of("text", text != null ? text : "", KEY_SESSION_ID, session.getSessionId()));
     }
 
     @PostMapping("/session/{sessionId}/chat")
@@ -344,7 +433,7 @@ public class TransferController {
         ChatMessage msg = new ChatMessage(UUID.randomUUID().toString(), senderRole, content, System.currentTimeMillis());
         sessionService.addChatMessage(sessionId, msg);
 
-        return ResponseEntity.ok(Map.of("status", "SENT", "message", msg));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "SENT", "message", msg));
     }
 
     @GetMapping("/session/{sessionId}/chat")
@@ -359,7 +448,7 @@ public class TransferController {
             @Valid @RequestBody ChatMessageRequest request) {
 
         TransferSession session = sessionService.getSessionByPin(pin)
-                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+                .orElseThrow(() -> new InvalidPinException(ERR_INVALID_PIN + pin));
         String senderRole = request.senderRole() != null ? request.senderRole() : "client";
         String content = request.content();
         if (content == null || content.isBlank()) {
@@ -369,13 +458,13 @@ public class TransferController {
         ChatMessage msg = new ChatMessage(UUID.randomUUID().toString(), senderRole, content, System.currentTimeMillis());
         sessionService.addChatMessage(session.getSessionId(), msg);
 
-        return ResponseEntity.ok(Map.of("status", "SENT", "message", msg, "sessionId", session.getSessionId()));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "SENT", "message", msg, KEY_SESSION_ID, session.getSessionId()));
     }
 
     @GetMapping("/session/by-pin/{pin}/chat")
     public ResponseEntity<List<ChatMessage>> getChatHistoryByPin(@PathVariable String pin) {
         TransferSession session = sessionService.getSessionByPin(pin)
-                .orElseThrow(() -> new InvalidPinException("Invalid pairing PIN: " + pin));
+                .orElseThrow(() -> new InvalidPinException(ERR_INVALID_PIN + pin));
         return ResponseEntity.ok(session.getChatHistory());
     }
 
@@ -409,6 +498,6 @@ public class TransferController {
     @DeleteMapping("/session/{sessionId}")
     public ResponseEntity<Map<String, String>> cancelSession(@PathVariable String sessionId) {
         sessionService.cancelSession(sessionId);
-        return ResponseEntity.ok(Map.of("status", "SESSION_CLOSED"));
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "SESSION_CLOSED"));
     }
 }

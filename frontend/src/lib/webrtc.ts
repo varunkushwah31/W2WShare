@@ -246,6 +246,8 @@ export class WebRtcPeerManager {
           const parsed = JSON.parse(data)
           if (parsed.type === 'CHUNK_DATA') {
             this.pendingChunkHeader = parsed as ChunkTransferPacket
+          } else if (parsed.type === 'RESEND_CHUNK' && this.onResendChunkCallback) {
+            this.onResendChunkCallback(parsed.fileIndex, parsed.chunkIndex)
           }
         } catch {
           // Non-JSON frame
@@ -260,6 +262,25 @@ export class WebRtcPeerManager {
       }
     }
   }
+
+  private onResendChunkCallback: ((fileIndex: number, chunkIndex: number) => void) | null = null
+
+  public onResendChunk(cb: (fileIndex: number, chunkIndex: number) => void) {
+    this.onResendChunkCallback = cb
+  }
+
+  public sendResendRequest(fileIndex: number, chunkIndex: number): boolean {
+    if (this.dataChannel?.readyState === 'open') {
+      try {
+        this.dataChannel.send(JSON.stringify({ type: 'RESEND_CHUNK', fileIndex, chunkIndex }))
+        return true
+      } catch (err) {
+        console.warn('[WebRTC] Failed to send RESEND_CHUNK on dataChannel:', err)
+      }
+    }
+    return false
+  }
+
 
   /**
    * SENDER: Streams a single chunk directly over RTCDataChannel with flow control backpressure
@@ -287,24 +308,38 @@ export class WebRtcPeerManager {
       }
       this.dataChannel.send(JSON.stringify(header))
 
-      // 2. Manage DataChannel Backpressure
+      // 2. Manage DataChannel Backpressure with native event-driven threshold
       if (this.dataChannel.bufferedAmount > 256 * 1024) {
         await new Promise<void>((resolve) => {
-          const checkBuffer = () => {
-            if (!this.dataChannel || this.dataChannel.bufferedAmount < 64 * 1024) {
-              resolve()
-            } else {
-              setTimeout(checkBuffer, 10)
-            }
+          if (!this.dataChannel || this.dataChannel.bufferedAmount < 64 * 1024) {
+            resolve()
+            return
           }
-          checkBuffer()
+          this.dataChannel.bufferedAmountLowThreshold = 64 * 1024
+          this.dataChannel.onbufferedamountlow = () => {
+            if (this.dataChannel) {
+              this.dataChannel.onbufferedamountlow = null
+            }
+            resolve()
+          }
+          setTimeout(() => {
+            if (this.dataChannel) {
+              this.dataChannel.onbufferedamountlow = null
+            }
+            resolve()
+          }, 400)
         })
       }
 
-      // 3. Send raw ArrayBuffer payload
-      this.dataChannel.send(chunkData.buffer as ArrayBuffer)
+      // 3. Send raw ArrayBuffer payload with exact byte bounds
+      const sendBuffer =
+        chunkData.byteOffset === 0 && chunkData.byteLength === chunkData.buffer.byteLength
+          ? chunkData.buffer
+          : chunkData.buffer.slice(chunkData.byteOffset, chunkData.byteOffset + chunkData.byteLength)
+      this.dataChannel.send(sendBuffer as ArrayBuffer)
       this.totalBytesTransferred += chunkData.length
       return true
+
     } catch (err) {
       console.warn('[WebRTC] Stream send error:', err)
       return false

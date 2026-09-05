@@ -40,22 +40,13 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   const [selectedInterface, setSelectedInterface] = useState<NetworkInterfaceDto | null>(null)
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false)
 
-  // Sync activeTab when initialTab changes (e.g. from parent App deep link)
-  useEffect(() => {
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab)
+  if (initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab)
     if (initialTab) {
       setActiveTab(initialTab)
     }
-  }, [initialTab])
-
-  // MangoShare-style auto mode switch if URL contains pin/code
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get('pin') || params.get('code') || params.get('mode') === 'receiver') {
-        setActiveTab('receive')
-      }
-    }
-  }, [])
+  }
 
   useEffect(() => {
     api.getNetworkInfo().then((net) => {

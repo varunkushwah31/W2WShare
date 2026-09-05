@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- Spring Boot Logback Color & Whitespace Converters -->
+    <conversionRule conversionWord="clr" class="org.springframework.boot.logging.logback.ColorConverter" />
+    <conversionRule conversionWord="wex" class="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter" />
+    <conversionRule conversionWord="wEx" class="org.springframework.boot.logging.logback.ExtendedWhitespaceThrowableProxyConverter" />
+
+    <!-- Application Properties from Spring Environment -->
+    <springProperty scope="context" name="LOG_LEVEL_W2W" source="logging.level.com.w2w.share" defaultValue="INFO"/>
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="logs"/>
+    <springProperty scope="context" name="LOG_FILE" source="logging.file.name" defaultValue="logs/w2w-share.log"/>
+
+    <!-- 
+        High-Readability Console Log Pattern:
+        [HH:mm:ss.SSS] [LEVEL] [LOGGER-NAME-FIXED-28] : Message
+        Eliminates verbose date/timezone/PID spam and aligns columns cleanly.
+    -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{HH:mm:ss.SSS}){faint} %clr(%5p) %clr(%-28.28logger{28}){cyan} %clr(:){faint} %m%n%wEx"/>
+
+    <!-- Comprehensive File Pattern (with full timestamp and thread for disk audit logs) -->
+    <property name="FILE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%wEx"/>
+
+    <!-- 1. Beautiful Color Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 2. Structured Daily & Size-Rolling File Appender -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archived/w2w-share-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+            <cleanHistoryOnStart>false</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Mute third-party library verbosity & noise -->
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.orm" level="WARN"/>
+    <logger name="org.hibernate.orm.connections" level="WARN"/>
+    <logger name="org.hibernate.orm.core" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.hibernate.type.descriptor.sql" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="org.apache.catalina" level="WARN"/>
+    <logger name="org.apache.coyote" level="WARN"/>
+    <logger name="org.apache.tomcat" level="WARN"/>
+    <logger name="org.springframework.boot.autoconfigure.security" level="WARN"/>
+    <logger name="org.springframework.security.web.DefaultSecurityFilterChain" level="INFO"/>
+    <logger name="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping" level="WARN"/>
+    <logger name="org.springframework.boot.actuate.endpoint.web.EndpointLinksResolver" level="WARN"/>
+    <logger name="org.springframework.context.support.PostProcessorRegistrationDelegate" level="WARN"/>
+
+    <!-- Core W2W Application Loggers -->
+    <logger name="com.w2w.share" level="${LOG_LEVEL_W2W}"/>
+    <logger name="com.w2w.share.config.HttpTrafficLoggingFilter" level="INFO"/>
+
+    <!-- Root Logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>

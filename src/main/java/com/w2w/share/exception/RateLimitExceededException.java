@@ -1,6 +1,13 @@
 package com.w2w.share.exception;
 
+import lombok.Getter;
+
+import java.io.Serial;
+
+@Getter
 public class RateLimitExceededException extends W2WException {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final long retryAfterSeconds;
 
     public RateLimitExceededException(String message, long retryAfterSeconds) {
@@ -8,7 +15,4 @@ public class RateLimitExceededException extends W2WException {
         this.retryAfterSeconds = retryAfterSeconds;
     }
 
-    public long getRetryAfterSeconds() {
-        return retryAfterSeconds;
-    }
 }

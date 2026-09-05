@@ -27,7 +27,6 @@ import { LegalModal, type LegalDocType } from './components/pages/LegalModal'
 export function App() {
   const [currentPage, setCurrentPage] = useState<NavPageType>('home')
   const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<'demo' | 'login'>('demo')
   const [mobileCompanionOpen, setMobileCompanionOpen] = useState(false)
   const [legalModalType, setLegalModalType] = useState<LegalDocType | null>(null)
 
@@ -46,26 +45,35 @@ export function App() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       if (params.get('pin') || params.get('code') || params.get('mode') === 'receiver') {
-        setInitialWorkspaceTab('receive')
         // Smoothly scroll down to workspace for direct receiving
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           const el = document.getElementById('workspace')
           if (el) {
             el.scrollIntoView({ behavior: 'smooth' })
           }
         }, 150)
+        return () => clearTimeout(timer)
       }
     }
   }, [])
 
-  const handleOpenDemo = () => {
-    setModalMode('demo')
+  const handleOpenClaimPin = () => {
     setModalOpen(true)
   }
 
-  const handleOpenLogin = () => {
-    setModalMode('login')
-    setModalOpen(true)
+  const handleClaimPin = (pin: string) => {
+    setModalOpen(false)
+    if (currentPage !== 'home') {
+      setCurrentPage('home')
+    }
+    setInitialWorkspaceTab('receive')
+    window.history.replaceState(null, '', `/?pin=${pin}#workspace`)
+    setTimeout(() => {
+      const el = document.getElementById('workspace')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+      }
+    }, 100)
   }
 
   const handleNavigate = (page: NavPageType) => {
@@ -79,8 +87,7 @@ export function App() {
       <Navigation
         currentPage={currentPage}
         onNavigate={handleNavigate}
-        onOpenDemo={handleOpenDemo}
-        onOpenLogin={handleOpenLogin}
+        onOpenDemo={handleOpenClaimPin}
         onOpenMobileApp={() => setMobileCompanionOpen(true)}
       />
 
@@ -89,7 +96,7 @@ export function App() {
         {currentPage === 'home' && (
           <>
             {/* 1. Hero Section */}
-            <Hero onOpenDemo={handleOpenDemo} />
+            <Hero onOpenDemo={handleOpenClaimPin} />
 
             {/* 2. Interactive W2W Share Live Terminal Workspace */}
             <W2WWorkspace
@@ -162,10 +169,10 @@ export function App() {
             <HowItWorks />
 
             {/* 9. FAQ Accordion Section */}
-            <FaqSection />
+            <FaqSection onNavigate={handleNavigate} />
 
             {/* 10. Bottom Drafting CTA */}
-            <CtaSection onOpenDemo={handleOpenDemo} />
+            <CtaSection onOpenDemo={handleOpenClaimPin} />
           </>
         )}
 
@@ -192,11 +199,11 @@ export function App() {
         onOpenLegal={(doc) => setLegalModalType(doc)}
       />
 
-      {/* Interactive Demo & Login Modal */}
+      {/* Interactive Quick Claim PIN Modal */}
       <BookDemoModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        mode={modalMode}
+        onClaim={handleClaimPin}
       />
 
       {/* Legal & Compliance Modal */}

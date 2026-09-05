@@ -42,12 +42,49 @@ public class StorageService implements IStorageService {
         try {
             rootStoragePath = Paths.get(tempDirPath).toAbsolutePath().normalize();
             Files.createDirectories(rootStoragePath);
+            reconcileStartupStorage();
             log.info("Initialized ephemeral encrypted storage directory at: {}", rootStoragePath);
         } catch (IOException e) {
             log.error("Failed to initialize temporary storage directory: {}", tempDirPath, e);
             throw new RuntimeException("Could not initialize storage directory", e);
         }
     }
+
+    /**
+     * Purges orphaned session directories left over from previous unexpected JVM shutdowns or crashes.
+     */
+    private void reconcileStartupStorage() {
+        if (!Files.exists(rootStoragePath)) return;
+        try (Stream<Path> stream = Files.list(rootStoragePath)) {
+            int purged = 0;
+            for (Path sessionDir : stream.toList()) {
+                if (Files.isDirectory(sessionDir)) {
+                    deleteDirectoryRecursively(sessionDir);
+                    purged++;
+                }
+            }
+            if (purged > 0) {
+                log.info("Reconciled temporary storage: purged {} stale session directories on startup.", purged);
+            }
+        } catch (Exception e) {
+            log.warn("Notice during startup storage reconciliation: {}", e.getMessage());
+        }
+    }
+
+    private void deleteDirectoryRecursively(Path dir) {
+        try (Stream<Path> s = Files.walk(dir)) {
+            s.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException _) {
+                    // Best-effort file deletion during startup reconciliation
+                }
+            });
+        } catch (Exception _) {
+            // Best-effort directory cleanup during startup reconciliation
+        }
+    }
+
 
     @PreDestroy
     @Override
@@ -109,7 +146,7 @@ public class StorageService implements IStorageService {
 
             usedStorageBytes.addAndGet(data.length);
 
-            sessionFiles.computeIfAbsent(sessionId, k -> ConcurrentHashMap.newKeySet())
+            sessionFiles.computeIfAbsent(sessionId, _ -> ConcurrentHashMap.newKeySet())
                     .add(finalChunkPath.toString());
 
         } catch (IOException e) {
@@ -171,6 +208,7 @@ public class StorageService implements IStorageService {
             Path chunkPath = rootStoragePath.resolve(sessionId).resolve(FILE_PREFIX + fileIndex).resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT).normalize();
             return chunkPath.startsWith(rootStoragePath) && Files.exists(chunkPath);
         } catch (Exception _) {
+            // Path traversal attempt or invalid format yields false
             return false;
         }
     }
@@ -206,7 +244,7 @@ public class StorageService implements IStorageService {
         if (sessionId == null || sessionId.isBlank()) return;
         try {
             validateSessionId(sessionId);
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.warn("Skipping cleanup for invalid session ID format: {}", sessionId);
             return;
         }

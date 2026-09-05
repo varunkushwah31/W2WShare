@@ -22,6 +22,14 @@
   --font-mono: 'Geist Mono', 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+@utility grid-rows-0 {
+  grid-template-rows: 0fr;
+}
+
+@utility grid-rows-1 {
+  grid-template-rows: 1fr;
+}
+
 :root {
   /* Blueprint Theme Tokens */
   --color-void: #000000;
@@ -36,7 +44,7 @@
   --font-raveo-variable: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-geist-mono: 'Geist Mono', 'JetBrains Mono Variable', monospace;
 
-  /* Shadcn / Radix variables mapped to Index Blueprint theme */
+  /* Shad-cn / Radix variables mapped to Index Blueprint theme */
   --background: #000000;
   --foreground: #ffffff;
   --card: #1c1c1c;

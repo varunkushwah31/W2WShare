@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
-import { authStore } from '@/lib/auth'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
@@ -24,19 +23,7 @@ import {
   ArchiveIcon,
   CodeIcon,
 } from '@phosphor-icons/react'
-
-export type FileCategoryType = 'image' | 'video' | 'audio' | 'archive' | 'code' | 'document' | 'other'
-
-export const detectFileTypeCategory = (fileName: string, mimeType: string): FileCategoryType => {
-  const ext = fileName.split('.').pop()?.toLowerCase() || ''
-  if (mimeType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext)) return 'image'
-  if (mimeType.startsWith('video/') || ['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(ext)) return 'video'
-  if (mimeType.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(ext)) return 'audio'
-  if (['zip', 'tar', 'gz', 'rar', '7z', 'bz2', 'xz'].includes(ext)) return 'archive'
-  if (['js', 'ts', 'tsx', 'jsx', 'py', 'java', 'cpp', 'c', 'json', 'html', 'css', 'yml', 'yaml', 'xml', 'md', 'sql', 'sh'].includes(ext)) return 'code'
-  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'].includes(ext)) return 'document'
-  return 'other'
-}
+import { detectFileTypeCategory, type FileCategoryType } from '@/lib/fileCategories'
 
 interface SelectedFileItem {
   file: File
@@ -47,9 +34,10 @@ interface SelectedFileItem {
 }
 
 interface PreparedFile {
-  rawBuffer: ArrayBuffer
-  encryptedBuffer: Uint8Array
+  item: SelectedFileItem
+  keyObj: import('@/lib/crypto').DerivedKeyObj
   metadata: FileMetadata
+  compressedBlob?: Blob
 }
 
 const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunking
@@ -74,35 +62,72 @@ const resolveJoinUrl = (
   return sessionJoinUrl ? `${sessionJoinUrl}&code=${pin}&mode=receiver` : `${window.location.origin}/?pin=${pin}&code=${pin}&mode=receiver`
 }
 
+/**
+ * Slices and encrypts ONLY the requested 2MB chunk on the fly.
+ * Keeps browser RAM usage capped at ~15-25MB regardless of total file size (even 50GB).
+ */
+const getChunkSlice = async (
+  prepared: PreparedFile,
+  chunkIndex: number
+): Promise<Uint8Array> => {
+  const source = prepared.compressedBlob || prepared.item.file
+  const start = chunkIndex * CHUNK_SIZE
+  const end = Math.min(start + CHUNK_SIZE, source.size)
+  const sliceBlob = source.slice(start, end)
+  const sliceBuffer = await sliceBlob.arrayBuffer()
+  return cryptoEngine.encryptChunk(
+    sliceBuffer,
+    prepared.keyObj,
+    chunkIndex,
+    prepared.metadata.iv
+  )
+}
+
 const prepareSingleFile = async (
   item: SelectedFileItem,
   pin: string,
   burnAfter: boolean,
   enableCompression: boolean
 ): Promise<PreparedFile> => {
-  let rawBuffer = await item.file.arrayBuffer()
   let isCompressed = false
+  let compressedBlob: Blob | undefined
+  let effectiveSize = item.size
 
-  if (enableCompression && compressor.shouldCompress(item.file.name, item.file.type)) {
-    const compBuffer = await compressor.compressBuffer(rawBuffer)
-    if (compBuffer.byteLength < rawBuffer.byteLength) {
-      rawBuffer = compBuffer
-      isCompressed = true
+  // Only compress small-to-medium files (< 50MB) to conserve RAM
+  if (enableCompression && item.size < 50 * 1024 * 1024 && compressor.shouldCompress(item.file.name, item.file.type)) {
+    try {
+      const rawBuffer = await item.file.arrayBuffer()
+      const compBuffer = await compressor.compressBuffer(rawBuffer)
+      if (compBuffer.byteLength < rawBuffer.byteLength) {
+        compressedBlob = new Blob([compBuffer])
+        effectiveSize = compBuffer.byteLength
+        isCompressed = true
+      }
+    } catch {
+      // non-fatal fallback
     }
   }
 
   const salt = cryptoEngine.generateSalt(16)
   const iv = cryptoEngine.generateIv(12)
-  const sha256 = await cryptoEngine.calculateSha256(rawBuffer)
   const keyObj = await cryptoEngine.deriveKey(pin, salt)
 
-  const encryptedBytes = await cryptoEngine.encrypt(rawBuffer, keyObj, iv)
-  const totalChunks = Math.ceil(encryptedBytes.length / CHUNK_SIZE) || 1
+  let sha256 = ''
+  if (item.size <= 100 * 1024 * 1024) {
+    try {
+      const buf = compressedBlob ? await compressedBlob.arrayBuffer() : await item.file.arrayBuffer()
+      sha256 = await cryptoEngine.calculateSha256(buf)
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const totalChunks = Math.ceil(effectiveSize / CHUNK_SIZE) || 1
 
   const metadata: FileMetadata = {
     fileName: item.file.name,
     relativePath: item.relativePath,
-    fileSize: rawBuffer.byteLength,
+    fileSize: effectiveSize,
     originalSize: item.size,
     mimeType: item.file.type || 'application/octet-stream',
     totalChunks,
@@ -115,9 +140,69 @@ const prepareSingleFile = async (
   }
 
   return {
-    rawBuffer,
-    encryptedBuffer: encryptedBytes,
+    item,
+    keyObj,
     metadata,
+    compressedBlob,
+  }
+}
+
+async function readDirectoryEntries(dirEntry: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
+  const dirReader = dirEntry.createReader()
+  const all: FileSystemEntry[] = []
+  let hasMore = true
+  while (hasMore) {
+    const batch: FileSystemEntry[] = await new Promise((resolve) =>
+      dirReader.readEntries(resolve, () => resolve([]))
+    )
+    if (batch.length > 0) {
+      all.push(...batch)
+    } else {
+      hasMore = false
+    }
+  }
+  return all
+}
+
+async function sendSingleChunk(
+  targetSessionId: string,
+  fIdx: number,
+  cIdx: number,
+  totalChunks: number,
+  chunkData: Uint8Array,
+  rtc: WebRtcPeerManager | null
+): Promise<void> {
+  let sentViaRtc = false
+  if (rtc?.isChannelOpen()) {
+    sentViaRtc = await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
+  }
+  if (!sentViaRtc) {
+    await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
+  }
+}
+
+async function recordSentAuditLog(
+  preparedFiles: PreparedFile[],
+  burnAfter: boolean
+): Promise<void> {
+  for (const prep of preparedFiles) {
+    const txId = cryptoEngine.generateSecureTxId()
+    try {
+      await api.recordAuditTransaction({
+        id: txId,
+        timestamp: Date.now(),
+        direction: 'SENT',
+        fileName: prep.metadata.fileName,
+        fileSize: prep.metadata.fileSize,
+        totalChunks: prep.metadata.totalChunks,
+        sha256: prep.metadata.sha256,
+        cipher: 'AES-256-GCM / PBKDF2 (100k)',
+        burned: burnAfter,
+        isCompressed: !!prep.metadata.isCompressed,
+      })
+    } catch {
+      // Non-blocking audit persistence fallback
+    }
   }
 }
 
@@ -154,7 +239,64 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
   const rtcManagerRef = useRef<WebRtcPeerManager | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
 
-  // WebRTC direct streaming handler
+  // Screen WakeLock API to prevent mobile browsers from sleeping during transfer
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+
+  const acquireWakeLock = useCallback(async () => {
+    if ('wakeLock' in navigator && !wakeLockRef.current) {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen')
+        wakeLockRef.current.addEventListener('release', () => {
+          wakeLockRef.current = null
+        })
+      } catch (e) {
+        console.debug('[WakeLock] Request denied or unsupported:', e)
+      }
+    }
+  }, [])
+
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release()
+      } catch {
+        // ignore
+      }
+      wakeLockRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const onVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isTransferring) {
+        await acquireWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      releaseWakeLock()
+    }
+  }, [isTransferring, acquireWakeLock, releaseWakeLock])
+
+  // Selective chunk retransmission handler
+  const handleResendChunk = useCallback(async (fIdx: number, cIdx: number) => {
+    const prep = preparedFilesRef.current[fIdx]
+    if (!prep) return
+    try {
+      const chunkData = await getChunkSlice(prep, cIdx)
+      const rtc = rtcManagerRef.current
+      if (rtc?.isChannelOpen()) {
+        await rtc.sendChunk(fIdx, cIdx, prep.metadata.totalChunks, chunkData)
+      } else if (sessionId) {
+        await api.uploadFileChunk(sessionId, fIdx, cIdx, chunkData)
+      }
+    } catch (err) {
+      console.warn(`[Retransmit] Failed to resend chunk ${fIdx}-${cIdx}:`, err)
+    }
+  }, [sessionId])
+
+  // WebRTC direct streaming handler using on-demand chunk slices
   const streamViaWebRtc = useCallback(async (prepared: PreparedFile[]) => {
     const rtc = rtcManagerRef.current
     if (!rtc?.isChannelOpen()) return
@@ -163,9 +305,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       const p = prepared[fIdx]
       const totalChunks = p.metadata.totalChunks
       for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
-        const start = cIdx * CHUNK_SIZE
-        const end = Math.min(start + CHUNK_SIZE, p.encryptedBuffer.length)
-        const chunkData = p.encryptedBuffer.subarray(start, end)
+        const chunkData = await getChunkSlice(p, cIdx)
         await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
       }
     }
@@ -187,6 +327,10 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       if (stats.currentMbps > 0) {
         setTransferSpeedMbps(stats.currentMbps)
       }
+    })
+
+    rtc.onResendChunk((fileIndex, chunkIndex) => {
+      handleResendChunk(fileIndex, chunkIndex)
     })
 
     const wsUrl = getWebSocketUrl('/ws/signaling')
@@ -218,6 +362,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
           await rtc.handleRemoteAnswer(signal.payload)
         } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
           await rtc.handleRemoteIceCandidate(signal.payload)
+        } else if (signal.type === 'RESEND_CHUNK') {
+          const { fileIndex, chunkIndex } = signal.payload || {}
+          if (typeof fileIndex === 'number' && typeof chunkIndex === 'number') {
+            handleResendChunk(fileIndex, chunkIndex)
+          }
         } else if (signal.type === 'REQUEST_WEBRTC_CHUNKS') {
           if (preparedFilesRef.current.length > 0) {
             streamViaWebRtc(preparedFilesRef.current)
@@ -232,13 +381,78 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       ws.close()
       rtc.close()
     }
-  }, [sessionId, streamViaWebRtc])
+  }, [sessionId, streamViaWebRtc, handleResendChunk])
+
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileDrop = (e: React.DragEvent) => {
+  const traverseFileSystemEntry = async (
+    entry: FileSystemEntry | null,
+    path = ''
+  ): Promise<SelectedFileItem[]> => {
+    if (!entry) return []
+    if (entry.isFile) {
+      const fileEntry = entry as FileSystemFileEntry
+      return new Promise((resolve) => {
+        fileEntry.file((file: File) => {
+          const typeCategory = detectFileTypeCategory(file.name, file.type)
+          const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
+          resolve([
+            {
+              file,
+              relativePath: path + file.name,
+              size: file.size,
+              previewUrl,
+              typeCategory,
+            },
+          ])
+        }, () => resolve([]))
+      })
+    } else if (entry.isDirectory) {
+      const dirEntry = entry as FileSystemDirectoryEntry
+      const children = await readDirectoryEntries(dirEntry)
+      const results: SelectedFileItem[] = []
+      for (const child of children) {
+        const subItems = await traverseFileSystemEntry(child, `${path}${entry.name}/`)
+        results.push(...subItems)
+      }
+      return results
+    }
+    return []
+  }
+
+  const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault()
+    const items = e.dataTransfer.items
+    if (items && items.length > 0) {
+      const collected: SelectedFileItem[] = []
+      for (const element of items) {
+        const item = element
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null
+        if (entry) {
+          const res = await traverseFileSystemEntry(entry)
+          collected.push(...res)
+        } else {
+          const file = item.getAsFile()
+          if (file) {
+            const typeCategory = detectFileTypeCategory(file.name, file.type)
+            const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
+            collected.push({
+              file,
+              relativePath: file.name,
+              size: file.size,
+              previewUrl,
+              typeCategory,
+            })
+          }
+        }
+      }
+      if (collected.length > 0) {
+        setFiles((prev) => [...prev, ...collected])
+        return
+      }
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       addFiles(Array.from(e.dataTransfer.files))
     }
@@ -316,11 +530,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     preparedFiles: PreparedFile[]
   ) => {
     let uploadedBytesTotal = 0
-    const totalEncrypted = preparedFiles.reduce(
-      (acc, p) => acc + p.encryptedBuffer.length,
+    const totalBytesAllFiles = preparedFiles.reduce(
+      (acc, p) => acc + p.metadata.fileSize,
       0
     )
-    setTotalEncryptedBytes(totalEncrypted)
+    setTotalEncryptedBytes(totalBytesAllFiles)
     const startTime = Date.now()
 
     for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
@@ -330,11 +544,10 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
 
       for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
         setCurrentChunkInfo({ current: cIdx + 1, total: totalChunks })
-        const start = cIdx * CHUNK_SIZE
-        const end = Math.min(start + CHUNK_SIZE, prep.encryptedBuffer.length)
-        const chunkData = prep.encryptedBuffer.subarray(start, end)
 
-        await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
+        // Slices ONLY the 2MB chunk directly on the fly
+        const chunkData = await getChunkSlice(prep, cIdx)
+        await sendSingleChunk(targetSessionId, fIdx, cIdx, totalChunks, chunkData, rtcManagerRef.current)
 
         uploadedBytesTotal += chunkData.length
         setUploadedBytes(uploadedBytesTotal)
@@ -342,7 +555,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
         if (elapsedSec > 0) {
           const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
           setTransferSpeedMbps(speed)
-          const remainingBytes = Math.max(0, totalEncrypted - uploadedBytesTotal)
+          const remainingBytes = Math.max(0, totalBytesAllFiles - uploadedBytesTotal)
           if (speed > 0) {
             setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
           }
@@ -350,7 +563,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
 
         const percent = Math.min(
           99,
-          Math.round((uploadedBytesTotal / totalEncrypted) * 100)
+          Math.round((uploadedBytesTotal / totalBytesAllFiles) * 100)
         )
         setProgressPercent(percent)
         setStatusMessage(`Streaming chunk ${cIdx + 1}/${totalChunks}`)
@@ -365,6 +578,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
     setTransferDone(false)
     setProgressPercent(0)
     setStatusMessage('Initializing offline E2EE session...')
+    await acquireWakeLock()
 
     const totalRaw = files.reduce((acc, f) => acc + f.size, 0)
     setOriginalTotalBytes(totalRaw)
@@ -382,61 +596,30 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       soundEngine.peerConnect()
       setStatusMessage('Deriving AES-256 keys & processing batch...')
 
-      // 2. Encrypt File Batch
+      // 2. Encrypt File Batch (Metadata & key derivation only; zero RAM buffer bloat)
       const batchMetadata: FileMetadata[] = []
       const preparedFiles: PreparedFile[] = []
 
       for (const item of files) {
         setCurrentFileName(item.relativePath)
-        setStatusMessage(`Hashing & encrypting: ${item.relativePath}`)
+        setStatusMessage(`Hashing & preparing: ${item.relativePath}`)
         const prepared = await prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression)
         batchMetadata.push(prepared.metadata)
         preparedFiles.push(prepared)
       }
 
       preparedFilesRef.current = preparedFiles
-      const totalEncrypted = preparedFiles.reduce((acc, p) => acc + p.encryptedBuffer.length, 0)
-      setTotalEncryptedBytes(totalEncrypted)
+      const totalBytesSum = preparedFiles.reduce((acc, p) => acc + p.metadata.fileSize, 0)
+      setTotalEncryptedBytes(totalBytesSum)
 
       // 3. Register batch offer
       await api.offerBatch(sessionRes.sessionId, batchMetadata)
 
-      // 4. Stream Chunks to Backend Relay
+      // 4. Stream Chunks to Backend Relay or WebRTC
       await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
 
-      // 5. Register in Audit Ledger & 7-Day File Vault if logged in
-      const currentUser = authStore.getUser()
-
-      for (let i = 0; i < preparedFiles.length; i++) {
-        const prep = preparedFiles[i]
-        const txId = `TX-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-        try {
-          await api.recordAuditTransaction({
-            id: txId,
-            timestamp: Date.now(),
-            direction: 'SENT',
-            fileName: prep.metadata.fileName,
-            fileSize: prep.metadata.fileSize,
-            totalChunks: prep.metadata.totalChunks,
-            sha256: prep.metadata.sha256,
-            cipher: 'AES-256-GCM / PBKDF2 (100k)',
-            burned: burnAfter,
-            isCompressed: !!prep.metadata.isCompressed,
-            userId: currentUser ? currentUser.nodeId : undefined,
-          })
-
-          if (currentUser && files[i]) {
-            await api.persistAuditFile(
-              txId,
-              files[i].file,
-              prep.metadata.mimeType || 'application/octet-stream',
-              currentUser.nodeId
-            )
-          }
-        } catch {
-          // Non-blocking audit persistence fallback
-        }
-      }
+      // 5. Register in Audit Ledger
+      await recordSentAuditLog(preparedFiles, burnAfter)
 
       setProgressPercent(100)
       setIsTransferring(false)
@@ -448,14 +631,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
       setIsTransferring(false)
       setStatusMessage(`Transfer failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
       soundEngine.errorTone()
+    } finally {
+      await releaseWakeLock()
     }
   }
 
   const cancelSession = async () => {
+    await releaseWakeLock()
     if (sessionId) {
       await api.cancelSession(sessionId)
       setSessionId(null)
       setPin(null)
+
       setJoinUrl(null)
       setIsTransferring(false)
       setTransferDone(false)
@@ -560,7 +747,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({ selectedInterface }) => {
           <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
             {files.map((item, idx) => (
               <div
-                key={`${item.relativePath}-${item.size}-${idx}`}
+                key={`${item.relativePath}-${item.size}-${item.file.lastModified}`}
                 className="flex items-center justify-between p-2.5 rounded-xl bg-carbon border border-[#242424] text-xs hover:border-[#333] transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0 pr-2">

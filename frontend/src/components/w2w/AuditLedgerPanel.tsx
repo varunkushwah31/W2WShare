@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react'
 import {api, type AuditRecord} from '@/lib/api'
-import {authStore, type AuthUser} from '@/lib/auth'
 import {soundEngine} from '@/lib/sound'
 import {
   ArrowDownLeftIcon,
@@ -12,9 +11,49 @@ import {
   MagnifyingGlassIcon,
   ShieldCheckIcon,
   TrashIcon,
-  UserCheckIcon,
   WarningCircleIcon,
 } from '@phosphor-icons/react'
+
+const FILTER_LABELS: Record<'ALL' | 'SENT' | 'RECEIVED', string> = {
+  ALL: 'All',
+  SENT: 'Sent',
+  RECEIVED: 'Received',
+}
+
+const readFallbackRecords = (): AuditRecord[] => {
+  const stored = localStorage.getItem('w2w_audit_ledger')
+  if (!stored) return []
+  try {
+    return JSON.parse(stored) as AuditRecord[]
+  } catch {
+    return []
+  }
+}
+
+const getDownloadTitle = (canDownload: boolean, isPersisted: boolean): string => {
+  if (canDownload) return 'Download stored file payload'
+  if (isPersisted) return 'File has expired after 7 days and was deleted from the database'
+  return 'File was shared in guest mode (not persisted in 7-day vault)'
+}
+
+const renderRetentionBadge = (isPersisted: boolean, isExpired: boolean, daysRemaining?: number) => {
+  if (!isPersisted) {
+    return <span className="text-[10px] text-[#666]">Ephemeral</span>
+  }
+  if (isExpired) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] text-[#eb5757] bg-[#eb5757]/10 px-2 py-0.5 rounded border border-[#eb5757]/20">
+        <span>Expired (7d)</span>
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+      <ClockIcon className="w-3 h-3" />
+      <span>{daysRemaining ? `${daysRemaining}d left` : '7d Vault'}</span>
+    </span>
+  )
+}
 
 export const AuditLedgerPanel: React.FC = () => {
   const [records, setRecords] = useState<AuditRecord[]>([])
@@ -22,12 +61,7 @@ export const AuditLedgerPanel: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | 'SENT' | 'RECEIVED'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
-  const [user, setUser] = useState<AuthUser | null>(() => authStore.getUser())
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-
-  useEffect(() => {
-    return authStore.subscribe((u) => setUser(u))
-  }, [])
 
   const loadLedger = useCallback(async () => {
     setLoading(true)
@@ -38,23 +72,10 @@ export const AuditLedgerPanel: React.FC = () => {
         setRecords(serverRecords)
         localStorage.setItem('w2w_audit_ledger', JSON.stringify(serverRecords))
       } else {
-        // Fallback to local storage if empty
-        const stored = localStorage.getItem('w2w_audit_ledger')
-        if (stored) {
-          setRecords(JSON.parse(stored))
-        } else {
-          setRecords([])
-        }
+        setRecords(readFallbackRecords())
       }
     } catch {
-      const stored = localStorage.getItem('w2w_audit_ledger')
-      if (stored) {
-        try {
-          setRecords(JSON.parse(stored))
-        } catch {
-          setRecords([])
-        }
-      }
+      setRecords(readFallbackRecords())
     } finally {
       setLoading(false)
     }
@@ -70,23 +91,11 @@ export const AuditLedgerPanel: React.FC = () => {
           setRecords(serverRecords)
           localStorage.setItem('w2w_audit_ledger', JSON.stringify(serverRecords))
         } else {
-          const stored = localStorage.getItem('w2w_audit_ledger')
-          if (stored) {
-            setRecords(JSON.parse(stored))
-          } else {
-            setRecords([])
-          }
+          setRecords(readFallbackRecords())
         }
       } catch {
         if (!mounted) return
-        const stored = localStorage.getItem('w2w_audit_ledger')
-        if (stored) {
-          try {
-            setRecords(JSON.parse(stored))
-          } catch {
-            setRecords([])
-          }
-        }
+        setRecords(readFallbackRecords())
       } finally {
         if (mounted) {
           setLoading(false)
@@ -99,7 +108,7 @@ export const AuditLedgerPanel: React.FC = () => {
     return () => {
       mounted = false
     }
-  }, [user])
+  }, [])
 
   const handleDownloadReceipt = async (record: AuditRecord) => {
     try {
@@ -128,7 +137,7 @@ export const AuditLedgerPanel: React.FC = () => {
       a.download = `audit-receipt-${record.id}.json`
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
+      a.remove()
       URL.revokeObjectURL(url)
       soundEngine.peerConnect()
     } catch {
@@ -190,22 +199,15 @@ export const AuditLedgerPanel: React.FC = () => {
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20">
               IMMUTABLE TRANSACTION LOG
             </span>
-            {user ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <UserCheckIcon className="w-3 h-3" />
-                <span>7-Day Vault Active ({user.nodeId})</span>
-              </span>
-            ) : (
-              <span className="text-[10px] font-mono text-steel bg-[#222] px-2 py-0.5 rounded-full">
-                Guest Mode · Log in to enable 7-day persistence
-              </span>
-            )}
+            <span className="text-[10px] font-mono text-steel bg-[#222] px-2.5 py-0.5 rounded-full border border-[#333]">
+              Local Offline Ledger
+            </span>
           </div>
           <h3 className="text-xl font-bold text-white font-sans">
             Cryptographic Audit Ledger
           </h3>
           <p className="text-xs text-steel">
-            Full forensic integrity trail. Shared files for logged-in users are retained for 7 days in the database.
+            Full forensic integrity trail. Download cryptographically signed JSON receipts for verified transfers.
           </p>
         </div>
 
@@ -278,7 +280,7 @@ export const AuditLedgerPanel: React.FC = () => {
                   : 'text-steel hover:text-white'
               }`}
             >
-              {type === 'ALL' ? 'All' : type === 'SENT' ? 'Sent' : 'Received'}
+              {FILTER_LABELS[type]}
             </button>
           ))}
         </div>
@@ -310,6 +312,7 @@ export const AuditLedgerPanel: React.FC = () => {
                   const isPersisted = !!r.isPersisted
                   const isExpired = !!r.isExpired || !!r.isDeleted
                   const canDownload = isPersisted && !isExpired
+                  const downloadTitle = getDownloadTitle(canDownload, isPersisted)
 
                   return (
                     <tr key={r.id} className="hover:bg-[#181818] transition-colors">
@@ -337,22 +340,7 @@ export const AuditLedgerPanel: React.FC = () => {
                         {formatBytes(r.fileSize)} ({r.totalChunks || 1}c)
                       </td>
                       <td className="py-3.5 px-4">
-                        {isPersisted ? (
-                          !isExpired ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                              <ClockIcon className="w-3 h-3" />
-                              <span>{r.daysRemaining ? `${r.daysRemaining}d left` : '7d Vault'}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-[#eb5757] bg-[#eb5757]/10 px-2 py-0.5 rounded border border-[#eb5757]/20">
-                              <span>Expired (7d)</span>
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-[10px] text-[#666]">
-                            Ephemeral
-                          </span>
-                        )}
+                        {renderRetentionBadge(isPersisted, isExpired, r.daysRemaining)}
                       </td>
                       <td className="py-3.5 px-4 text-steel max-w-30 truncate" title={r.sha256}>
                         {r.sha256 ? `${r.sha256.slice(0, 12)}...` : '—'}
@@ -369,13 +357,7 @@ export const AuditLedgerPanel: React.FC = () => {
                                 ? 'bg-white text-black hover:bg-white/90 cursor-pointer shadow-sm'
                                 : 'border border-[#282828] text-[#555] cursor-not-allowed opacity-50'
                             }`}
-                            title={
-                              canDownload
-                                ? 'Download stored file payload'
-                                : isPersisted
-                                ? 'File has expired after 7 days and was deleted from the database'
-                                : 'File was shared in guest mode (not persisted in 7-day vault)'
-                            }
+                            title={downloadTitle}
                           >
                             {downloadingId === r.id ? (
                               <ArrowsClockwiseIcon className="w-3 h-3 animate-spin" />

@@ -15,7 +15,7 @@ export interface EncryptedTextPayload {
 }
 
 export class W2WCrypto {
-  private hasNativeWebCrypto: boolean
+  private readonly hasNativeWebCrypto: boolean
 
   constructor() {
     this.hasNativeWebCrypto =
@@ -29,7 +29,7 @@ export class W2WCrypto {
     const cleanHex = hex.trim()
     const bytes = new Uint8Array(cleanHex.length / 2)
     for (let i = 0; i < cleanHex.length; i += 2) {
-      bytes[i / 2] = parseInt(cleanHex.substring(i, i + 2), 16)
+      bytes[i / 2] = Number.parseInt(cleanHex.substring(i, i + 2), 16)
     }
     return bytes
   }
@@ -52,18 +52,12 @@ export class W2WCrypto {
 
   getRandomBytes(length: number): Uint8Array {
     const bytes = new Uint8Array(length)
-    if (
-      typeof window !== 'undefined' &&
-      window.crypto &&
-      window.crypto.getRandomValues
-    ) {
-      window.crypto.getRandomValues(bytes)
-    } else {
-      for (let i = 0; i < length; i++) {
-        bytes[i] = Math.floor(Math.random() * 256)
-      }
+    const cryptoObj = typeof globalThis !== 'undefined' ? globalThis.crypto : (typeof window !== 'undefined' ? window.crypto : null)
+    if (cryptoObj?.getRandomValues) {
+      cryptoObj.getRandomValues(bytes)
+      return bytes
     }
-    return bytes
+    throw new Error('Cryptographically secure PRNG is not available in this environment.')
   }
 
   generateSalt(length = 16): string {
@@ -72,6 +66,62 @@ export class W2WCrypto {
 
   generateIv(length = 12): string {
     return this.bytesToHex(this.getRandomBytes(length))
+  }
+
+  generateSecureTxId(): string {
+    const bytes = this.getRandomBytes(4)
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').toUpperCase()
+    return `TX-${hex.slice(0, 4)}-${hex.slice(4, 8)}`
+  }
+
+  /**
+   * Deterministically derive a unique 12-byte IV for each chunk by encoding
+   * the 32-bit chunkIndex into the last 4 bytes of the base IV.
+   */
+  getChunkIv(baseIv: string, chunkIndex: number): string {
+    const ivBytes = this.hexToBytes(baseIv)
+    let workingBytes = ivBytes
+    if (ivBytes.length < 12) {
+      workingBytes = new Uint8Array(12)
+      workingBytes.set(ivBytes)
+    }
+    const result = new Uint8Array(workingBytes)
+    const offset = result.length - 4
+    const c0 = (chunkIndex >>> 24) & 0xff
+    const c1 = (chunkIndex >>> 16) & 0xff
+    const c2 = (chunkIndex >>> 8) & 0xff
+    const c3 = chunkIndex & 0xff
+    result[offset] ^= c0
+    result[offset + 1] ^= c1
+    result[offset + 2] ^= c2
+    result[offset + 3] ^= c3
+    return this.bytesToHex(result)
+  }
+
+  /**
+   * Encrypt an individual chunk slice with AES-256-GCM using its derived chunk IV
+   */
+  async encryptChunk(
+    chunkBuffer: ArrayBuffer,
+    keyObj: DerivedKeyObj,
+    chunkIndex: number,
+    baseIv: string
+  ): Promise<Uint8Array> {
+    const chunkIvHex = this.getChunkIv(baseIv, chunkIndex)
+    return this.encrypt(chunkBuffer, keyObj, chunkIvHex)
+  }
+
+  /**
+   * Decrypt an individual chunk slice with AES-256-GCM using its derived chunk IV
+   */
+  async decryptChunk(
+    encryptedChunk: ArrayBuffer,
+    keyObj: DerivedKeyObj,
+    chunkIndex: number,
+    baseIv: string
+  ): Promise<Uint8Array> {
+    const chunkIvHex = this.getChunkIv(baseIv, chunkIndex)
+    return this.decrypt(encryptedChunk, keyObj, chunkIvHex)
   }
 
   /**
@@ -290,7 +340,7 @@ export class W2WCrypto {
           this.rotr(W[t - 2], 17) ^
           this.rotr(W[t - 2], 19) ^
           (W[t - 2] >>> 10)
-        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0
+        W[t] = Math.trunc(W[t - 16] + s0 + W[t - 7] + s1)
       }
 
       let a = H0,
@@ -305,29 +355,29 @@ export class W2WCrypto {
       for (let t = 0; t < 64; t++) {
         const S1 = this.rotr(e, 6) ^ this.rotr(e, 11) ^ this.rotr(e, 25)
         const ch = (e & f) ^ (~e & g)
-        const temp1 = (h + S1 + ch + K[t] + W[t]) | 0
+        const temp1 = Math.trunc(h + S1 + ch + K[t] + W[t])
         const S0 = this.rotr(a, 2) ^ this.rotr(a, 13) ^ this.rotr(a, 22)
         const maj = (a & b) ^ (a & c) ^ (b & c)
-        const temp2 = (S0 + maj) | 0
+        const temp2 = Math.trunc(S0 + maj)
 
         h = g
         g = f
         f = e
-        e = (d + temp1) | 0
+        e = Math.trunc(d + temp1)
         d = c
         c = b
         b = a
-        a = (temp1 + temp2) | 0
+        a = Math.trunc(temp1 + temp2)
       }
 
-      H0 = (H0 + a) | 0
-      H1 = (H1 + b) | 0
-      H2 = (H2 + c) | 0
-      H3 = (H3 + d) | 0
-      H4 = (H4 + e) | 0
-      H5 = (H5 + f) | 0
-      H6 = (H6 + g) | 0
-      H7 = (H7 + h) | 0
+      H0 = Math.trunc(H0 + a)
+      H1 = Math.trunc(H1 + b)
+      H2 = Math.trunc(H2 + c)
+      H3 = Math.trunc(H3 + d)
+      H4 = Math.trunc(H4 + e)
+      H5 = Math.trunc(H5 + f)
+      H6 = Math.trunc(H6 + g)
+      H7 = Math.trunc(H7 + h)
     }
 
     const out = new Uint8Array(32)

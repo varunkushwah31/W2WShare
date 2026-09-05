@@ -152,24 +152,35 @@ export interface AuditReceipt {
   signature_verification: string
 }
 
-export interface NodeAuthResponse {
-  authenticated: boolean
-  nodeId: string
-  status: string
-  keystoreStatus: string
+
+const DEFAULT_OFFLINE_IP = '192.168.1.105'
+
+function stripTrailingSlashes(str: string): string {
+  let s = str.trim()
+  while (s.endsWith('/')) {
+    s = s.slice(0, -1)
+  }
+  return s
 }
 
-const RAW_BACKEND_URL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '').trim().replace(/\/+$/, '')
-export const API_BASE = RAW_BACKEND_URL
-  ? (RAW_BACKEND_URL.endsWith('/api') ? RAW_BACKEND_URL : `${RAW_BACKEND_URL}/api`)
-  : '/api'
+function resolveApiBase(backendUrl: string): string {
+  if (!backendUrl) {
+    return '/api'
+  }
+  return backendUrl.endsWith('/api') ? backendUrl : `${backendUrl}/api`
+}
+
+const RAW_BACKEND_URL = stripTrailingSlashes(
+  (import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '') as string
+)
+export const API_BASE = resolveApiBase(RAW_BACKEND_URL)
 
 export function getWebSocketUrl(path = '/ws/signaling'): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
 
   // 1. Explicit VITE_WS_URL
   if (import.meta.env.VITE_WS_URL) {
-    const wsBase = import.meta.env.VITE_WS_URL.trim().replace(/\/+$/, '')
+    const wsBase = stripTrailingSlashes(import.meta.env.VITE_WS_URL)
     return `${wsBase}${cleanPath}`
   }
 
@@ -195,46 +206,49 @@ export const api = {
   async getNetworkInfo(): Promise<NetworkInfoResponse> {
     try {
       const res = await fetch(`${API_BASE}/network/info`)
-      if (!res.ok) throw new Error('Failed to fetch network info')
-      return await res.json()
+      if (res.ok) {
+        return await res.json()
+      }
     } catch {
       // Fallback offline mock for standalone frontend testing
-      return {
-        status: 'ONLINE_LOCAL',
-        primaryUrl: window.location.origin,
-        interfaces: [
-          {
-            name: 'wlan0',
-            displayName: 'Wi-Fi Adapter (Offline P2P)',
-            ip: '192.168.1.105',
-            url: `http://192.168.1.105:${window.location.port || '8080'}`,
-            isLoopback: false,
-            isWifiOrHotspot: true,
-          },
-        ],
-        uptimeSeconds: 3600,
-        version: '1.0.0 (Offline E2EE)',
-      }
+    }
+    return {
+      status: 'ONLINE_LOCAL',
+      primaryUrl: window.location.origin,
+      interfaces: [
+        {
+          name: 'wlan0',
+          displayName: 'Wi-Fi Adapter (Offline P2P)',
+          ip: DEFAULT_OFFLINE_IP,
+          url: `https://${DEFAULT_OFFLINE_IP}:${window.location.port || '8080'}`,
+          isLoopback: false,
+          isWifiOrHotspot: true,
+        },
+      ],
+      uptimeSeconds: 3600,
+      version: '1.0.0 (Offline E2EE)',
     }
   },
 
   async getNetworkDiagnostics(): Promise<NetworkDiagnosticsResponse> {
     try {
       const res = await fetch(`${API_BASE}/network/diagnostics`)
-      if (!res.ok) throw new Error('Failed to fetch diagnostics')
-      return await res.json()
-    } catch {
-      return {
-        activeNetworkMode: 'OFFLINE_LOCAL',
-        udpDiscoveryActive: false,
-        udpDiscoveryPort: 8888,
-        apIsolationSuspected: false,
-        apIsolationStatusMessage: 'Running in offline standalone mode.',
-        recommendedMode: 'OFFLINE_HOTSPOT',
-        interfaces: [],
-        localIp: '127.0.0.1',
-        primaryUrl: 'http://localhost:8080',
+      if (res.ok) {
+        return await res.json()
       }
+    } catch {
+      // Fallback when backend is unreachable
+    }
+    return {
+      activeNetworkMode: 'OFFLINE_LOCAL',
+      udpDiscoveryActive: false,
+      udpDiscoveryPort: 8888,
+      apIsolationSuspected: false,
+      apIsolationStatusMessage: 'Running in offline standalone mode.',
+      recommendedMode: 'OFFLINE_HOTSPOT',
+      interfaces: [],
+      localIp: '127.0.0.1',
+      primaryUrl: 'http://localhost:8080',
     }
   },
 
@@ -259,11 +273,13 @@ export const api = {
   async getDiscoveredPeers(): Promise<DiscoveredPeer[]> {
     try {
       const res = await fetch(`${API_BASE}/network/peers`)
-      if (!res.ok) throw new Error('Failed to fetch peers')
-      return await res.json()
+      if (res.ok) {
+        return await res.json()
+      }
     } catch {
-      return []
+      // Fallback when backend is unreachable
     }
+    return []
   },
 
   async getHealth(): Promise<{ status: string }> {
@@ -275,16 +291,6 @@ export const api = {
     }
   },
 
-  // Node Auth
-  async authenticateNode(nodeId: string, token: string): Promise<NodeAuthResponse> {
-    const res = await fetch(`${API_BASE}/enterprise/node-auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nodeId, token }),
-    })
-    if (!res.ok) throw new Error('Authentication failed')
-    return await res.json()
-  },
 
   // Transfer Sessions
   async createSession(req: CreateSessionRequest = {}): Promise<CreateSessionResponse> {
@@ -451,18 +457,19 @@ export const api = {
         ? `${API_BASE}/audit/ledger?userId=${encodeURIComponent(userId)}`
         : `${API_BASE}/audit/ledger`
       const res = await fetch(url)
-      if (!res.ok) throw new Error('Failed to fetch audit ledger')
-      return await res.json()
+      if (res.ok) {
+        return await res.json()
+      }
     } catch {
       // Fallback to localStorage if backend is unreachable
-      try {
-        const stored = localStorage.getItem('w2w_audit_ledger')
-        if (stored) return JSON.parse(stored)
-      } catch {
-        // Ignore
-      }
-      return []
     }
+    try {
+      const stored = localStorage.getItem('w2w_audit_ledger')
+      if (stored) return JSON.parse(stored)
+    } catch {
+      // Ignore
+    }
+    return []
   },
 
   async recordAuditTransaction(record: Partial<AuditRecord>): Promise<AuditRecord> {
@@ -520,7 +527,7 @@ export const api = {
     a.download = fileName || `w2w-download-${transactionId}.bin`
     document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
+    a.remove()
     URL.revokeObjectURL(url)
   },
 

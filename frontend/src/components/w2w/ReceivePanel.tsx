@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
-import { authStore } from '@/lib/auth'
-import { cryptoEngine } from '@/lib/crypto'
+import { cryptoEngine, type DerivedKeyObj } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
 import { WebRtcPeerManager } from '@/lib/webrtc'
 import { ZipArchiver } from '@/lib/zip'
 import { TransferTelemetryChart } from './TransferTelemetryChart'
 import { MediaPreviewModal, type MediaPreviewItem } from './MediaPreviewModal'
-import { detectFileTypeCategory } from './SendPanel'
+import { detectFileTypeCategory } from '@/lib/fileCategories'
 import {
   FileIcon,
   ShieldCheckIcon,
@@ -32,6 +31,97 @@ interface ReceivedFileItem {
   blobUrl: string
   blob: Blob
   verified: boolean
+}
+
+const extractPinCode = (text: string): string => {
+  const match = /\b\d{6}\b/.exec(text)
+  if (match) return match[0]
+  return text.replace(/\D/g, '').slice(0, 6)
+}
+
+const formatEta = (seconds: number): string => {
+  if (seconds < 60) return `${seconds}s`
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+}
+
+async function downloadAndDecryptChunk(
+  sessionId: string,
+  fIdx: number,
+  cIdx: number,
+  keyObj: DerivedKeyObj,
+  meta: FileMetadata,
+  webrtcChunksRef: React.RefObject<Map<string, ArrayBuffer>>,
+  rtcManagerRef: React.RefObject<WebRtcPeerManager | null>
+): Promise<ArrayBuffer> {
+  let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
+  chunkData ??= await api.downloadFileChunk(sessionId, fIdx, cIdx)
+
+  try {
+    const dec = await cryptoEngine.decryptChunk(chunkData, keyObj, cIdx, meta.iv)
+    return dec.buffer as ArrayBuffer
+  } catch (decryptErr) {
+    console.warn(`[Crypto] Chunk ${cIdx} tag verification failed. Requesting retransmission...`, decryptErr)
+  }
+
+  // Attempt selective retransmit via WebRTC
+  if (rtcManagerRef.current?.sendResendRequest(fIdx, cIdx)) {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const resent = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
+    if (resent) {
+      const dec = await cryptoEngine.decryptChunk(resent, keyObj, cIdx, meta.iv)
+      return dec.buffer as ArrayBuffer
+    }
+  }
+
+  // Fallback download from backend HTTP relay
+  const relayChunk = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+  const dec = await cryptoEngine.decryptChunk(relayChunk, keyObj, cIdx, meta.iv)
+  return dec.buffer as ArrayBuffer
+}
+
+async function assembleDecryptedFile(
+  meta: FileMetadata,
+  decryptedChunks: ArrayBuffer[]
+): Promise<ReceivedFileItem> {
+  let finalBlobPart: BlobPart = new Blob(decryptedChunks)
+  if (meta.isCompressed) {
+    const rawBuffer = await (finalBlobPart as Blob).arrayBuffer()
+    finalBlobPart = await compressor.decompressBuffer(rawBuffer)
+  }
+  const blob = new Blob([finalBlobPart], {
+    type: meta.mimeType || 'application/octet-stream',
+  })
+  return {
+    metadata: meta,
+    blobUrl: URL.createObjectURL(blob),
+    blob,
+    verified: true,
+  }
+}
+
+async function recordReceivedAuditLog(
+  results: ReceivedFileItem[],
+  burnAfterReading: boolean
+): Promise<void> {
+  for (const resItem of results) {
+    const txId = cryptoEngine.generateSecureTxId()
+    try {
+      await api.recordAuditTransaction({
+        id: txId,
+        timestamp: Date.now(),
+        direction: 'RECEIVED',
+        fileName: resItem.metadata.fileName,
+        fileSize: resItem.metadata.fileSize,
+        totalChunks: resItem.metadata.totalChunks,
+        sha256: resItem.metadata.sha256,
+        cipher: 'AES-256-GCM / PBKDF2 (100k)',
+        burned: burnAfterReading,
+        isCompressed: !!resItem.metadata.isCompressed,
+      })
+    } catch {
+      // Local logging non-fatal
+    }
+  }
 }
 
 export const ReceivePanel: React.FC = () => {
@@ -90,6 +180,46 @@ export const ReceivePanel: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null)
   const webrtcChunksRef = useRef<Map<string, ArrayBuffer>>(new Map())
 
+  // Screen WakeLock API to prevent mobile phone sleep while receiving large files
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+
+  const acquireWakeLock = React.useCallback(async () => {
+    if ('wakeLock' in navigator && !wakeLockRef.current) {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen')
+        wakeLockRef.current.addEventListener('release', () => {
+          wakeLockRef.current = null
+        })
+      } catch (e) {
+        console.debug('[WakeLock] Request denied or unsupported:', e)
+      }
+    }
+  }, [])
+
+  const releaseWakeLock = React.useCallback(async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release()
+      } catch {
+        // ignore
+      }
+      wakeLockRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const onVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && downloading) {
+        await acquireWakeLock()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      releaseWakeLock()
+    }
+  }, [downloading, acquireWakeLock, releaseWakeLock])
+
   const handleLookup = React.useCallback(async (lookupPin: string) => {
     const cleanPin = lookupPin.trim()
     if (cleanPin.length !== 6) {
@@ -131,8 +261,6 @@ export const ReceivePanel: React.FC = () => {
     const urlParams = new URLSearchParams(window.location.search)
     const codeParam = urlParams.get('pin') || urlParams.get('code')
     if (codeParam?.length === 6) {
-      setPinDigits(codeParam.split(''))
-      setPinInput(codeParam)
       const timer = setTimeout(() => {
         handleLookup(codeParam)
       }, 50)
@@ -167,8 +295,7 @@ export const ReceivePanel: React.FC = () => {
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault()
     const text = e.clipboardData.getData('text')
-    const match = new RegExp(/\b\d{6}\b/).exec(text) || text.replace(/\D/g, '').slice(0, 6)
-    const code = typeof match === 'string' ? match : (match ? match[0] : '')
+    const code = extractPinCode(text)
     if (code.length === 6) {
       const digits = code.split('')
       setPinDigits(digits)
@@ -181,8 +308,7 @@ export const ReceivePanel: React.FC = () => {
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText()
-      const match = new RegExp(/\b\d{6}\b/).exec(text) || text.replace(/\D/g, '').slice(0, 6)
-      const code = typeof match === 'string' ? match : (match ? match[0] : '')
+      const code = extractPinCode(text)
       if (code.length === 6) {
         const digits = code.split('')
         setPinDigits(digits)
@@ -282,6 +408,7 @@ export const ReceivePanel: React.FC = () => {
     setDownloadPercent(0)
     setErrorMsg(null)
     setStatusText('Deriving cryptographic keys...')
+    await acquireWakeLock()
 
     const totalChunksAllFiles = batchMetadata.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
     setTotalChunksCount(totalChunksAllFiles)
@@ -298,16 +425,24 @@ export const ReceivePanel: React.FC = () => {
         const keyObj = await cryptoEngine.deriveKey(activePin, meta.salt)
         const totalChunks = meta.totalChunks || 1
 
-        const chunkBuffers: ArrayBuffer[] = []
+        const decryptedChunks: ArrayBuffer[] = []
 
         for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
           setCurrentChunkIndex(cIdx + 1)
-          setStatusText(`Downloading chunk ${cIdx + 1}/${totalChunks} (${meta.fileName})`)
+          setStatusText(`Downloading & authenticating chunk ${cIdx + 1}/${totalChunks} (${meta.fileName})`)
 
-          let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
-          chunkData ??= await api.downloadFileChunk(sessionId, fIdx, cIdx);
-          chunkBuffers.push(chunkData)
-          downloadedBytesTotal += chunkData.byteLength
+          const decryptedChunk = await downloadAndDecryptChunk(
+            sessionId,
+            fIdx,
+            cIdx,
+            keyObj,
+            meta,
+            webrtcChunksRef,
+            rtcManagerRef
+          )
+
+          decryptedChunks.push(decryptedChunk)
+          downloadedBytesTotal += decryptedChunk.byteLength
           setTransferredBytes(downloadedBytesTotal)
 
           const elapsedSec = (Date.now() - startTime) / 1000
@@ -327,46 +462,9 @@ export const ReceivePanel: React.FC = () => {
           setDownloadPercent(Math.min(99, totalProgress))
         }
 
-        // Assemble encrypted buffer
-        const totalEncryptedLength = chunkBuffers.reduce((acc, c) => acc + c.byteLength, 0)
-        const combinedEncrypted = new Uint8Array(totalEncryptedLength)
-        let offset = 0
-        for (const buf of chunkBuffers) {
-          combinedEncrypted.set(new Uint8Array(buf), offset)
-          offset += buf.byteLength
-        }
-
-        setStatusText(`Decrypting AES-256-GCM payload (${meta.fileName})...`)
-        let decryptedBytes = await cryptoEngine.decrypt(
-          combinedEncrypted.buffer as ArrayBuffer,
-          keyObj,
-          meta.iv
-        )
-
-        // Decompress if Gzip compressed
-        if (meta.isCompressed) {
-          setStatusText(`Decompressing Gzip stream (${meta.fileName})...`)
-          const decomp = await compressor.decompressBuffer(decryptedBytes.buffer as ArrayBuffer)
-          decryptedBytes = new Uint8Array(decomp)
-        }
-
-        // Verify SHA-256 checksum
-        const computedSha256 = await cryptoEngine.calculateSha256(
-          decryptedBytes.buffer as ArrayBuffer
-        )
-        const verified = meta.sha256 ? computedSha256 === meta.sha256 : true
-
-        const blob = new Blob([decryptedBytes as unknown as BlobPart], {
-          type: meta.mimeType || 'application/octet-stream',
-        })
-        const blobUrl = URL.createObjectURL(blob)
-
-        results.push({
-          metadata: meta,
-          blobUrl,
-          blob,
-          verified,
-        })
+        setStatusText(`Assembling decrypted stream (${meta.fileName})...`)
+        const receivedItem = await assembleDecryptedFile(meta, decryptedChunks)
+        results.push(receivedItem)
       }
 
       setReceivedFiles(results)
@@ -376,38 +474,7 @@ export const ReceivePanel: React.FC = () => {
       setStatusText('All files downloaded, decrypted & verified successfully!')
       soundEngine.transferComplete()
 
-      // Register received transactions in Audit Ledger & 7-day vault if logged in
-      const currentUser = authStore.getUser()
-
-      for (const resItem of results) {
-        const txId = `TX-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-        try {
-          await api.recordAuditTransaction({
-            id: txId,
-            timestamp: Date.now(),
-            direction: 'RECEIVED',
-            fileName: resItem.metadata.fileName,
-            fileSize: resItem.metadata.fileSize,
-            totalChunks: resItem.metadata.totalChunks,
-            sha256: resItem.metadata.sha256,
-            cipher: 'AES-256-GCM / PBKDF2 (100k)',
-            burned: burnAfterReading,
-            isCompressed: !!resItem.metadata.isCompressed,
-            userId: currentUser ? currentUser.nodeId : undefined,
-          })
-
-          if (currentUser && resItem.blob) {
-            await api.persistAuditFile(
-              txId,
-              resItem.blob,
-              resItem.metadata.mimeType || 'application/octet-stream',
-              currentUser.nodeId
-            )
-          }
-        } catch {
-          // Non-blocking audit persistence fallback
-        }
-      }
+      await recordReceivedAuditLog(results, burnAfterReading)
 
       // Notify completion & auto-burn
       const completeRes = await api.markTransferComplete(sessionId)
@@ -419,8 +486,11 @@ export const ReceivePanel: React.FC = () => {
       setDownloading(false)
       setErrorMsg(`Decryption failed: ${err instanceof Error ? err.message : 'Corrupted data or wrong PIN'}`)
       soundEngine.errorTone()
+    } finally {
+      await releaseWakeLock()
     }
   }
+
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B'
@@ -465,7 +535,7 @@ export const ReceivePanel: React.FC = () => {
               <div className="flex items-center justify-center gap-2 sm:gap-3 my-2">
                 {pinDigits.map((digit, index) => (
                   <input
-                    key={index}
+                    key={`pin-cell-${index}`}
                     ref={(el) => { inputRefs.current[index] = el }}
                     type="text"
                     inputMode="numeric"
@@ -475,7 +545,7 @@ export const ReceivePanel: React.FC = () => {
                     onChange={(e) => handleDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     onPaste={handlePaste}
-                    className="w-11 h-13 sm:w-13 sm:h-16 text-center text-2xl sm:text-3xl font-mono font-extrabold bg-[#0d0d0d] border border-[#2c2c2c] focus:border-[#7089ba] focus:shadow-[0_0_15px_rgba(112,137,186,0.3)] focus:outline-none rounded-xl text-white transition-all caret-[#7089ba] cursor-text"
+                    className="w-11 h-13 sm:w-13 sm:h-16 text-center text-2xl sm:text-3xl font-mono font-extrabold bg-[#0d0d0d] border border-[#2c2c2c] focus:shadow-[0_0_15px_rgba(112,137,186,0.3)] focus:outline-none rounded-xl text-white transition-all caret-[#7089ba] cursor-text"
                   />
                 ))}
               </div>
@@ -584,7 +654,7 @@ export const ReceivePanel: React.FC = () => {
                 const category = detectFileTypeCategory(meta.fileName, meta.mimeType || '')
                 return (
                   <div
-                    key={idx}
+                    key={`${meta.fileName}-${idx}`}
                     className="flex items-center justify-between p-3 rounded-xl bg-carbon border border-[#242424] text-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0 pr-2">
@@ -602,7 +672,7 @@ export const ReceivePanel: React.FC = () => {
                           {meta.fileName}
                         </div>
                         <div className="text-[10px] text-steel font-mono">
-                          <span className="text-[#7089ba] uppercase">[{category}]</span> · {formatBytes(meta.fileSize)} · {meta.totalChunks} chunks {meta.isCompressed ? '· Gzip' : ''}
+                          <span className="text-[#7089ba] uppercase">[{category}]</span>{' · '}{formatBytes(meta.fileSize)}{' · '}{meta.totalChunks} chunks{meta.isCompressed ? ' · Gzip' : ''}
                         </div>
                       </div>
                     </div>
@@ -624,7 +694,7 @@ export const ReceivePanel: React.FC = () => {
                 <div className="flex items-center gap-2 font-bold">
                   {downloadEtaSeconds !== null && downloadEtaSeconds > 0 && (
                     <span className="text-[#7089ba] font-mono text-[11px]">
-                      ETA: ~{downloadEtaSeconds < 60 ? `${downloadEtaSeconds}s` : `${Math.floor(downloadEtaSeconds / 60)}m ${downloadEtaSeconds % 60}s`}
+                      ETA: ~{formatEta(downloadEtaSeconds)}
                     </span>
                   )}
                   <span className="text-white">{downloadPercent}%</span>
@@ -702,7 +772,7 @@ export const ReceivePanel: React.FC = () => {
               <div className="space-y-2">
                 {receivedFiles.map((item, idx) => (
                   <div
-                    key={idx}
+                    key={`${item.metadata.fileName}-${item.metadata.sha256}-${idx}`}
                     className="flex items-center justify-between p-3 rounded-xl bg-void border border-[#282828] text-xs"
                   >
                     <div className="flex items-center gap-2 min-w-0 pr-2">

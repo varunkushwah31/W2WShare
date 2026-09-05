@@ -81,7 +81,7 @@ public class NetworkController {
             @RequestParam(required = false, defaultValue = "WPA") String authType,
             @RequestParam(required = false, defaultValue = "300") int size
     ) {
-        int clampedSize = Math.max(100, Math.min(size, 1000));
+        int clampedSize = Math.clamp(size, 100, 1000);
         byte[] qrBytes = qrCodeService.generateWifiQrCodePng(ssid, password, authType, clampedSize, clampedSize);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"w2w-wifi-hotspot.png\"")

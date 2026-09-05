@@ -7,7 +7,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -69,5 +72,19 @@ class StorageServiceTest {
     void testMaxChunkPayloadLimit() {
         byte[] oversizedData = new byte[65 * 1024 * 1024]; // 65 MB (exceeds 64MB limit)
         assertThrows(Exception.class, () -> storageService.saveChunk("session-1", 0, 0, oversizedData));
+    }
+
+    @Test
+    void testReconcileStartupStoragePurgesOrphanedDirs() throws IOException {
+        Path root = Paths.get(testTempDir).toAbsolutePath().normalize();
+        Path orphanDir = root.resolve("orphaned-session-dir");
+        Files.createDirectories(orphanDir);
+        Files.write(orphanDir.resolve("chunk_0_0.bin"), new byte[]{1, 2, 3});
+        assertTrue(Files.exists(orphanDir));
+
+        // Re-run init to trigger reconcileStartupStorage
+        storageService.init();
+
+        assertFalse(Files.exists(orphanDir));
     }
 }

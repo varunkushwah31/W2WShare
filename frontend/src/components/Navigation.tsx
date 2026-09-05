@@ -2,12 +2,9 @@ import React, {useEffect, useState} from 'react'
 import {
   LightningIcon,
   ListIcon,
-  SignOutIcon,
-  UserCheckIcon,
   XIcon,
   DeviceMobileIcon,
 } from '@phosphor-icons/react'
-import {authStore, type AuthUser} from '@/lib/auth'
 
 export type NavPageType = 'home' | 'features' | 'changelog' | 'security' | 'blog' | 'guide'
 
@@ -15,7 +12,6 @@ interface NavigationProps {
   currentPage: NavPageType
   onNavigate: (page: NavPageType) => void
   onOpenDemo: () => void
-  onOpenLogin: () => void
   onOpenMobileApp?: () => void
 }
 
@@ -23,16 +19,10 @@ export const Navigation: React.FC<NavigationProps> = ({
   currentPage,
   onNavigate,
   onOpenDemo,
-  onOpenLogin,
   onOpenMobileApp,
 }) => {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [user, setUser] = useState<AuthUser | null>(() => authStore.getUser())
-
-  useEffect(() => {
-    return authStore.subscribe((u) => setUser(u))
-  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -52,10 +42,6 @@ export const Navigation: React.FC<NavigationProps> = ({
     if (page === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-  }
-
-  const handleLogout = () => {
-    authStore.logout()
   }
 
   const navLinks = [
@@ -133,31 +119,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {user ? (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#161616] border border-[#2a2a2a] text-xs font-mono text-white">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <UserCheckIcon className="w-3.5 h-3.5 text-[#7089ba]" />
-                  <span className="max-w-[130px] truncate">{user.nodeId}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  title="Logout"
-                  className="p-1.5 rounded-full border border-[#282828] text-[#808080] hover:text-[#eb5757] hover:border-[#eb5757]/50 transition-colors"
-                >
-                  <SignOutIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenLogin}
-                className="px-3.5 py-1.5 text-sm font-medium text-[#808080] hover:text-white transition-colors rounded-full cursor-pointer"
-              >
-                Login
-              </button>
-            )}
 
             {onOpenMobileApp && (
               <button
@@ -216,35 +177,6 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
 
           <div className="space-y-3 pt-6 border-t border-[#1c1c1c]">
-            {user ? (
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[#161616] border border-[#2a2a2a] text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="text-white">{user.nodeId}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleLogout()
-                    setMobileMenuOpen(false)
-                  }}
-                  className="text-[#eb5757] hover:underline"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false)
-                  onOpenLogin()
-                }}
-                className="w-full py-2.5 rounded-full border border-[#282828] text-sm text-white hover:bg-[#1c1c1c]"
-              >
-                Login
-              </button>
-            )}
 
             {onOpenMobileApp && (
               <button

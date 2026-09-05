@@ -186,4 +186,32 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.status").value("BATCH_REGISTERED"))
                 .andExpect(jsonPath("$.totalFiles").value(1));
     }
+
+    @Test
+    void testRoomStatusEndpoints() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/transfer/session/create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"burnAfterReading\":false,\"expiresInSeconds\":900}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Map<?, ?> sessionMap = objectMapper.readValue(createResult.getResponse().getContentAsString(), Map.class);
+        String sessionId = (String) sessionMap.get("sessionId");
+        String pin = (String) sessionMap.get("pin");
+
+        // Query by PIN
+        mockMvc.perform(get("/api/transfer/session/room/" + pin + "/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionId").value(sessionId))
+                .andExpect(jsonPath("$.pin").value(pin))
+                .andExpect(jsonPath("$.status").value("CREATED"))
+                .andExpect(jsonPath("$.senderOnline").value(true));
+
+        // Query by Session ID
+        mockMvc.perform(get("/api/transfer/session/" + sessionId + "/room"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionId").value(sessionId))
+                .andExpect(jsonPath("$.pin").value(pin))
+                .andExpect(jsonPath("$.status").value("CREATED"));
+    }
 }
