@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,8 @@ import {
   EyeIcon,
   EyeSlashIcon,
 } from '@phosphor-icons/react'
-import { api } from '@/lib/api'
+import QRCode from 'qrcode'
+import { QRCodeDisplay } from './QRCodeDisplay'
 
 interface QrCodeModalProps {
   isOpen: boolean
@@ -32,24 +33,27 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'claim' | 'wifi'>('claim')
   const [copied, setCopied] = useState(false)
-  const [imgLoaded, setImgLoaded] = useState(false)
-  const [imgError, setImgError] = useState(false)
+  const [downloadUrl, setDownloadUrl] = useState<string>('')
 
   // Hotspot Wi-Fi QR options
   const [hotspotSsid, setHotspotSsid] = useState('W2W-Offline-Share')
   const [hotspotPass, setHotspotPass] = useState('offline1234')
   const [showPass, setShowPass] = useState(false)
 
+  const activePayload = activeTab === 'claim' ? url : `WIFI:T:WPA;S:${hotspotSsid};P:${hotspotPass};;`
+
+  useEffect(() => {
+    if (!activePayload) return
+    QRCode.toDataURL(activePayload, { width: 600, margin: 2 })
+      .then(setDownloadUrl)
+      .catch(() => {})
+  }, [activePayload])
+
   const handleCopy = () => {
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
-
-  const claimQrUrl = api.getTransferQrUrl(url, 400)
-  const wifiQrUrl = api.getWifiQrUrl(hotspotSsid, hotspotPass, 'WPA', 400)
-
-  const currentQrUrl = activeTab === 'claim' ? claimQrUrl : wifiQrUrl
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -70,10 +74,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         <div className="flex items-center p-1 rounded-xl bg-[#0a0a0a] border border-[#222222] my-2">
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('claim')
-              setImgLoaded(false)
-            }}
+            onClick={() => setActiveTab('claim')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'claim'
                 ? 'bg-white text-black font-bold shadow'
@@ -85,10 +86,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('wifi')
-              setImgLoaded(false)
-            }}
+            onClick={() => setActiveTab('wifi')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'wifi'
                 ? 'bg-white text-black font-semibold shadow'
@@ -139,31 +137,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
           {/* White container for maximum optical contrast */}
           <div className="p-3 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-47.5 min-h-47.5">
-            {!imgLoaded && !imgError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-xl text-neutral-400">
-                <QrIcon className="w-8 h-8 animate-pulse text-[#7089ba]" />
-                <span className="text-[10px] font-mono mt-1 text-neutral-500">Generating QR...</span>
-              </div>
-            )}
-
-            {imgError ? (
-              <div className="text-center p-4 text-neutral-600 text-xs font-mono">
-                Unable to render QR image
-              </div>
-            ) : (
-              <img
-                key={currentQrUrl}
-                src={currentQrUrl}
-                alt={activeTab === 'claim' ? `QR code for PIN ${pin}` : `Wi-Fi join QR for ${hotspotSsid}`}
-                width={190}
-                height={190}
-                className={`w-44 h-44 block object-contain transition-opacity duration-200 ${
-                  imgLoaded ? 'opacity-100' : 'opacity-0'
-                }`}
-                onLoad={() => setImgLoaded(true)}
-                onError={() => setImgError(true)}
-              />
-            )}
+            <QRCodeDisplay
+              value={activeTab === 'claim' ? url : `WIFI:T:WPA;S:${hotspotSsid};P:${hotspotPass};;`}
+              size={180}
+              alt={activeTab === 'claim' ? `QR code for PIN ${pin}` : `Wi-Fi join QR for ${hotspotSsid}`}
+            />
           </div>
 
           {/* Context Explanations */}
@@ -181,7 +159,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             </>
           ) : (
             <div className="mt-3 text-center text-xs text-[#aaa] font-mono">
-              Scan with mobile camera $\to$ Phone automatically connects to Hotspot Wi-Fi.
+              Scan with mobile camera → Phone automatically connects to Hotspot Wi-Fi.
             </div>
           )}
         </div>
@@ -222,7 +200,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           )}
 
           <a
-            href={currentQrUrl}
+            href={downloadUrl || '#'}
             download={activeTab === 'claim' ? `w2w-qr-${pin}.png` : `w2w-wifi-${hotspotSsid}.png`}
             target="_blank"
             rel="noopener noreferrer"

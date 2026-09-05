@@ -12,6 +12,7 @@ import {
   type NetworkInfoResponse,
   type NetworkInterfaceDto,
 } from '@/lib/api'
+import { QRCodeDisplay } from './QRCodeDisplay'
 import {
   WifiHighIcon,
   GraduationCapIcon,
@@ -106,7 +107,9 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
     setTimeout(() => setCopiedUrl(false), 2000)
   }
 
-  const wifiQrUrl = api.getWifiQrUrl(hotspotSsid, hotspotPassword, hotspotAuth, 360)
+  const wifiQrPayload = hotspotAuth === 'nopass'
+    ? `WIFI:T:nopass;S:${hotspotSsid};;`
+    : `WIFI:T:${hotspotAuth};S:${hotspotSsid};P:${hotspotPassword};;`
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -207,7 +210,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               {/* Share Address */}
               <div className="p-4 rounded-xl bg-[#141414] border border-[#222222] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#808080] uppercase tracking-wider">
+                  <span className="text-[11px] font-mono text-steel uppercase tracking-wider">
                     Campus Share Link
                   </span>
                   <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -229,7 +232,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                     {copiedUrl ? <CheckIcon className="w-3.5 h-3.5 text-emerald-400" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-[#808080]">
+                <p className="text-[10px] text-steel">
                   Open this link on any phone or laptop on the same college Wi-Fi.
                 </p>
               </div>
@@ -237,7 +240,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               {/* AP Isolation Diagnostics */}
               <div className="p-4 rounded-xl bg-[#141414] border border-[#222222] space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#808080] uppercase tracking-wider">
+                  <span className="text-[11px] font-mono text-steel uppercase tracking-wider">
                     Isolation Probe
                   </span>
                   <button
@@ -253,11 +256,11 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                 {diagnostics && (
                   <div className="space-y-1.5 text-[11px]">
                     <div className="flex items-center justify-between p-1.5 rounded bg-[#0c0c0c] border border-[#1e1e1e]">
-                      <span className="text-[#808080] font-mono">Subnet Mode:</span>
+                      <span className="text-steel font-mono">Subnet Mode:</span>
                       <span className="font-mono text-white font-bold">{diagnostics.activeNetworkMode}</span>
                     </div>
                     <div className="flex items-center justify-between p-1.5 rounded bg-[#0c0c0c] border border-[#1e1e1e]">
-                      <span className="text-[#808080] font-mono">Subnet Radar (8888):</span>
+                      <span className="text-steel font-mono">Subnet Radar (8888):</span>
                       <span className={`font-mono font-bold ${diagnostics.udpDiscoveryActive ? 'text-emerald-400' : 'text-amber-400'}`}>
                         {diagnostics.udpDiscoveryActive ? 'ACTIVE' : 'STANDALONE'}
                       </span>
@@ -299,7 +302,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               {/* Wi-Fi QR Generator */}
               <div className="p-4 rounded-xl bg-[#141414] border border-[#222222] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-[#808080] uppercase tracking-wider flex items-center gap-1">
+                  <span className="text-[11px] font-mono text-steel uppercase tracking-wider flex items-center gap-1">
                     <QrCodeIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                     Auto-Connect Wi-Fi QR
                   </span>
@@ -307,7 +310,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label htmlFor="hotspot-ssid-input" className="text-[10px] font-mono text-[#808080] block mb-0.5">Hotspot SSID</label>
+                    <label htmlFor="hotspot-ssid-input" className="text-[10px] font-mono text-steel block mb-0.5">Hotspot SSID</label>
                     <input
                       id="hotspot-ssid-input"
                       type="text"
@@ -317,7 +320,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label htmlFor="hotspot-password-input" className="text-[10px] font-mono text-[#808080] block mb-0.5">Password</label>
+                    <label htmlFor="hotspot-password-input" className="text-[10px] font-mono text-steel block mb-0.5">Password</label>
                     <div className="relative">
                       <input
                         id="hotspot-password-input"
@@ -336,7 +339,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="hotspot-auth-select" className="text-[10px] font-mono text-[#808080] block mb-0.5">Auth Type</label>
+                    <label htmlFor="hotspot-auth-select" className="text-[10px] font-mono text-steel block mb-0.5">Auth Type</label>
                     <select
                       id="hotspot-auth-select"
                       value={hotspotAuth}
@@ -351,7 +354,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
                 <div className="flex items-center gap-3 pt-2 border-t border-[#1e1e1e]">
                   <div className="p-2 bg-white rounded-lg shrink-0 shadow">
-                    <img src={wifiQrUrl} alt="Hotspot QR" className="w-24 h-24 object-contain" />
+                    <QRCodeDisplay value={wifiQrPayload} size={96} alt="Hotspot QR" />
                   </div>
                   <div className="space-y-1.5 text-[11px] text-[#aaa]">
                     <p className="font-semibold text-white">Scan with Camera:</p>
@@ -374,7 +377,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
               {/* OS Guide */}
               <div className="p-4 rounded-xl bg-[#141414] border border-[#222222] space-y-2.5">
-                <span className="text-[11px] font-mono text-[#808080] uppercase tracking-wider block">
+                <span className="text-[11px] font-mono text-steel uppercase tracking-wider block">
                   Quick Setup Guide
                 </span>
                 <div className="flex items-center gap-1 p-0.5 bg-[#0a0a0a] rounded border border-[#222]">

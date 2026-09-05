@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -17,8 +17,10 @@ import {
   DownloadSimpleIcon,
   LightningIcon,
   HardDrivesIcon,
+  WarningIcon,
 } from '@phosphor-icons/react'
 import { api, type NetworkInterfaceDto } from '@/lib/api'
+import { QRCodeDisplay } from './QRCodeDisplay'
 
 interface MobileCompanionModalProps {
   isOpen: boolean
@@ -33,12 +35,66 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'qr' | 'features' | 'hotspot'>('qr')
+  const [networkInterfaces, setNetworkInterfaces] = useState<NetworkInterfaceDto[]>([])
+  const [activeIface, setActiveIface] = useState<NetworkInterfaceDto | null>(selectedInterface || null)
 
-  const currentHostUrl = typeof window !== 'undefined'
-    ? (selectedInterface?.url || window.location.origin)
-    : ''
+  // Sync prop changes
+  useEffect(() => {
+    if (selectedInterface) {
+      setActiveIface(selectedInterface)
+    }
+  }, [selectedInterface])
 
-  const qrImageUrl = api.getTransferQrUrl(currentHostUrl, 360)
+  // Discover local interfaces (LAN / Wi-Fi) on mount/open
+  useEffect(() => {
+    if (!isOpen) return
+    let active = true
+
+    api.getNetworkInfo()
+      .then((info) => {
+        if (!active || !info?.interfaces?.length) return
+        setNetworkInterfaces(info.interfaces)
+
+        if (!selectedInterface) {
+          // Prefer active Wi-Fi / Hotspot interface over loopback
+          const preferred =
+            info.interfaces.find((i) => i.isWifiOrHotspot && !i.isLoopback && i.ip !== '127.0.0.1') ||
+            info.interfaces.find((i) => !i.isLoopback && i.ip !== '127.0.0.1') ||
+            info.interfaces[0]
+
+          if (preferred) {
+            setActiveIface(preferred)
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully in offline mode
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isOpen, selectedInterface])
+
+  // Compute effective mobile companion URL (using LAN IP and active frontend port)
+  const currentHostUrl = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    const currentPort = window.location.port
+    const currentProtocol = window.location.protocol || 'http:'
+
+    if (activeIface?.ip && activeIface.ip !== '127.0.0.1') {
+      const portPart = currentPort ? `:${currentPort}` : ''
+      return `${currentProtocol}//${activeIface.ip}${portPart}`
+    }
+
+    if (activeIface?.url) {
+      return activeIface.url
+    }
+
+    return window.location.origin
+  }, [activeIface?.ip, activeIface?.url])
+
+  const isLocalhost = currentHostUrl.includes('localhost') || currentHostUrl.includes('127.0.0.1')
 
   const handleCopy = () => {
     if (!currentHostUrl) return
@@ -106,18 +162,51 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
         {/* Tab 1: QR & Fast Connect */}
         {activeTab === 'qr' && (
           <div className="space-y-4 text-center">
+            {/* Interface selector chips if multiple interfaces exist */}
+            {networkInterfaces.length > 1 && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 p-1 bg-[#111] rounded-lg border border-[#222]">
+                <span className="text-[10px] font-mono text-steel uppercase px-1">Network IP:</span>
+                {networkInterfaces.map((iface) => {
+                  const isSelected = activeIface?.ip === iface.ip
+                  return (
+                    <button
+                      key={iface.ip || iface.name}
+                      type="button"
+                      onClick={() => setActiveIface(iface)}
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#7089ba] text-black font-bold shadow-sm'
+                          : 'bg-[#1a1a1a] text-steel hover:text-white border border-[#2a2a2a]'
+                      }`}
+                    >
+                      {iface.ip} {iface.isWifiOrHotspot ? '(Wi-Fi)' : iface.isLoopback ? '(Local)' : ''}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="p-4 rounded-xl bg-black border border-[#222] flex flex-col items-center justify-center relative">
-              <div className="p-2.5 rounded-xl bg-white/95 border border-[#7089ba]/40 shadow-lg animate-pulse-cyan">
-                <img
-                  src={qrImageUrl}
+              <div className="p-2.5 rounded-xl bg-white shadow-lg animate-pulse-cyan">
+                <QRCodeDisplay
+                  value={currentHostUrl}
+                  size={208}
                   alt="W2W Share Mobile QR Code"
-                  className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
                 />
               </div>
               <p className="font-mono text-[11px] text-[#7089ba] mt-3 font-semibold">
                 Scan with any iPhone / Android Camera or QR Scanner
               </p>
             </div>
+
+            {isLocalhost && (
+              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-mono flex items-center gap-2 text-left">
+                <WarningIcon className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>
+                  Mobile phones cannot reach <code className="bg-black/40 px-1 py-0.5 rounded">localhost</code>. Connect to the same Wi-Fi and select your LAN IP above.
+                </span>
+              </div>
+            )}
 
             {/* Direct URL & Copy */}
             <div className="p-3 rounded-xl bg-[#141414] border border-[#222] flex items-center justify-between gap-2">
