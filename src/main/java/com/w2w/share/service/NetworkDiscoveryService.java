@@ -18,6 +18,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
     private static final Logger log = LoggerFactory.getLogger(NetworkDiscoveryService.class);
 
     public static final String TYPE_HOTSPOT = "HOTSPOT";
+    public static final String TYPE_STANDARD_LAN = "STANDARD_LAN";
     public static final String TYPE_CAMPUS_WIFI = "CAMPUS_WIFI";
     public static final String TYPE_ETHERNET = "ETHERNET";
     public static final String TYPE_LOOPBACK = "LOOPBACK";
@@ -35,7 +36,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         private final String url;
         private final boolean isLoopback;
         private final boolean isWifiOrHotspot;
-        private final String interfaceType; // HOTSPOT, CAMPUS_WIFI, ETHERNET, LOOPBACK, OTHER
+        private final String interfaceType; // HOTSPOT, STANDARD_LAN, CAMPUS_WIFI, ETHERNET, LOOPBACK, OTHER
 
         public InterfaceAddressInfo(String name, String displayName, String ip, int port,
                                     boolean isLoopback, boolean isWifiOrHotspot, String interfaceType) {
@@ -57,7 +58,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
                 return interfaceType;
             }
             if (isWifiOrHotspot) {
-                return TYPE_CAMPUS_WIFI;
+                return TYPE_STANDARD_LAN;
             }
             if (isLoopback) {
                 return TYPE_LOOPBACK;
@@ -75,7 +76,6 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         List<InterfaceAddressInfo> result = new ArrayList<>();
         try {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            if (interfaces == null) return result;
 
             while (interfaces.hasMoreElements()) {
                 NetworkInterface iface = interfaces.nextElement();
@@ -140,11 +140,18 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         }
 
         if (isWifi || lowerName.contains("wlan") || lowerDisplay.contains(STR_WIFI) || lowerDisplay.contains("wireless")) {
-            return TYPE_CAMPUS_WIFI;
+            if (ip.startsWith("10.")) {
+                return TYPE_CAMPUS_WIFI;
+            }
+            return TYPE_STANDARD_LAN;
         }
 
         if (lowerName.contains("eth") || lowerName.contains("en") || lowerDisplay.contains("ethernet") || lowerDisplay.contains("lan")) {
             return TYPE_ETHERNET;
+        }
+
+        if (ip.startsWith("192.168.") || ip.startsWith("172.")) {
+            return TYPE_STANDARD_LAN;
         }
 
         return TYPE_OTHER;
@@ -164,7 +171,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
     }
 
     private static int compareInterfaces(InterfaceAddressInfo a, InterfaceAddressInfo b) {
-        // Hotspot > Campus Wi-Fi > Ethernet > Loopback
+        // Hotspot > Standard LAN > Campus Wi-Fi > Ethernet > Loopback
         int priorityA = getPriority(a);
         int priorityB = getPriority(b);
         if (priorityA != priorityB) {
@@ -175,10 +182,11 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
 
     private static int getPriority(InterfaceAddressInfo info) {
         if (TYPE_HOTSPOT.equals(info.getInterfaceType())) return 1;
-        if (TYPE_CAMPUS_WIFI.equals(info.getInterfaceType()) || info.isWifiOrHotspot()) return 2;
-        if (TYPE_ETHERNET.equals(info.getInterfaceType())) return 3;
-        if (info.isLoopback() || TYPE_LOOPBACK.equals(info.getInterfaceType())) return 5;
-        return 4;
+        if (TYPE_STANDARD_LAN.equals(info.getInterfaceType())) return 2;
+        if (TYPE_CAMPUS_WIFI.equals(info.getInterfaceType()) || info.isWifiOrHotspot()) return 3;
+        if (TYPE_ETHERNET.equals(info.getInterfaceType())) return 4;
+        if (info.isLoopback() || TYPE_LOOPBACK.equals(info.getInterfaceType())) return 6;
+        return 5;
     }
 
     @Value("${w2w.public-url:}")
@@ -214,6 +222,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
                 .toList();
 
         boolean hasHotspot = interfaces.stream().anyMatch(i -> TYPE_HOTSPOT.equals(i.getInterfaceType()));
+        boolean hasStandardLan = interfaces.stream().anyMatch(i -> TYPE_STANDARD_LAN.equals(i.getInterfaceType()));
         boolean hasCampusWifi = interfaces.stream().anyMatch(i -> TYPE_CAMPUS_WIFI.equals(i.getInterfaceType()));
         boolean hasEthernet = interfaces.stream().anyMatch(i -> TYPE_ETHERNET.equals(i.getInterfaceType()));
 
@@ -224,20 +233,24 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
 
         if (hasHotspot) {
             activeMode = TYPE_HOTSPOT;
-            recommendedMode = "OFFLINE_HOTSPOT";
-            apStatusMessage = "Active Mobile Hotspot detected. 100% offline peer communication with zero AP isolation risk.";
+            recommendedMode = "METHOD_1_HOTSPOT";
+            apStatusMessage = "Active Mobile Hotspot detected (Method 1). 100% offline peer communication with zero AP isolation risk.";
+        } else if (hasStandardLan) {
+            activeMode = TYPE_STANDARD_LAN;
+            recommendedMode = "METHOD_2_ROUTER_LAN";
+            apStatusMessage = "Connected to Standard Wi-Fi Router / Home LAN (Method 2). High local throughput. If router blocks peer packets, switch to Method 1 (Smartphone Hotspot).";
         } else if (hasCampusWifi) {
             activeMode = TYPE_CAMPUS_WIFI;
-            recommendedMode = TYPE_CAMPUS_WIFI;
-            apStatusMessage = "Connected to Campus/College Wi-Fi. Transfers work locally on LAN without captive portal internet login. If peers cannot connect, switch to Offline Hotspot mode to bypass AP Isolation.";
+            recommendedMode = "METHOD_1_HOTSPOT";
+            apStatusMessage = "Connected to Campus/College Wi-Fi. Transfers work locally on LAN without captive portal internet login. If peers cannot connect due to AP Isolation, switch to Method 1 (Smartphone Personal Hotspot).";
         } else if (hasEthernet) {
             activeMode = TYPE_ETHERNET;
-            recommendedMode = TYPE_ETHERNET;
-            apStatusMessage = "Wired LAN active. Full throughput available.";
+            recommendedMode = "METHOD_2_ROUTER_LAN";
+            apStatusMessage = "Wired LAN active (Method 2). Full throughput available.";
         } else {
             activeMode = "OFFLINE_LOCAL";
-            recommendedMode = "OFFLINE_HOTSPOT";
-            apStatusMessage = "No active Wi-Fi or Hotspot network detected. Enable Windows Mobile Hotspot or Phone Hotspot for peer sharing.";
+            recommendedMode = "METHOD_1_HOTSPOT";
+            apStatusMessage = "No active Wi-Fi or Hotspot network detected. Enable Smartphone Personal Hotspot (Method 1) or connect to a Wi-Fi Router (Method 2).";
         }
 
         // Test UDP discovery port availability

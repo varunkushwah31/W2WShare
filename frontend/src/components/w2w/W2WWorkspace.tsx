@@ -104,11 +104,13 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
                 type="button"
                 onClick={() => setIsNetworkModalOpen(true)}
                 className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#161616] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#7089ba]/50 text-[10px] font-mono text-[#aaa] transition-all cursor-pointer"
-                title="Click to configure network adapter or switch between College Wi-Fi and Hotspot modes"
+                title="Click to configure offline sharing: Method 1 (Smartphone Personal Hotspot) or Method 2 (Standard Wi-Fi Router / LAN)"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-white font-semibold">
-                  {selectedInterface?.ip ? `${selectedInterface.displayName || selectedInterface.name}: ${selectedInterface.ip}` : 'Offline Network Hub'}
+                  {selectedInterface?.ip
+                    ? `${selectedInterface.interfaceType === 'HOTSPOT' ? 'Method 1 (Hotspot)' : 'Method 2 (Router)'}: ${selectedInterface.ip}`
+                    : 'Offline Sharing Hub (Method 1 & 2)'}
                 </span>
                 <span className="text-[#7089ba] ml-0.5">⚙ Config</span>
               </button>

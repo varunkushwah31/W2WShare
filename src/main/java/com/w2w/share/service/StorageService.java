@@ -35,6 +35,7 @@ public class StorageService implements IStorageService {
     private Path rootStoragePath;
     private final AtomicLong usedStorageBytes = new AtomicLong(0);
     private final Map<String, Set<String>> sessionFiles = new ConcurrentHashMap<>();
+    private final Set<Path> createdDirectories = ConcurrentHashMap.newKeySet();
 
     @PostConstruct
     @Override
@@ -103,6 +104,7 @@ public class StorageService implements IStorageService {
         } catch (Exception e) {
             log.warn("Error cleaning up storage directory on shutdown: {}", e.getMessage());
         }
+        createdDirectories.clear();
     }
 
     private void validateSessionId(String sessionId) {
@@ -137,12 +139,13 @@ public class StorageService implements IStorageService {
 
         Path fileDir = sessionDir.resolve(FILE_PREFIX + fileIndex).normalize();
         try {
-            Files.createDirectories(fileDir);
+            if (!createdDirectories.contains(fileDir)) {
+                Files.createDirectories(fileDir);
+                createdDirectories.add(fileDir);
+            }
             Path finalChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
-            Path tempChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + ".tmp");
 
-            Files.write(tempChunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-            Files.move(tempChunkPath, finalChunkPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            Files.write(finalChunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
 
             usedStorageBytes.addAndGet(data.length);
 
@@ -266,6 +269,7 @@ public class StorageService implements IStorageService {
                         }
                     });
             sessionFiles.remove(sessionId);
+            createdDirectories.removeIf(p -> p.startsWith(sessionDir));
             log.info("Purged ephemeral storage for session [{}]", sessionId);
         } catch (IOException e) {
             log.warn("Error cleaning up session directory {}: {}", sessionDir, e.getMessage());

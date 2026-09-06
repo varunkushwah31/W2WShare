@@ -40,7 +40,12 @@ interface PreparedFile {
   compressedBlob?: Blob
 }
 
-const CHUNK_SIZE = 2 * 1024 * 1024 // 2MB chunking
+export const calculateOptimalChunkSize = (fileSize: number): number => {
+  if (fileSize > 500 * 1024 * 1024) return 16 * 1024 * 1024 // 16MB chunking for large files (>500MB)
+  if (fileSize > 100 * 1024 * 1024) return 8 * 1024 * 1024  // 8MB chunking for medium-large files (100-500MB)
+  if (fileSize > 20 * 1024 * 1024) return 4 * 1024 * 1024   // 4MB chunking for medium files (20-100MB)
+  return 2 * 1024 * 1024                                     // 2MB chunking for small files (<20MB)
+}
 
 interface SendPanelProps {
   selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
@@ -65,16 +70,17 @@ const resolveJoinUrl = (
 }
 
 /**
- * Slices and encrypts ONLY the requested 2MB chunk on the fly.
- * Keeps browser RAM usage capped at ~15-25MB regardless of total file size (even 50GB).
+ * Slices and encrypts ONLY the requested chunk on the fly.
+ * Keeps browser RAM usage capped at ~20-60MB regardless of total file size (even 50GB).
  */
 const getChunkSlice = async (
   prepared: PreparedFile,
   chunkIndex: number
 ): Promise<Uint8Array> => {
   const source = prepared.compressedBlob || prepared.item.file
-  const start = chunkIndex * CHUNK_SIZE
-  const end = Math.min(start + CHUNK_SIZE, source.size)
+  const chunkSize = prepared.metadata.chunkSize || 2 * 1024 * 1024
+  const start = chunkIndex * chunkSize
+  const end = Math.min(start + chunkSize, source.size)
   const sliceBlob = source.slice(start, end)
   const sliceBuffer = await sliceBlob.arrayBuffer()
   return cryptoEngine.encryptChunk(
@@ -124,7 +130,8 @@ const prepareSingleFile = async (
     }
   }
 
-  const totalChunks = Math.ceil(effectiveSize / CHUNK_SIZE) || 1
+  const chunkSize = calculateOptimalChunkSize(effectiveSize)
+  const totalChunks = Math.ceil(effectiveSize / chunkSize) || 1
 
   const metadata: FileMetadata = {
     fileName: item.file.name,
@@ -133,7 +140,7 @@ const prepareSingleFile = async (
     originalSize: item.size,
     mimeType: item.file.type || 'application/octet-stream',
     totalChunks,
-    chunkSize: CHUNK_SIZE,
+    chunkSize,
     iv,
     salt,
     sha256,
@@ -542,38 +549,54 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     )
     setTotalEncryptedBytes(totalBytesAllFiles)
     const startTime = Date.now()
+    const UPLOAD_CONCURRENCY = 4
 
     for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
       const prep = preparedFiles[fIdx]
       setCurrentFileName(prep.metadata.fileName)
       const totalChunks = prep.metadata.totalChunks
 
-      for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
-        setCurrentChunkInfo({ current: cIdx + 1, total: totalChunks })
+      let nextChunkIdx = 0
+      let completedChunks = 0
 
-        // Slices ONLY the 2MB chunk directly on the fly
-        const chunkData = await getChunkSlice(prep, cIdx)
-        await sendSingleChunk(targetSessionId, fIdx, cIdx, totalChunks, chunkData, rtcManagerRef.current)
+      const uploadWorker = async () => {
+        while (true) {
+          const cIdx = nextChunkIdx++
+          if (cIdx >= totalChunks) break
 
-        uploadedBytesTotal += chunkData.length
-        setUploadedBytes(uploadedBytesTotal)
-        const elapsedSec = (Date.now() - startTime) / 1000
-        if (elapsedSec > 0) {
-          const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
-          setTransferSpeedMbps(speed)
-          const remainingBytes = Math.max(0, totalBytesAllFiles - uploadedBytesTotal)
-          if (speed > 0) {
-            setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+          // Slices and encrypts chunk on the fly
+          const chunkData = await getChunkSlice(prep, cIdx)
+          await sendSingleChunk(targetSessionId, fIdx, cIdx, totalChunks, chunkData, rtcManagerRef.current)
+
+          completedChunks++
+          uploadedBytesTotal += chunkData.length
+          setUploadedBytes(uploadedBytesTotal)
+          setCurrentChunkInfo({ current: completedChunks, total: totalChunks })
+
+          const elapsedSec = (Date.now() - startTime) / 1000
+          if (elapsedSec > 0) {
+            const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
+            setTransferSpeedMbps(speed)
+            const remainingBytes = Math.max(0, totalBytesAllFiles - uploadedBytesTotal)
+            if (speed > 0) {
+              setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+            }
           }
-        }
 
-        const percent = Math.min(
-          99,
-          Math.round((uploadedBytesTotal / totalBytesAllFiles) * 100)
-        )
-        setProgressPercent(percent)
-        setStatusMessage(`Streaming chunk ${cIdx + 1}/${totalChunks}`)
+          const percent = Math.min(
+            99,
+            Math.round((uploadedBytesTotal / totalBytesAllFiles) * 100)
+          )
+          setProgressPercent(percent)
+          setStatusMessage(`Streaming chunks (${completedChunks}/${totalChunks})`)
+        }
       }
+
+      const workers = Array.from(
+        { length: Math.min(UPLOAD_CONCURRENCY, totalChunks) },
+        () => uploadWorker()
+      )
+      await Promise.all(workers)
     }
     setTransferEtaSeconds(0)
   }

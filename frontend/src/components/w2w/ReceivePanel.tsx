@@ -413,7 +413,9 @@ export const ReceivePanel: React.FC = () => {
     const totalChunksAllFiles = batchMetadata.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
     setTotalChunksCount(totalChunksAllFiles)
     let downloadedBytesTotal = 0
+    let priorCompletedChunks = 0
     const startTime = Date.now()
+    const DOWNLOAD_CONCURRENCY = 4
 
     const results: ReceivedFileItem[] = []
 
@@ -424,43 +426,58 @@ export const ReceivePanel: React.FC = () => {
 
         const keyObj = await cryptoEngine.deriveKey(activePin, meta.salt)
         const totalChunks = meta.totalChunks || 1
+        const decryptedChunks: ArrayBuffer[] = new Array(totalChunks)
 
-        const decryptedChunks: ArrayBuffer[] = []
+        let nextChunkIdx = 0
+        let completedChunksForFile = 0
 
-        for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
-          setCurrentChunkIndex(cIdx + 1)
-          setStatusText(`Downloading & authenticating chunk ${cIdx + 1}/${totalChunks} (${meta.fileName})`)
+        const downloadWorker = async () => {
+          while (true) {
+            const cIdx = nextChunkIdx++
+            if (cIdx >= totalChunks) break
 
-          const decryptedChunk = await downloadAndDecryptChunk(
-            sessionId,
-            fIdx,
-            cIdx,
-            keyObj,
-            meta,
-            webrtcChunksRef,
-            rtcManagerRef
-          )
+            const decryptedChunk = await downloadAndDecryptChunk(
+              sessionId,
+              fIdx,
+              cIdx,
+              keyObj,
+              meta,
+              webrtcChunksRef,
+              rtcManagerRef
+            )
 
-          decryptedChunks.push(decryptedChunk)
-          downloadedBytesTotal += decryptedChunk.byteLength
-          setTransferredBytes(downloadedBytesTotal)
+            decryptedChunks[cIdx] = decryptedChunk
+            completedChunksForFile++
+            downloadedBytesTotal += decryptedChunk.byteLength
+            setTransferredBytes(downloadedBytesTotal)
+            setCurrentChunkIndex(completedChunksForFile)
+            setStatusText(`Downloading & authenticating chunks (${completedChunksForFile}/${totalChunks}) - ${meta.fileName}`)
 
-          const elapsedSec = (Date.now() - startTime) / 1000
-          if (elapsedSec > 0) {
-            const speed = downloadedBytesTotal / (1024 * 1024) / elapsedSec
-            setDownloadSpeedMbps(speed)
-            const totalPayloadBytes = batchMetadata.reduce((acc, m) => acc + (m.fileSize || 0), 0)
-            const remainingBytes = Math.max(0, totalPayloadBytes - downloadedBytesTotal)
-            if (speed > 0 && remainingBytes > 0) {
-              setDownloadEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+            const elapsedSec = (Date.now() - startTime) / 1000
+            if (elapsedSec > 0) {
+              const speed = downloadedBytesTotal / (1024 * 1024) / elapsedSec
+              setDownloadSpeedMbps(speed)
+              const totalPayloadBytes = batchMetadata.reduce((acc, m) => acc + (m.fileSize || 0), 0)
+              const remainingBytes = Math.max(0, totalPayloadBytes - downloadedBytesTotal)
+              if (speed > 0 && remainingBytes > 0) {
+                setDownloadEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+              }
             }
-          }
 
-          const totalProgress = Math.round(
-            ((fIdx * totalChunks + (cIdx + 1)) / (batchMetadata.length * totalChunks)) * 100
-          )
-          setDownloadPercent(Math.min(99, totalProgress))
+            const totalCompletedChunks = priorCompletedChunks + completedChunksForFile
+            const totalProgress = Math.round(
+              (totalCompletedChunks / totalChunksAllFiles) * 100
+            )
+            setDownloadPercent(Math.min(99, totalProgress))
+          }
         }
+
+        const workers = Array.from(
+          { length: Math.min(DOWNLOAD_CONCURRENCY, totalChunks) },
+          () => downloadWorker()
+        )
+        await Promise.all(workers)
+        priorCompletedChunks += totalChunks
 
         setStatusText(`Assembling decrypted stream (${meta.fileName})...`)
         const receivedItem = await assembleDecryptedFile(meta, decryptedChunks)

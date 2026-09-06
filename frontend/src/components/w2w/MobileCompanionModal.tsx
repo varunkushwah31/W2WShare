@@ -155,7 +155,7 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
             }`}
           >
             <WifiHighIcon className="w-3.5 h-3.5" />
-            <span>3. Hotspot</span>
+            <span>3. Offline Modes</span>
           </button>
         </div>
 
@@ -276,37 +276,42 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
           </div>
         )}
 
-        {/* Tab 3: Direct Hotspot (Zero Router / Zero Wi-Fi required) */}
+        {/* Tab 3: Offline Modes (Method 1: Hotspot & Method 2: Wi-Fi Router) */}
         {activeTab === 'hotspot' && (
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-carbon">
-              <div className="flex items-center gap-2 text-[#7089ba] font-bold mb-2">
-                <WifiHighIcon className="w-4 h-4" />
-                <span>Zero-Internet Field Operation</span>
+            <div className="p-3.5 rounded-xl bg-[#141414] border border-amber-900/40 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-400 font-bold">
+                  <LightningIcon className="w-4 h-4" />
+                  <span>Method 1: Smartphone Hotspot (Recommended)</span>
+                </div>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold">
+                  0 MB DATA
+                </span>
               </div>
               <p className="text-[11px] text-steel leading-relaxed">
-                No Wi-Fi router or campus network? Turn on your mobile phone's <strong className="text-white">Personal Hotspot</strong> and connect your laptop to it.
+                Turn on your phone's <strong className="text-white">Personal Hotspot</strong> with Mobile Data <strong className="text-white">OFF</strong>. Connect laptop to phone and transfer directly over 5GHz Wi-Fi at 50–100+ MB/s.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-carbon space-y-2">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-steel">1. Turn on Mobile Hotspot</span>
-                <span className="text-emerald-400 font-semibold">Active</span>
+            <div className="p-3.5 rounded-xl bg-[#141414] border border-blue-900/40 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-blue-400 font-bold">
+                  <WifiHighIcon className="w-4 h-4" />
+                  <span>Method 2: Standard Wi-Fi Router / Home LAN</span>
+                </div>
+                <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">
+                  ROUTER LAN
+                </span>
               </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-steel">2. Connect Computer to Phone</span>
-                <span className="text-white font-semibold">Wi-Fi / USB</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-steel">3. Scan QR on Phone Screen</span>
-                <span className="text-emerald-400 font-semibold">Done</span>
-              </div>
+              <p className="text-[11px] text-steel leading-relaxed">
+                Connect both devices to the same home or office Wi-Fi router. Broadband cable can be unplugged—router switches local packets without internet.
+              </p>
             </div>
 
             <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] flex items-center gap-2">
               <ShieldCheckIcon className="w-4 h-4 shrink-0" />
-              <span>Full local speeds: 40MB/s – 100MB/s over 5GHz Hotspot with 0MB cellular data consumed!</span>
+              <span>100% Offline • Zero cloud persistence • Client-side AES-256-GCM hardware encryption</span>
             </div>
           </div>
         )}
