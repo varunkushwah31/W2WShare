@@ -2,75 +2,48 @@ name: Keep Render Alive
 
 on:
   schedule:
-    # Runs every 14 minutes to prevent Render free tier from sleeping (15-min timeout)
+    # Runs every 14 minutes to prevent Render free tier from sleeping (15-min idle timeout)
     - cron: '*/14 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
   ping:
+    name: Ping Render Service
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Instance
+      - name: Send Keep-Alive Heartbeat
+        env:
+          CONFIGURED_URL: ${{ vars.RENDER_APP_URL || secrets.RENDER_APP_URL || vars.RENDER_URL || secrets.RENDER_URL || '' }}
         run: |
-          TARGET_URL="${{ secrets.RENDER_APP_URL }}"
+          TARGET_URL="${CONFIGURED_URL:-https://w2w-share-backend.onrender.com}"
+          TARGET_URL="${TARGET_URL%/}"
 
-          # If secret is not configured, check known default service names
-          if [ -z "$TARGET_URL" ]; then
-            echo "ℹ️ Notice: GitHub secret 'RENDER_APP_URL' is not set."
-            echo "Testing default candidate URLs..."
-
-            CANDIDATES=(
-              "https://w2w-share-backend.onrender.com"
-              "https://w2w-share.onrender.com"
-            )
-
-            FOUND=""
-            for URL in "${CANDIDATES[@]}"; do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$URL/actuator/health" || true)
-              if [ "$STATUS" != "404" ] && [ "$STATUS" != "000" ]; then
-                TARGET_URL="$URL"
-                FOUND="yes"
-                break
-              fi
-            done
-
-            if [ -z "$FOUND" ]; then
-              TARGET_URL="https://w2w-share.onrender.com"
-            fi
-          fi
-
-          echo "Target URL: $TARGET_URL"
+          echo "Target service: $TARGET_URL"
           echo "Pinging health endpoints to prevent instance sleep..."
 
-          # Try /actuator/health first (official healthcheck defined in render.yaml), then /api/network/health, then /
-          HTTP_CODE=$(curl -s -o /tmp/health_resp.txt -w "%{http_code}" --retry 3 --retry-delay 5 --max-time 90 "$TARGET_URL/actuator/health" || true)
+          # Ping actuator health endpoint, fallback to root / if actuator does not return 200
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 5 --max-time 60 "$TARGET_URL/actuator/health" || echo "000")
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "Checking /api/network/health fallback..."
-            HTTP_CODE=$(curl -s -o /tmp/health_resp.txt -w "%{http_code}" --retry 2 --retry-delay 5 --max-time 60 "$TARGET_URL/api/network/health" || true)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 5 --max-time 30 "$TARGET_URL/" || echo "$HTTP_CODE")
           fi
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "Checking root / fallback..."
-            HTTP_CODE=$(curl -s -o /tmp/health_resp.txt -w "%{http_code}" --retry 2 --retry-delay 5 --max-time 60 "$TARGET_URL/" || true)
-          fi
+          echo "Response code: $HTTP_CODE"
 
-          cat /tmp/health_resp.txt 2>/dev/null || true
-          echo ""
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Render instance is active and warm! (HTTP $HTTP_CODE)"
-          elif [ "$HTTP_CODE" = "404" ]; then
-            echo "::warning title=Render Service URL Not Found::Render returned 404 (no-server) for '$TARGET_URL'."
-            echo "=========================================================================="
-            echo "⚠️  ACTION REQUIRED: Set your exact Render URL in GitHub Secrets"
-            echo "1. Go to your Render Dashboard (https://dashboard.render.com)."
-            echo "2. Open your Web Service and copy its URL (e.g., https://your-service-name.onrender.com)."
-            echo "3. Go to GitHub -> Repository Settings -> Secrets and variables -> Actions."
-            echo "4. Add a secret named 'RENDER_APP_URL' with your exact Render service URL."
-            echo "=========================================================================="
-            exit 0
-          else
-            echo "⚠️ Received HTTP status $HTTP_CODE from $TARGET_URL."
-            exit 1
-          fi
+          case "$HTTP_CODE" in
+            200)
+              echo "✅ Render instance is active and warm! (HTTP 200)"
+              ;;
+            502|503|504)
+              echo "ℹ️ Render instance is waking up from sleep (HTTP $HTTP_CODE). Keep-alive ping successfully reached Render!"
+              ;;
+            404)
+              echo "::warning title=Render Service 404::Received HTTP 404 from '$TARGET_URL'. If your Render service has a different URL, set the 'RENDER_APP_URL' secret or repository variable in GitHub."
+              ;;
+            000)
+              echo "::warning title=Connection Timeout::Could not reach '$TARGET_URL' within timeout. Render may still be spinning up."
+              ;;
+            *)
+              echo "ℹ️ Keep-alive ping sent to $TARGET_URL (HTTP $HTTP_CODE)."
+              ;;
+          esac
