@@ -198,9 +198,18 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
             <ClipboardChatPanel
               initialSessionId={activeSessionId}
               initialPin={activePin}
+              onSessionTerminated={() => {
+                setActiveSessionId(null)
+                setActivePin(null)
+              }}
             />
           )}
-          {activeTab === 'ledger' && <AuditLedgerPanel />}
+          {activeTab === 'ledger' && (
+            <AuditLedgerPanel
+              onSwitchToSend={() => setActiveTab('send')}
+              onSwitchToReceive={() => setActiveTab('receive')}
+            />
+          )}
         </div>
 
         {/* Dedicated Offline & Campus Network Configuration Modal */}

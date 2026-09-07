@@ -15,16 +15,19 @@ import {
   KeyIcon,
   PlusCircleIcon,
   ChatCircleTextIcon,
+  PowerIcon,
 } from '@phosphor-icons/react'
 
 interface ClipboardChatPanelProps {
   initialSessionId?: string | null
   initialPin?: string | null
+  onSessionTerminated?: () => void
 }
 
 export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   initialSessionId,
   initialPin,
+  onSessionTerminated,
 }) => {
   const [sessionId, setSessionId] = useState<string>(initialSessionId || '')
   const [pin, setPin] = useState<string>(initialPin || '')
@@ -35,6 +38,8 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [wsConnected, setWsConnected] = useState(false)
+  const [confirmTerminate, setConfirmTerminate] = useState(false)
+  const [terminating, setTerminating] = useState(false)
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -191,6 +196,37 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     }
   }
 
+  const handleTerminateSession = async () => {
+    setTerminating(true)
+    try {
+      if (wsRef.current) {
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          try {
+            wsRef.current.send(JSON.stringify({ type: 'TERMINATE_SESSION', payload: sessionId }))
+          } catch {
+            // Ignore socket send error on teardown
+          }
+        }
+        wsRef.current.close()
+        wsRef.current = null
+      }
+      if (sessionId) {
+        await api.cancelSession(sessionId).catch(() => {})
+      }
+    } finally {
+      setSessionId('')
+      setPin('')
+      setMessages([])
+      setClipboardText('')
+      setLastSyncTime(null)
+      setWsConnected(false)
+      setConfirmTerminate(false)
+      setTerminating(false)
+      soundEngine.playTone(330, 'sine', 0.15)
+      onSessionTerminated?.()
+    }
+  }
+
   const handlePushClipboard = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
@@ -314,7 +350,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         {/* Pairing controls */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {pin ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative">
               <div className="px-3 py-1 rounded-xl bg-void border border-[#282828] text-xs font-mono text-white flex items-center gap-2">
                 <span className="text-steel">PIN:</span>
                 <strong className="tracking-widest text-[#7089ba] text-sm">{pin}</strong>
@@ -334,6 +370,54 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
               >
                 New Session
               </button>
+
+              {/* Terminate Session Button & Inline Confirmation */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setConfirmTerminate(!confirmTerminate)}
+                  className="px-3 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Terminate and disconnect active session"
+                >
+                  <PowerIcon className="w-3.5 h-3.5" />
+                  <span>Terminate</span>
+                </button>
+
+                {confirmTerminate && (
+                  <div className="absolute right-0 top-full mt-2 w-72 p-3.5 rounded-xl bg-[#181818] border border-red-500/40 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center gap-2 text-white font-medium text-xs mb-1.5">
+                      <PowerIcon className="w-4 h-4 text-red-400 shrink-0" />
+                      <span>Terminate Active Session?</span>
+                    </div>
+                    <p className="text-[11px] text-steel mb-3 leading-relaxed">
+                      This will immediately sever the live channel, revoke PIN <strong className="text-[#7089ba] font-mono">{pin}</strong>, and clear local clipboard and chat messages.
+                    </p>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmTerminate(false)}
+                        className="px-2.5 py-1 rounded-lg border border-[#333] text-steel hover:text-white text-[11px] transition-colors cursor-pointer"
+                        disabled={terminating}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleTerminateSession}
+                        disabled={terminating}
+                        className="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+                      >
+                        {terminating ? (
+                          <ArrowsClockwiseIcon className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <PowerIcon className="w-3 h-3" />
+                        )}
+                        <span>{terminating ? 'Ending...' : 'Yes, Terminate'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -346,7 +430,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                     placeholder="Enter PIN"
                     value={joinPinInput}
                     onChange={(e) => setJoinPinInput(e.target.value.replace(/\D/g, ''))}
-                    className={`w-32 sm:w-36 py-1.5 pl-8 pr-2.5 bg-void border border-[#282828] focus:border-[#7089ba] focus:ring-1 focus:ring-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder:text-steel placeholder:tracking-normal transition-all ${
+                    className={`w-32 sm:w-36 py-1.5 pl-8 pr-2.5 bg-void border border-[#282828] focus:ring-1 focus:ring-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder:tracking-normal transition-all ${
                       joinPinInput ? 'tracking-widest font-bold' : 'tracking-normal'
                     }`}
                   />
@@ -354,7 +438,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                 <button
                   type="submit"
                   disabled={joinPinInput.trim().length !== 6}
-                  className="px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-semibold hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+                  className="px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-semibold hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
                 >
                   Join
                 </button>
