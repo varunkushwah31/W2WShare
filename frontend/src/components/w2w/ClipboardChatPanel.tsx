@@ -336,7 +336,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <form onSubmit={handleJoinByPin} className="flex items-center gap-1.5">
                 <div className="relative flex items-center">
                   <KeyIcon className="w-3.5 h-3.5 text-[#7089ba] absolute left-2.5 pointer-events-none" />
@@ -346,22 +346,24 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                     placeholder="Enter PIN"
                     value={joinPinInput}
                     onChange={(e) => setJoinPinInput(e.target.value.replace(/\D/g, ''))}
-                    className="w-28 py-1.5 pl-8 pr-2 bg-void border focus:border-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white tracking-widest"
+                    className={`w-32 sm:w-36 py-1.5 pl-8 pr-2.5 bg-void border border-[#282828] focus:border-[#7089ba] focus:ring-1 focus:ring-[#7089ba] focus:outline-none rounded-xl text-xs font-mono text-white placeholder:text-steel placeholder:tracking-normal transition-all ${
+                      joinPinInput ? 'tracking-widest font-bold' : 'tracking-normal'
+                    }`}
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={joinPinInput.trim().length !== 6}
-                  className="px-3 py-1.5 rounded-xl bg-white text-black text-xs font-semibold hover:bg-white/90 disabled:opacity-50 transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-white text-black text-xs font-semibold hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
                 >
                   Join
                 </button>
               </form>
-              <span className="text-[#444] text-xs">or</span>
+              <span className="text-steel text-xs font-mono">or</span>
               <button
                 type="button"
                 onClick={handleCreateNewSession}
-                className="px-3 py-1.5 rounded-xl border border-[#282828] text-white text-xs hover:border-white transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-[#141414] hover:bg-[#202020] border border-[#282828] hover:border-[#383838] text-white text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <PlusCircleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 <span>Create Channel</span>
