@@ -5,6 +5,7 @@ import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
 import { WebRtcPeerManager } from '@/lib/webrtc'
 import { ZipArchiver } from '@/lib/zip'
+import { useWakeLock } from '@/lib/useWakeLock'
 import { TransferTelemetryChart } from './TransferTelemetryChart'
 import { MediaPreviewModal, type MediaPreviewItem } from './MediaPreviewModal'
 import { detectFileTypeCategory } from '@/lib/fileCategories'
@@ -44,6 +45,8 @@ const formatEta = (seconds: number): string => {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 }
 
+const PIN_SLOT_IDS = ['slot-pin-0', 'slot-pin-1', 'slot-pin-2', 'slot-pin-3', 'slot-pin-4', 'slot-pin-5'] as const
+
 async function downloadAndDecryptChunk(
   sessionId: string,
   fIdx: number,
@@ -53,8 +56,14 @@ async function downloadAndDecryptChunk(
   webrtcChunksRef: React.RefObject<Map<string, ArrayBuffer>>,
   rtcManagerRef: React.RefObject<WebRtcPeerManager | null>
 ): Promise<ArrayBuffer> {
-  let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
-  chunkData ??= await api.downloadFileChunk(sessionId, fIdx, cIdx)
+  const chunkKey = `${fIdx}-${cIdx}`
+  let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(chunkKey)
+  if (chunkData) {
+    // Release encrypted WebRTC chunk buffer immediately to prevent double memory storage
+    webrtcChunksRef.current.delete(chunkKey)
+  } else {
+    chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+  }
 
   try {
     const dec = await cryptoEngine.decryptChunk(chunkData, keyObj, cIdx, meta.iv)
@@ -66,8 +75,9 @@ async function downloadAndDecryptChunk(
   // Attempt selective retransmit via WebRTC
   if (rtcManagerRef.current?.sendResendRequest(fIdx, cIdx)) {
     await new Promise((resolve) => setTimeout(resolve, 300))
-    const resent = webrtcChunksRef.current.get(`${fIdx}-${cIdx}`)
+    const resent = webrtcChunksRef.current.get(chunkKey)
     if (resent) {
+      webrtcChunksRef.current.delete(chunkKey)
       const dec = await cryptoEngine.decryptChunk(resent, keyObj, cIdx, meta.iv)
       return dec.buffer as ArrayBuffer
     }
@@ -83,14 +93,24 @@ async function assembleDecryptedFile(
   meta: FileMetadata,
   decryptedChunks: ArrayBuffer[]
 ): Promise<ReceivedFileItem> {
-  let finalBlobPart: BlobPart = new Blob(decryptedChunks)
+  let blob: Blob
   if (meta.isCompressed) {
-    const rawBuffer = await (finalBlobPart as Blob).arrayBuffer()
-    finalBlobPart = await compressor.decompressBuffer(rawBuffer)
+    const compressedBlob = new Blob(decryptedChunks)
+    const rawBuffer = await compressedBlob.arrayBuffer()
+    const decompressed = await compressor.decompressBuffer(rawBuffer)
+    blob = new Blob([decompressed], {
+      type: meta.mimeType || 'application/octet-stream',
+    })
+  } else {
+    // Directly assemble single Blob from chunk slices without intermediate wrappers
+    blob = new Blob(decryptedChunks, {
+      type: meta.mimeType || 'application/octet-stream',
+    })
   }
-  const blob = new Blob([finalBlobPart], {
-    type: meta.mimeType || 'application/octet-stream',
-  })
+
+  // Release ArrayBuffer chunk references immediately so GC can reclaim RAM
+  decryptedChunks.length = 0
+
   return {
     metadata: meta,
     blobUrl: URL.createObjectURL(blob),
@@ -124,7 +144,17 @@ async function recordReceivedAuditLog(
   }
 }
 
-export const ReceivePanel: React.FC = () => {
+interface ReceivePanelProps {
+  selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
+  onSessionJoined?: (sessionId: string, pin: string) => void
+  onSwitchToSend?: () => void
+}
+
+export const ReceivePanel: React.FC<ReceivePanelProps> = ({
+  selectedInterface,
+  onSessionJoined,
+  onSwitchToSend,
+}) => {
   // 6-digit split PIN input state (MangoShare inspired)
   const [pinDigits, setPinDigits] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -181,44 +211,7 @@ export const ReceivePanel: React.FC = () => {
   const webrtcChunksRef = useRef<Map<string, ArrayBuffer>>(new Map())
 
   // Screen WakeLock API to prevent mobile phone sleep while receiving large files
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
-
-  const acquireWakeLock = React.useCallback(async () => {
-    if ('wakeLock' in navigator && !wakeLockRef.current) {
-      try {
-        wakeLockRef.current = await navigator.wakeLock.request('screen')
-        wakeLockRef.current.addEventListener('release', () => {
-          wakeLockRef.current = null
-        })
-      } catch (e) {
-        console.debug('[WakeLock] Request denied or unsupported:', e)
-      }
-    }
-  }, [])
-
-  const releaseWakeLock = React.useCallback(async () => {
-    if (wakeLockRef.current) {
-      try {
-        await wakeLockRef.current.release()
-      } catch {
-        // ignore
-      }
-      wakeLockRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    const onVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && downloading) {
-        await acquireWakeLock()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-      releaseWakeLock()
-    }
-  }, [downloading, acquireWakeLock, releaseWakeLock])
+  const { acquireWakeLock, releaseWakeLock } = useWakeLock(downloading)
 
   const handleLookup = React.useCallback(async (lookupPin: string) => {
     const cleanPin = lookupPin.trim()
@@ -248,13 +241,16 @@ export const ReceivePanel: React.FC = () => {
       // Join the session
       await api.joinSession(session.sessionId, cleanPin)
       soundEngine.peerConnect()
+      if (onSessionJoined) {
+        onSessionJoined(session.sessionId, cleanPin)
+      }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Session not found or expired.')
       soundEngine.errorTone()
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [onSessionJoined])
 
   // Auto-fill and lookup if URL contains pin or code
   useEffect(() => {
@@ -262,7 +258,7 @@ export const ReceivePanel: React.FC = () => {
     const codeParam = urlParams.get('pin') || urlParams.get('code')
     if (codeParam?.length === 6) {
       const timer = setTimeout(() => {
-        handleLookup(codeParam)
+        void handleLookup(codeParam)
       }, 50)
       return () => clearTimeout(timer)
     }
@@ -282,7 +278,7 @@ export const ReceivePanel: React.FC = () => {
     }
 
     if (combined.length === 6 && !newDigits.includes('')) {
-      handleLookup(combined)
+      void handleLookup(combined)
     }
   }
 
@@ -301,7 +297,7 @@ export const ReceivePanel: React.FC = () => {
       setPinDigits(digits)
       setPinInput(code)
       inputRefs.current[5]?.focus()
-      handleLookup(code)
+      void handleLookup(code)
     }
   }
 
@@ -315,7 +311,7 @@ export const ReceivePanel: React.FC = () => {
         setPinInput(code)
         setPastedNotice(true)
         setTimeout(() => setPastedNotice(false), 2000)
-        handleLookup(code)
+        await handleLookup(code)
       } else {
         setErrorMsg('No 6-digit PIN found in clipboard.')
       }
@@ -335,10 +331,16 @@ export const ReceivePanel: React.FC = () => {
     const rtc = new WebRtcPeerManager('receiver')
     rtcManagerRef.current = rtc
 
-    rtc.onStateChange((_, stats) => {
+    rtc.onStateChange((state, stats) => {
       setIsDirectP2p(stats.isDirectP2p)
       if (stats.currentMbps > 0) {
         setDownloadSpeedMbps(stats.currentMbps)
+      }
+      if (state === 'CONNECTED') {
+        rtc.sendRequestChunks()
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'REQUEST_WEBRTC_CHUNKS' }))
+        }
       }
     })
 
@@ -409,6 +411,13 @@ export const ReceivePanel: React.FC = () => {
     setErrorMsg(null)
     setStatusText('Deriving cryptographic keys...')
     await acquireWakeLock()
+
+    // Request direct WebRTC streaming if channel is active
+    if (rtcManagerRef.current?.isChannelOpen()) {
+      rtcManagerRef.current.sendRequestChunks()
+    } else if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'REQUEST_WEBRTC_CHUNKS' }))
+    }
 
     const totalChunksAllFiles = batchMetadata.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
     setTotalChunksCount(totalChunksAllFiles)
@@ -539,26 +548,32 @@ export const ReceivePanel: React.FC = () => {
               <p className="text-xs text-steel mt-1 max-w-sm">
                 Instant peer claim. Decrypted directly inside your browser with hardware AES-256-GCM.
               </p>
+              {selectedInterface && (
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 border border-[#222] text-[10px] font-mono text-steel">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{' '}
+                  <span>Interface: <strong className="text-white">{selectedInterface.name}</strong> ({selectedInterface.ip})</span>
+                </div>
+              )}
             </div>
 
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                handleLookup(pinInput)
+                void handleLookup(pinInput)
               }}
               className="w-full space-y-4"
             >
               {/* Interactive 6-Cell Split PIN Box */}
               <div className="flex items-center justify-center gap-2 sm:gap-3 my-2">
-                {pinDigits.map((digit, index) => (
+                {PIN_SLOT_IDS.map((slotId, index) => (
                   <input
-                    key={`pin-cell-${index}`}
+                    key={slotId}
                     ref={(el) => { inputRefs.current[index] = el }}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={1}
-                    value={digit}
+                    value={pinDigits[index]}
                     onChange={(e) => handleDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     onPaste={handlePaste}
@@ -763,33 +778,46 @@ export const ReceivePanel: React.FC = () => {
                   <span>Decrypted & Verified Files ({receivedFiles.length}):</span>
                 </div>
 
-                {/* Download All as .ZIP Button */}
-                {receivedFiles.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={handleDownloadAllAsZip}
-                    disabled={isZipping}
-                    className="px-3.5 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
-                  >
-                    {isZipping ? (
-                      <>
-                        <ArrowsClockwiseIcon className="w-3.5 h-3.5 animate-spin text-black" />
-                        <span>Packing ZIP ({zipProgress}%)...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ArchiveIcon className="w-3.5 h-3.5 text-black" weight="fill" />
-                        <span>Download All as .ZIP</span>
-                      </>
-                    )}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {onSwitchToSend && (
+                    <button
+                      type="button"
+                      onClick={onSwitchToSend}
+                      className="px-3.5 py-1.5 rounded-full bg-carbon border border-[#282828] text-white text-xs font-mono hover:border-[#7089ba]/60 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <ArrowsClockwiseIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                      <span>Send Files</span>
+                    </button>
+                  )}
+
+                  {/* Download All as .ZIP Button */}
+                  {receivedFiles.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadAllAsZip}
+                      disabled={isZipping}
+                      className="px-3.5 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    >
+                      {isZipping ? (
+                        <>
+                          <ArrowsClockwiseIcon className="w-3.5 h-3.5 animate-spin text-black" />
+                          <span>Packing ZIP ({zipProgress}%)...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ArchiveIcon className="w-3.5 h-3.5 text-black" weight="fill" />
+                          <span>Download All as .ZIP</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
-                {receivedFiles.map((item, idx) => (
+                {receivedFiles.map((item) => (
                   <div
-                    key={`${item.metadata.fileName}-${item.metadata.sha256}-${idx}`}
+                    key={`${item.metadata.fileName}-${item.metadata.sha256 || item.blobUrl}`}
                     className="flex items-center justify-between p-3 rounded-xl bg-void border border-[#282828] text-xs"
                   >
                     <div className="flex items-center gap-2 min-w-0 pr-2">

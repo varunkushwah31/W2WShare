@@ -2,6 +2,10 @@
  * W2W Share — Direct WebRTC RTCDataChannel Streaming Engine
  * Provides 100% offline LAN peer-to-peer zero-relay binary chunk transfers
  * with automatic fallback to local HTTP chunk streaming.
+ *
+ * Implements 64KB SCTP packet slicing with event-driven backpressure
+ * to ensure 100% reliable, maximum throughput transfers without
+ * exceeding browser RTCDataChannel message size limits.
  */
 
 export type WebRtcState = 'IDLE' | 'CONNECTING' | 'CONNECTED' | 'STREAMING' | 'FALLBACK_HTTP' | 'CLOSED'
@@ -29,6 +33,24 @@ export type ChunkReceiveHandler = (
   chunkBuffer: ArrayBuffer
 ) => void
 
+/**
+ * 10-byte binary packet header format:
+ * [0..1] uint16 fileIndex
+ * [2..5] uint32 chunkIndex
+ * [6..7] uint16 packetIndex
+ * [8..9] uint16 totalPackets
+ */
+const PACKET_HEADER_SIZE = 10
+const MAX_PACKET_SIZE = 64 * 1024 // 65,536 bytes (safe for all SCTP implementations)
+const PACKET_PAYLOAD_SIZE = MAX_PACKET_SIZE - PACKET_HEADER_SIZE // 65,526 bytes
+
+interface InFlightChunkAssembly {
+  totalPackets: number
+  receivedPackets: number
+  totalBytes: number
+  packets: (Uint8Array | undefined)[]
+}
+
 export class WebRtcPeerManager {
   public readonly role: 'sender' | 'receiver'
   private pc: RTCPeerConnection | null = null
@@ -39,6 +61,8 @@ export class WebRtcPeerManager {
   private wsSendCallback: ((signal: { type: string; payload: unknown }) => void) | null = null
   private onStateChangeCallback: ((state: WebRtcState, stats: WebRtcStats) => void) | null = null
   private onChunkReceiveCallback: ChunkReceiveHandler | null = null
+  private onResendChunkCallback: ((fileIndex: number, chunkIndex: number) => void) | null = null
+  private onRequestChunksCallback: (() => void) | null = null
 
   // Telemetry
   private totalBytesTransferred = 0
@@ -49,8 +73,8 @@ export class WebRtcPeerManager {
   private readonly rttMs = 0
   private speedTimer: number | null = null
 
-  // Buffer chunk queuing on receiver
-  private pendingChunkHeader: ChunkTransferPacket | null = null
+  // Reassembly tracker for 64KB SCTP packet slices
+  private readonly inFlightChunks: Map<string, InFlightChunkAssembly> = new Map()
 
   constructor(role: 'sender' | 'receiver') {
     this.role = role
@@ -66,6 +90,14 @@ export class WebRtcPeerManager {
 
   public onChunkReceived(cb: ChunkReceiveHandler) {
     this.onChunkReceiveCallback = cb
+  }
+
+  public onResendChunk(cb: (fileIndex: number, chunkIndex: number) => void) {
+    this.onResendChunkCallback = cb
+  }
+
+  public onRequestChunks(cb: () => void) {
+    this.onRequestChunksCallback = cb
   }
 
   public getStats(): WebRtcStats {
@@ -226,6 +258,76 @@ export class WebRtcPeerManager {
     }
   }
 
+  private handleStringMessage(data: string): void {
+    try {
+      const parsed = JSON.parse(data)
+      if (parsed.type === 'RESEND_CHUNK' && this.onResendChunkCallback) {
+        this.onResendChunkCallback(parsed.fileIndex, parsed.chunkIndex)
+      } else if (parsed.type === 'REQUEST_WEBRTC_CHUNKS' && this.onRequestChunksCallback) {
+        this.onRequestChunksCallback()
+      }
+    } catch {
+      // Non-JSON frame
+    }
+  }
+
+  private handleBinaryPacket(data: ArrayBuffer): void {
+    if (data.byteLength < PACKET_HEADER_SIZE) return
+
+    // Parse 10-byte binary packet header
+    const view = new DataView(data)
+    const fileIndex = view.getUint16(0)
+    const chunkIndex = view.getUint32(2)
+    const packetIndex = view.getUint16(6)
+    const totalPackets = view.getUint16(8)
+    const payloadLength = data.byteLength - PACKET_HEADER_SIZE
+    this.totalBytesTransferred += payloadLength
+
+    const chunkKey = `${fileIndex}-${chunkIndex}`
+    let assembly = this.inFlightChunks.get(chunkKey)
+    if (!assembly) {
+      assembly = {
+        totalPackets,
+        receivedPackets: 0,
+        totalBytes: 0,
+        packets: new Array(totalPackets),
+      }
+      this.inFlightChunks.set(chunkKey, assembly)
+    }
+
+    if (!assembly.packets[packetIndex]) {
+      assembly.packets[packetIndex] = new Uint8Array(data, PACKET_HEADER_SIZE, payloadLength)
+      assembly.receivedPackets++
+      assembly.totalBytes += payloadLength
+    }
+
+    // Full chunk reassembly once all packets arrive
+    if (assembly.receivedPackets === assembly.totalPackets) {
+      this.assembleAndEmitChunk(chunkKey, assembly, fileIndex, chunkIndex)
+    }
+  }
+
+  private assembleAndEmitChunk(
+    chunkKey: string,
+    assembly: InFlightChunkAssembly,
+    fileIndex: number,
+    chunkIndex: number
+  ): void {
+    this.inFlightChunks.delete(chunkKey)
+    const fullChunk = new Uint8Array(assembly.totalBytes)
+    let offset = 0
+    for (let p = 0; p < assembly.totalPackets; p++) {
+      const pkt = assembly.packets[p]
+      if (pkt) {
+        fullChunk.set(pkt, offset)
+        offset += pkt.byteLength
+      }
+    }
+    if (this.onChunkReceiveCallback) {
+      this.onChunkReceiveCallback(fileIndex, chunkIndex, fullChunk.buffer)
+    }
+  }
+
   private setupDataChannelEvents(dc: RTCDataChannel) {
     dc.onopen = () => {
       this.updateState('CONNECTED')
@@ -242,53 +344,67 @@ export class WebRtcPeerManager {
     dc.onmessage = (event) => {
       const data = event.data
       if (typeof data === 'string') {
-        try {
-          const parsed = JSON.parse(data)
-          if (parsed.type === 'CHUNK_DATA') {
-            this.pendingChunkHeader = parsed as ChunkTransferPacket
-          } else if (parsed.type === 'RESEND_CHUNK' && this.onResendChunkCallback) {
-            this.onResendChunkCallback(parsed.fileIndex, parsed.chunkIndex)
-          }
-        } catch {
-          // Non-JSON frame
-        }
+        this.handleStringMessage(data)
       } else if (data instanceof ArrayBuffer) {
-        this.totalBytesTransferred += data.byteLength
-        if (this.pendingChunkHeader && this.onChunkReceiveCallback) {
-          const { fileIndex, chunkIndex } = this.pendingChunkHeader
-          this.pendingChunkHeader = null
-          this.onChunkReceiveCallback(fileIndex, chunkIndex, data)
-        }
+        this.handleBinaryPacket(data)
       }
     }
   }
 
-  private onResendChunkCallback: ((fileIndex: number, chunkIndex: number) => void) | null = null
-
-  public onResendChunk(cb: (fileIndex: number, chunkIndex: number) => void) {
-    this.onResendChunkCallback = cb
-  }
-
-  public sendResendRequest(fileIndex: number, chunkIndex: number): boolean {
+  public sendControlMessage(msg: { type: string; [key: string]: unknown }): boolean {
     if (this.dataChannel?.readyState === 'open') {
       try {
-        this.dataChannel.send(JSON.stringify({ type: 'RESEND_CHUNK', fileIndex, chunkIndex }))
+        this.dataChannel.send(JSON.stringify(msg))
         return true
       } catch (err) {
-        console.warn('[WebRTC] Failed to send RESEND_CHUNK on dataChannel:', err)
+        console.warn('[WebRTC] Failed to send control message:', err)
       }
     }
     return false
   }
 
+  public sendResendRequest(fileIndex: number, chunkIndex: number): boolean {
+    return this.sendControlMessage({ type: 'RESEND_CHUNK', fileIndex, chunkIndex })
+  }
+
+  public sendRequestChunks(): boolean {
+    return this.sendControlMessage({ type: 'REQUEST_WEBRTC_CHUNKS' })
+  }
 
   /**
-   * SENDER: Streams a single chunk directly over RTCDataChannel with flow control backpressure
+   * Flow control backpressure: waits until the SCTP buffer drains below 128KB
+   */
+  private waitForBufferDrain(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (!this.dataChannel || this.dataChannel.bufferedAmount <= 128 * 1024) {
+        resolve()
+        return
+      }
+      this.dataChannel.bufferedAmountLowThreshold = 128 * 1024
+      const onLow = () => {
+        if (this.dataChannel) {
+          this.dataChannel.onbufferedamountlow = null
+        }
+        resolve()
+      }
+      this.dataChannel.onbufferedamountlow = onLow
+      setTimeout(() => {
+        if (this.dataChannel?.onbufferedamountlow === onLow) {
+          this.dataChannel.onbufferedamountlow = null
+        }
+        resolve()
+      }, 250)
+    })
+  }
+
+  /**
+   * SENDER: Streams a single chunk directly over RTCDataChannel
+   * Slices chunk into 64KB SCTP packets with native backpressure flow control
    */
   public async sendChunk(
     fileIndex: number,
     chunkIndex: number,
-    totalChunks: number,
+    _totalChunks: number,
     chunkData: Uint8Array
   ): Promise<boolean> {
     if (this.dataChannel?.readyState !== 'open') {
@@ -297,49 +413,39 @@ export class WebRtcPeerManager {
 
     try {
       this.updateState('STREAMING')
+      const totalBytes = chunkData.byteLength
+      const totalPackets = Math.ceil(totalBytes / PACKET_PAYLOAD_SIZE) || 1
 
-      // 1. Send Header Frame
-      const header: ChunkTransferPacket = {
-        type: 'CHUNK_DATA',
-        fileIndex,
-        chunkIndex,
-        totalChunks,
-        payloadSize: chunkData.length,
-      }
-      this.dataChannel.send(JSON.stringify(header))
+      for (let packetIndex = 0; packetIndex < totalPackets; packetIndex++) {
+        const start = packetIndex * PACKET_PAYLOAD_SIZE
+        const end = Math.min(start + PACKET_PAYLOAD_SIZE, totalBytes)
+        const sliceLen = end - start
 
-      // 2. Manage DataChannel Backpressure with native event-driven threshold
-      if (this.dataChannel.bufferedAmount > 256 * 1024) {
-        await new Promise<void>((resolve) => {
-          if (!this.dataChannel || this.dataChannel.bufferedAmount < 64 * 1024) {
-            resolve()
-            return
-          }
-          this.dataChannel.bufferedAmountLowThreshold = 64 * 1024
-          this.dataChannel.onbufferedamountlow = () => {
-            if (this.dataChannel) {
-              this.dataChannel.onbufferedamountlow = null
-            }
-            resolve()
-          }
-          setTimeout(() => {
-            if (this.dataChannel) {
-              this.dataChannel.onbufferedamountlow = null
-            }
-            resolve()
-          }, 400)
-        })
+        // Build 10-byte binary packet header
+        const packet = new Uint8Array(PACKET_HEADER_SIZE + sliceLen)
+        const view = new DataView(packet.buffer)
+        view.setUint16(0, fileIndex)
+        view.setUint32(2, chunkIndex)
+        view.setUint16(6, packetIndex)
+        view.setUint16(8, totalPackets)
+
+        // Copy slice payload into packet
+        packet.set(chunkData.subarray(start, end), PACKET_HEADER_SIZE)
+
+        // Flow control backpressure: do not overwhelm the browser's SCTP buffer
+        if (this.dataChannel.bufferedAmount > 512 * 1024) {
+          await this.waitForBufferDrain()
+        }
+
+        if (this.dataChannel.readyState !== 'open') {
+          return false
+        }
+
+        this.dataChannel.send(packet.buffer)
+        this.totalBytesTransferred += sliceLen
       }
 
-      // 3. Send raw ArrayBuffer payload with exact byte bounds
-      const sendBuffer =
-        chunkData.byteOffset === 0 && chunkData.byteLength === chunkData.buffer.byteLength
-          ? chunkData.buffer
-          : chunkData.buffer.slice(chunkData.byteOffset, chunkData.byteOffset + chunkData.byteLength)
-      this.dataChannel.send(sendBuffer as ArrayBuffer)
-      this.totalBytesTransferred += chunkData.length
       return true
-
     } catch (err) {
       console.warn('[WebRTC] Stream send error:', err)
       return false
@@ -380,6 +486,7 @@ export class WebRtcPeerManager {
       clearInterval(this.speedTimer)
       this.speedTimer = null
     }
+    this.inFlightChunks.clear()
     if (this.dataChannel) {
       try {
         this.dataChannel.close()

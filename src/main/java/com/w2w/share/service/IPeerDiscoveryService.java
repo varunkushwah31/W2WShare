@@ -15,4 +15,8 @@ public interface IPeerDiscoveryService {
     void triggerScan();
 
     List<PeerDiscoveryService.DiscoveredPeer> getDiscoveredPeers();
+    
+    boolean isRunning();
+
+    PeerDiscoveryService.DiscoveredPeer registerPeer(String deviceId, String deviceName, String clientIp, int port, String os);
 }

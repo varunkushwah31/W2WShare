@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { api, type DiscoveredPeer, type NetworkInfoResponse, type NetworkDiagnosticsResponse } from '@/lib/api'
+import { api, getLocalDeviceInfo, type DiscoveredPeer, type NetworkInfoResponse, type NetworkDiagnosticsResponse } from '@/lib/api'
 import { OfflineNetworkModal } from './OfflineNetworkModal'
 import {
   DesktopIcon,
@@ -12,10 +12,16 @@ import {
 } from '@phosphor-icons/react'
 
 interface PeerRadarPanelProps {
+  selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
+  onSelectedInterfaceChange?: (iface: import('@/lib/api').NetworkInterfaceDto | null) => void
   onSelectPeer?: (peer: DiscoveredPeer) => void
 }
 
-export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) => {
+export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({
+  selectedInterface,
+  onSelectedInterfaceChange,
+  onSelectPeer,
+}) => {
   const [peers, setPeers] = useState<DiscoveredPeer[]>([])
   const [networkInfo, setNetworkInfo] = useState<NetworkInfoResponse | null>(null)
   const [diagnostics, setDiagnostics] = useState<NetworkDiagnosticsResponse | null>(null)
@@ -24,10 +30,13 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
 
   useEffect(() => {
     let active = true
-    const load = async () => {
+    const deviceInfo = getLocalDeviceInfo()
+
+    const announceAndLoad = async () => {
       try {
+        await api.announcePresence(deviceInfo)
         const [peersData, netData, diagData] = await Promise.all([
-          api.getDiscoveredPeers(),
+          api.getDiscoveredPeers(deviceInfo.deviceId),
           api.getNetworkInfo(),
           api.getNetworkDiagnostics(),
         ])
@@ -42,8 +51,8 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
       }
     }
 
-    load()
-    const timer = setInterval(load, 4000)
+    announceAndLoad()
+    const timer = setInterval(announceAndLoad, 4000)
     return () => {
       active = false
       clearInterval(timer)
@@ -52,9 +61,11 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
 
   const handleRefresh = async () => {
     setScanning(true)
+    const deviceInfo = getLocalDeviceInfo()
     try {
+      await api.announcePresence(deviceInfo)
       const [peersData, netData] = await Promise.all([
-        api.triggerPeerScan(),
+        api.triggerPeerScan(deviceInfo.deviceId),
         api.getNetworkInfo(),
       ])
       setPeers(peersData)
@@ -240,8 +251,8 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
           )}
 
           <div className="divide-y divide-carbon">
-            {networkInfo.interfaces.map((iface, idx) => (
-              <div key={idx} className="py-2.5 flex items-center justify-between text-xs font-mono">
+            {networkInfo.interfaces.map((iface) => (
+              <div key={iface.ip || iface.name} className="py-2.5 flex items-center justify-between text-xs font-mono">
                 <div className="flex items-center gap-2">
                   <span className="text-white font-medium">{iface.displayName || iface.name}</span>
                   {iface.isWifiOrHotspot && (
@@ -266,6 +277,8 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({ onSelectPeer }) 
       <OfflineNetworkModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        selectedInterface={selectedInterface}
+        onSelectedInterfaceChange={onSelectedInterfaceChange}
       />
     </div>
   )

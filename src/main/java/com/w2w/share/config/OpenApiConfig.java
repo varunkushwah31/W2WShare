@@ -15,7 +15,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("W2W Share API")
-                        .description("Offline Encrypted Peer-to-Peer File Sharing Engine — Zero Internet Required")
+                        .description("Offline Encrypted Peer-to-Peer File Sharing Engine - Zero Internet Required")
                         .version("1.0.0")
                         .contact(new Contact()
                                 .name("W2W Systems Engineering")

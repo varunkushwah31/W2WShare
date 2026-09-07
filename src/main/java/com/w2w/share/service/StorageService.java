@@ -6,6 +6,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.w2w.share.metrics.ITransferMetricsService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -32,10 +34,27 @@ public class StorageService implements IStorageService {
     @Value("${w2w.storage.max-quota-bytes:53687091200}") // 50 GB default
     private long maxQuotaBytes;
 
+    private final ITransferMetricsService metricsService;
+
     private Path rootStoragePath;
     private final AtomicLong usedStorageBytes = new AtomicLong(0);
     private final Map<String, Set<String>> sessionFiles = new ConcurrentHashMap<>();
     private final Set<Path> createdDirectories = ConcurrentHashMap.newKeySet();
+
+    public StorageService() {
+        this(null);
+    }
+
+    @Autowired
+    public StorageService(@Autowired(required = false) ITransferMetricsService metricsService) {
+        this.metricsService = metricsService;
+    }
+
+    private void syncMetrics() {
+        if (metricsService != null) {
+            metricsService.setStorageConsumedBytes(usedStorageBytes.get());
+        }
+    }
 
     @PostConstruct
     @Override
@@ -44,6 +63,7 @@ public class StorageService implements IStorageService {
             rootStoragePath = Paths.get(tempDirPath).toAbsolutePath().normalize();
             Files.createDirectories(rootStoragePath);
             reconcileStartupStorage();
+            syncMetrics();
             log.info("Initialized ephemeral encrypted storage directory at: {}", rootStoragePath);
         } catch (IOException e) {
             log.error("Failed to initialize temporary storage directory: {}", tempDirPath, e);
@@ -105,6 +125,8 @@ public class StorageService implements IStorageService {
             log.warn("Error cleaning up storage directory on shutdown: {}", e.getMessage());
         }
         createdDirectories.clear();
+        usedStorageBytes.set(0);
+        syncMetrics();
     }
 
     private void validateSessionId(String sessionId) {
@@ -148,6 +170,7 @@ public class StorageService implements IStorageService {
             Files.write(finalChunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
 
             usedStorageBytes.addAndGet(data.length);
+            syncMetrics();
 
             sessionFiles.computeIfAbsent(sessionId, _ -> ConcurrentHashMap.newKeySet())
                     .add(finalChunkPath.toString());
@@ -270,6 +293,7 @@ public class StorageService implements IStorageService {
                     });
             sessionFiles.remove(sessionId);
             createdDirectories.removeIf(p -> p.startsWith(sessionDir));
+            syncMetrics();
             log.info("Purged ephemeral storage for session [{}]", sessionId);
         } catch (IOException e) {
             log.warn("Error cleaning up session directory {}: {}", sessionDir, e.getMessage());

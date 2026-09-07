@@ -51,7 +51,7 @@ export class ZipArchiver {
     anchor.download = fileName.endsWith('.zip') ? fileName : `${fileName}.zip`
     document.body.appendChild(anchor)
     anchor.click()
-    document.body.removeChild(anchor)
+    anchor.remove()
     URL.revokeObjectURL(url)
   }
 }

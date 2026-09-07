@@ -28,6 +28,16 @@ interface MobileCompanionModalProps {
   selectedInterface?: NetworkInterfaceDto | null
 }
 
+function getInterfaceBadge(iface: NetworkInterfaceDto): string {
+  if (iface.isWifiOrHotspot) {
+    return '(Wi-Fi)'
+  }
+  if (iface.isLoopback) {
+    return '(Local)'
+  }
+  return ''
+}
+
 export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
   isOpen,
   onClose,
@@ -36,14 +46,21 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'qr' | 'features' | 'hotspot'>('qr')
   const [networkInterfaces, setNetworkInterfaces] = useState<NetworkInterfaceDto[]>([])
-  const [activeIface, setActiveIface] = useState<NetworkInterfaceDto | null>(selectedInterface || null)
+  const [userSelectedIface, setUserSelectedIface] = useState<NetworkInterfaceDto | null>(null)
 
-  // Sync prop changes
-  useEffect(() => {
-    if (selectedInterface) {
-      setActiveIface(selectedInterface)
+  // Compute active interface dynamically from user selection, selectedInterface prop, or detected LAN interfaces
+  const activeIface = useMemo(() => {
+    if (userSelectedIface) return userSelectedIface
+    if (selectedInterface) return selectedInterface
+    if (networkInterfaces.length > 0) {
+      return (
+        networkInterfaces.find((i) => i.isWifiOrHotspot && !i.isLoopback && i.ip !== '127.0.0.1') ||
+        networkInterfaces.find((i) => !i.isLoopback && i.ip !== '127.0.0.1') ||
+        networkInterfaces[0]
+      )
     }
-  }, [selectedInterface])
+    return null
+  }, [userSelectedIface, selectedInterface, networkInterfaces])
 
   // Discover local interfaces (LAN / Wi-Fi) on mount/open
   useEffect(() => {
@@ -54,18 +71,6 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
       .then((info) => {
         if (!active || !info?.interfaces?.length) return
         setNetworkInterfaces(info.interfaces)
-
-        if (!selectedInterface) {
-          // Prefer active Wi-Fi / Hotspot interface over loopback
-          const preferred =
-            info.interfaces.find((i) => i.isWifiOrHotspot && !i.isLoopback && i.ip !== '127.0.0.1') ||
-            info.interfaces.find((i) => !i.isLoopback && i.ip !== '127.0.0.1') ||
-            info.interfaces[0]
-
-          if (preferred) {
-            setActiveIface(preferred)
-          }
-        }
       })
       .catch(() => {
         // Fallback gracefully in offline mode
@@ -74,7 +79,7 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
     return () => {
       active = false
     }
-  }, [isOpen, selectedInterface])
+  }, [isOpen])
 
   // Compute effective mobile companion URL (using LAN IP and active frontend port)
   const currentHostUrl = useMemo(() => {
@@ -96,9 +101,9 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
 
   const isLocalhost = currentHostUrl.includes('localhost') || currentHostUrl.includes('127.0.0.1')
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!currentHostUrl) return
-    navigator.clipboard.writeText(currentHostUrl)
+    await navigator.clipboard.writeText(currentHostUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -172,14 +177,14 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
                     <button
                       key={iface.ip || iface.name}
                       type="button"
-                      onClick={() => setActiveIface(iface)}
+                      onClick={() => setUserSelectedIface(iface)}
                       className={`text-[10px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-[#7089ba] text-black font-bold shadow-sm'
                           : 'bg-[#1a1a1a] text-steel hover:text-white border border-[#2a2a2a]'
                       }`}
                     >
-                      {iface.ip} {iface.isWifiOrHotspot ? '(Wi-Fi)' : iface.isLoopback ? '(Local)' : ''}
+                      {iface.ip} {getInterfaceBadge(iface)}
                     </button>
                   )
                 })}

@@ -50,7 +50,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         lastHeartbeatMap.put(session.getId(), System.currentTimeMillis());
-        log.debug("WebSocket client connected: {}", session.getId());
+        log.info("[WEBSOCKET] Client connected: socket [{}] (remote: {})", session.getId(), session.getRemoteAddress());
     }
 
     @Override
@@ -62,7 +62,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         if (payload.length() > MAX_SIGNAL_PAYLOAD_CHARS) {
-            log.warn("Rejected oversized WebSocket payload ({} chars) from socket {}", payload.length(), session.getId());
+            log.warn("[WEBSOCKET] Rejected oversized WebSocket payload ({} chars) from socket [{}]", payload.length(), session.getId());
             sendErrorSilently(session, "Signal message exceeds maximum allowable size of 1MB");
             return;
         }
@@ -70,12 +70,12 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         try {
             SignalMessage signal = objectMapper.readValue(payload, SignalMessage.class);
             if (signal == null || signal.type() == null) {
-                log.warn("Received empty or untyped signal from socket {}", session.getId());
+                log.warn("[WEBSOCKET] Received empty or untyped signal from socket [{}]", session.getId());
                 return;
             }
             dispatchSignal(session, signal);
         } catch (Exception e) {
-            log.warn("Error processing WebSocket signal from {}: {}", session.getId(), e.getMessage());
+            log.warn("[WEBSOCKET] Error processing signal from socket [{}]: {}", session.getId(), e.getMessage());
             sendErrorSilently(session, "Failed to process signal: " + e.getMessage());
         }
     }
@@ -90,12 +90,11 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
             case "BATCH_OFFER" -> handleBatchOffer(session, signal);
             case "FILE_ACCEPT", "BATCH_ACCEPT", "TRANSFER_TELEMETRY", "CHUNK_ACK", "CHUNK_UPLOADED",
                  "RESEND_CHUNK", "TRANSFER_PROGRESS", "TRANSFER_COMPLETE", "WEBRTC_OFFER", "WEBRTC_ANSWER",
-                 "WEBRTC_ICE_CANDIDATE" -> relayToPeer(session, signal);
-            case "STREAM_CHUNK" -> handleStreamChunk(session, signal);
+                 "WEBRTC_ICE_CANDIDATE", "REQUEST_WEBRTC_CHUNKS", "REQUEST_CHUNK", "STREAM_CHUNK" -> relayToPeer(session, signal);
             case "TRANSFER_CANCELLED" -> handleCancel(session, signal);
             case "TEXT_MESSAGE" -> handleTextMessageRelay(session, signal);
             case "CHAT_MESSAGE" -> handleChatMessage(session, signal);
-            default -> log.warn("Unknown signal type: {}", signal.type());
+            default -> log.warn("[WEBSOCKET] Unknown signal type received from socket [{}]: {}", session.getId(), signal.type());
         }
     }
 
@@ -158,13 +157,6 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleStreamChunk(WebSocketSession session, SignalMessage signal) throws IOException {
-        String transferSessionId = wsSessionToTransferSession.get(session.getId());
-        if (transferSessionId != null) {
-            relayToOtherPeers(session, transferSessionId, signal);
-        }
-    }
-
     private void handleRegisterSender(WebSocketSession session, SignalMessage signal) throws IOException {
         if (signal.payload() == null) {
             sendSignal(session, new SignalMessage(SIGNAL_ERROR, "Session ID required for sender registration"));
@@ -172,7 +164,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
         String transferSessionId = String.valueOf(signal.payload()).trim();
         registerSocketToSession(session, transferSessionId, ROLE_SENDER);
-        log.info("Sender registered on WebSocket for session: {}", transferSessionId);
+        log.info("[WEBSOCKET] Socket [{}] registered as SENDER for session [{}] (remote: {})",
+                session.getId(), transferSessionId, session.getRemoteAddress());
         sendSignal(session, new SignalMessage("REGISTERED", "Sender linked successfully"));
 
         // Broadcast to other peers that sender is online
@@ -201,6 +194,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         try {
             TransferSession transferSession = sessionService.joinSessionWithRateLimit(pin, session.getId(), clientIp);
             registerSocketToSession(session, transferSession.getSessionId(), ROLE_RECEIVER);
+            log.info("[WEBSOCKET] Socket [{}] joined session [{}] via PIN [{}] as RECEIVER (client IP: {})",
+                    session.getId(), transferSession.getSessionId(), pin, clientIp);
 
             sendSignal(session, new SignalMessage("JOINED", Map.of(
                     "sessionId", transferSession.getSessionId(),
@@ -219,7 +214,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
             );
             relayToOtherPeers(session, transferSession.getSessionId(), new SignalMessage("PEER_CONNECTED", presence));
         } catch (Exception e) {
-            log.warn("Failed join attempt on socket {}: {}", session.getId(), e.getMessage());
+            log.warn("[WEBSOCKET] Failed join attempt on socket [{}] with PIN [{}]: {}", session.getId(), pin, e.getMessage());
             sendSignal(session, new SignalMessage(SIGNAL_ERROR, e.getMessage()));
         }
     }
@@ -302,6 +297,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     private void relayToOtherPeers(WebSocketSession currentSession, String transferSessionId, SignalMessage signal) throws IOException {
         Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
         if (sockets != null) {
+            log.info("[WEBRTC-SIGNAL] Relaying [{}] signal from socket [{}] to peer(s) in session [{}]",
+                    signal.type(), currentSession.getId(), transferSessionId);
             for (WebSocketSession s : sockets) {
                 if (s.isOpen() && !s.getId().equals(currentSession.getId())) {
                     sendSignal(s, signal);
@@ -334,7 +331,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         if (transferSessionId != null) {
             notifyPeersOnDisconnect(session, transferSessionId, role);
         }
-        log.debug("WebSocket client disconnected: {} (role: {})", session.getId(), role);
+        log.info("[WEBSOCKET] Client disconnected: socket [{}] (role: {}, session: {}, status: {})",
+                session.getId(), role != null ? role : "unregistered", transferSessionId != null ? transferSessionId : "none", status);
     }
 
     private void notifyPeersOnDisconnect(WebSocketSession session, String transferSessionId, String role) {
@@ -368,24 +366,34 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         long now = System.currentTimeMillis();
         for (Map.Entry<String, Long> entry : lastHeartbeatMap.entrySet()) {
             String wsId = entry.getKey();
-            if (now - entry.getValue() > 45000) { // 45s silence timeout
-                String transferSessionId = wsSessionToTransferSession.get(wsId);
-                if (transferSessionId != null) {
-                    Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
-                    if (sockets != null) {
-                        for (WebSocketSession s : sockets) {
-                            if (s.getId().equals(wsId) && s.isOpen()) {
-                                try {
-                                    log.info("Evicting silent/dead WebSocket session [{}] from room [{}]", wsId, transferSessionId);
-                                    s.close(CloseStatus.SESSION_NOT_RELIABLE);
-                                } catch (IOException _) {
-                                    // Best-effort socket close during dead socket eviction
-                                }
-                            }
-                        }
-                    }
-                }
+            if (shouldEvict(now, entry.getValue())) {
+                closeDeadSocket(wsId);
                 lastHeartbeatMap.remove(wsId);
+            }
+        }
+    }
+
+    private static boolean shouldEvict(long now, long lastHeartbeat) {
+        return now - lastHeartbeat > 45000;
+    }
+
+    private void closeDeadSocket(String wsId) {
+        String transferSessionId = wsSessionToTransferSession.get(wsId);
+        if (transferSessionId == null) {
+            return;
+        }
+        Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
+        if (sockets == null) {
+            return;
+        }
+        for (WebSocketSession s : sockets) {
+            if (s.getId().equals(wsId) && s.isOpen()) {
+                try {
+                    log.info("Evicting silent/dead WebSocket session [{}] from room [{}]", wsId, transferSessionId);
+                    s.close(CloseStatus.SESSION_NOT_RELIABLE);
+                } catch (IOException _) {
+                    // Best-effort socket close during dead socket eviction
+                }
             }
         }
     }

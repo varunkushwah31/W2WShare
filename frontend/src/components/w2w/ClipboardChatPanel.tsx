@@ -236,8 +236,8 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     }
   }
 
-  const handleCopyClipboard = () => {
-    navigator.clipboard.writeText(clipboardText)
+  const handleCopyClipboard = async () => {
+    await navigator.clipboard.writeText(clipboardText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -273,8 +273,8 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     }
   }
 
-  const handleCopyMessage = (msgId: string, text: string) => {
-    navigator.clipboard.writeText(text)
+  const handleCopyMessage = async (msgId: string, text: string) => {
+    await navigator.clipboard.writeText(text)
     setCopiedMsgId(msgId)
     setTimeout(() => setCopiedMsgId(null), 2000)
   }

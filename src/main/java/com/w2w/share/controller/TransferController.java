@@ -13,6 +13,8 @@ import com.w2w.share.service.ISessionService;
 import com.w2w.share.service.IStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,6 +29,7 @@ import java.util.*;
 @RequestMapping("/api/transfer")
 public class TransferController {
 
+    private static final Logger log = LoggerFactory.getLogger(TransferController.class);
     private static final String PARAM_STATUS = "status";
     private static final String STATUS_SAVED = "SAVED";
     private static final String ERR_INVALID_PIN = "Invalid pairing PIN: ";
@@ -76,6 +79,10 @@ public class TransferController {
 
         TransferSession session = sessionService.createSession(senderId, burnAfter, maxDownloads, expiresInSeconds);
 
+        log.info("[TRANSFER-SESSION] Created session [{}] with PIN [{}] (sender: {}, burnAfterReading: {}, maxDownloads: {}, expires: {}s) from IP {}",
+                session.getSessionId(), session.getPin(), senderId, burnAfter, maxDownloads, expiresInSeconds,
+                httpRequest != null ? httpRequest.getRemoteAddr() : "unknown");
+
         String baseUrl = resolveBaseUrl(httpRequest);
         String joinUrl = baseUrl + "/?pin=" + session.getPin();
 
@@ -105,28 +112,36 @@ public class TransferController {
         return scheme + "://" + host;
     }
 
+    private static String resolveUrlFromReferer(String referer) {
+        if (referer == null || referer.isBlank()) {
+            return null;
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(referer);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            int port = uri.getPort();
+            if (scheme != null && host != null) {
+                return buildHostUrl(scheme, host, port);
+            }
+        } catch (Exception _) {
+            // Fallback
+        }
+        return null;
+    }
+
     private String resolveBaseUrl(HttpServletRequest httpRequest) {
         if (configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()) {
             return stripTrailingSlashes(configuredFrontendUrl);
         }
         if (httpRequest != null) {
             String origin = httpRequest.getHeader("Origin");
-            if (origin != null && !origin.isBlank() && !origin.equals("null")) {
+            if (origin != null && !origin.isBlank() && !"null".equals(origin)) {
                 return stripTrailingSlashes(origin);
             }
-            String referer = httpRequest.getHeader("Referer");
-            if (referer != null && !referer.isBlank()) {
-                try {
-                    java.net.URI uri = java.net.URI.create(referer);
-                    String scheme = uri.getScheme();
-                    String host = uri.getHost();
-                    int port = uri.getPort();
-                    if (scheme != null && host != null) {
-                        return buildHostUrl(scheme, host, port);
-                    }
-                } catch (Exception _) {
-                    // Fallback to primary network URL
-                }
+            String refererUrl = resolveUrlFromReferer(httpRequest.getHeader("Referer"));
+            if (refererUrl != null) {
+                return refererUrl;
             }
         }
         return networkDiscoveryService.getPrimaryNetworkUrl();
@@ -244,6 +259,9 @@ public class TransferController {
             throw new InvalidPinException(ERR_INVALID_PIN + pin);
         }
 
+        log.info("[TRANSFER-SESSION] Receiver [{}] joined session [{}] with PIN [{}] from IP {}",
+                receiverId, session.getSessionId(), pin, clientIp);
+
         return ResponseEntity.ok(new JoinSessionResponse(
                 session.getSessionId(),
                 session.getPin(),
@@ -263,6 +281,8 @@ public class TransferController {
             throw new IllegalArgumentException("File metadata is required.");
         }
         sessionService.setFileOffer(sessionId, metadata);
+        log.info("[TRANSFER-OFFER] Registered single file offer for session [{}]: {} ({} bytes, {} total chunks)",
+                sessionId, metadata.fileName(), metadata.fileSize(), metadata.totalChunks());
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "OFFER_REGISTERED", "metadata", metadata));
     }
 
@@ -275,6 +295,10 @@ public class TransferController {
             throw new IllegalArgumentException("File batch cannot be null or empty.");
         }
         sessionService.setFileBatchOffer(sessionId, batch);
+        long totalBytes = batch.stream().mapToLong(m -> m.fileSize() != null ? m.fileSize() : 0L).sum();
+        int totalChunks = batch.stream().mapToInt(m -> m.totalChunks() != null ? m.totalChunks() : 1).sum();
+        log.info("[TRANSFER-BATCH] Registered batch offer for session [{}]: {} file(s), {} total bytes ({} total chunks)",
+                sessionId, batch.size(), totalBytes, totalChunks);
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "BATCH_REGISTERED", "totalFiles", batch.size()));
     }
 
@@ -293,10 +317,17 @@ public class TransferController {
         }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
+        boolean existing = storageService.hasChunk(sessionId, fileIndex, chunkIndex);
+        if (existing) {
+            log.debug("[TRANSFER-CHUNK] Chunk [{}] for file [{}] already exists in session [{}], overwriting",
+                    chunkIndex, fileIndex, sessionId);
+        }
         storageService.saveChunk(sessionId, fileIndex, chunkIndex, data);
         int count = session.incrementUploadedChunks();
 
         metricsService.recordChunkUpload(data.length);
+        log.info("[TRANSFER-CHUNK] Stored binary chunk [{}] ({} bytes) for file [{}] in session [{}] (total uploaded: {})",
+                chunkIndex, data.length, fileIndex, sessionId, count);
 
         return ResponseEntity.ok(Map.of(
                 "fileIndex", fileIndex,
@@ -321,11 +352,18 @@ public class TransferController {
         }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
+        boolean existing = storageService.hasChunk(sessionId, 0, chunkIndex);
+        if (existing) {
+            log.debug("[TRANSFER-CHUNK] Chunk [{}] already exists in session [{}], overwriting",
+                    chunkIndex, sessionId);
+        }
         byte[] bytes = file.getBytes();
         storageService.saveChunk(sessionId, 0, chunkIndex, bytes);
         int count = session.incrementUploadedChunks();
 
         metricsService.recordChunkUpload(bytes.length);
+        log.info("[TRANSFER-CHUNK] Stored multipart chunk [{}] ({} bytes) in session [{}] (total uploaded: {})",
+                chunkIndex, bytes.length, sessionId, count);
 
         return ResponseEntity.ok(Map.of(
                 "chunkIndex", chunkIndex,
@@ -356,6 +394,8 @@ public class TransferController {
         session.incrementDownloadedChunks();
 
         metricsService.recordChunkDownload(fileSize);
+        log.info("[TRANSFER-CHUNK] Serving chunk [{}] ({} bytes) for file [{}] in session [{}]",
+                chunkIndex, fileSize, fileIndex, sessionId);
 
         org.springframework.core.io.FileSystemResource resource = new org.springframework.core.io.FileSystemResource(chunkPath);
         return ResponseEntity.ok()
@@ -376,6 +416,7 @@ public class TransferController {
     @PostMapping("/session/{sessionId}/complete")
     public ResponseEntity<Map<String, Object>> markTransferComplete(@PathVariable String sessionId) {
         boolean burned = sessionService.notifyDownloadComplete(sessionId);
+        log.info("[TRANSFER-COMPLETE] Session [{}] marked complete (burned: {})", sessionId, burned);
         return ResponseEntity.ok(Map.of(
                 PARAM_STATUS, "COMPLETED",
                 "burned", burned
@@ -389,6 +430,7 @@ public class TransferController {
 
         String text = (request != null && request.text() != null) ? request.text() : "";
         sessionService.setEncryptedClipboardText(sessionId, text);
+        log.info("[CLIPBOARD-SYNC] Stored clipboard text for session [{}] (length: {} chars)", sessionId, text.length());
         return ResponseEntity.ok(Map.of(PARAM_STATUS, STATUS_SAVED));
     }
 
@@ -408,6 +450,8 @@ public class TransferController {
                 .orElseThrow(() -> new InvalidPinException(ERR_INVALID_PIN + pin));
         String text = (request != null && request.text() != null) ? request.text() : "";
         sessionService.setEncryptedClipboardText(session.getSessionId(), text);
+        log.info("[CLIPBOARD-SYNC] Stored clipboard text for session [{}] via PIN [{}] (length: {} chars)",
+                session.getSessionId(), pin, text.length());
         return ResponseEntity.ok(Map.of(PARAM_STATUS, STATUS_SAVED, KEY_SESSION_ID, session.getSessionId()));
     }
 
@@ -432,6 +476,8 @@ public class TransferController {
 
         ChatMessage msg = new ChatMessage(UUID.randomUUID().toString(), senderRole, content, System.currentTimeMillis());
         sessionService.addChatMessage(sessionId, msg);
+        log.info("[CHAT-MESSAGE] Received message from [{}] in session [{}] (id: {})",
+                senderRole, sessionId, msg.getId());
 
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "SENT", "message", msg));
     }
@@ -457,6 +503,8 @@ public class TransferController {
 
         ChatMessage msg = new ChatMessage(UUID.randomUUID().toString(), senderRole, content, System.currentTimeMillis());
         sessionService.addChatMessage(session.getSessionId(), msg);
+        log.info("[CHAT-MESSAGE] Received message from [{}] in session [{}] via PIN [{}] (id: {})",
+                senderRole, session.getSessionId(), pin, msg.getId());
 
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "SENT", "message", msg, KEY_SESSION_ID, session.getSessionId()));
     }
@@ -497,6 +545,7 @@ public class TransferController {
     }
     @DeleteMapping("/session/{sessionId}")
     public ResponseEntity<Map<String, String>> cancelSession(@PathVariable String sessionId) {
+        log.info("[TRANSFER-CANCEL] Session [{}] cancelled by user", sessionId);
         sessionService.cancelSession(sessionId);
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "SESSION_CLOSED"));
     }

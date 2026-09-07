@@ -57,11 +57,11 @@ public class HttpTrafficLoggingFilter extends OncePerRequestFilter {
             int status = response.getStatus();
 
             if (status >= 500) {
-                log.error("HTTP {} {} -> {} ({}ms)", method, fullPath, status, durationMs);
+                log.error("[HTTP-ERROR] {} {} -> {} ({}ms)", method, fullPath, status, durationMs);
             } else if (status >= 400) {
-                log.warn("HTTP {} {} -> {} ({}ms)", method, fullPath, status, durationMs);
+                log.warn("[HTTP-WARN] {} {} -> {} ({}ms)", method, fullPath, status, durationMs);
             } else if (!uri.contains("/chunk/")) {
-                log.info("HTTP {} {} -> {} ({}ms)", method, fullPath, status, durationMs);
+                log.info("[HTTP] {} {} -> {} ({}ms)", method, fullPath, status, durationMs);
             }
         }
     }

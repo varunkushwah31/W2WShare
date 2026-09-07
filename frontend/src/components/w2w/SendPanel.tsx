@@ -23,7 +23,8 @@ import {
   ArchiveIcon,
   CodeIcon,
 } from '@phosphor-icons/react'
-import { detectFileTypeCategory, type FileCategoryType } from '@/lib/fileCategories'
+import { detectFileTypeCategory, type FileCategoryType, calculateOptimalChunkSize } from '@/lib/fileCategories'
+import { useWakeLock } from '@/lib/useWakeLock'
 
 interface SelectedFileItem {
   file: File
@@ -40,17 +41,11 @@ interface PreparedFile {
   compressedBlob?: Blob
 }
 
-export const calculateOptimalChunkSize = (fileSize: number): number => {
-  if (fileSize > 500 * 1024 * 1024) return 16 * 1024 * 1024 // 16MB chunking for large files (>500MB)
-  if (fileSize > 100 * 1024 * 1024) return 8 * 1024 * 1024  // 8MB chunking for medium-large files (100-500MB)
-  if (fileSize > 20 * 1024 * 1024) return 4 * 1024 * 1024   // 4MB chunking for medium files (20-100MB)
-  return 2 * 1024 * 1024                                     // 2MB chunking for small files (<20MB)
-}
-
 interface SendPanelProps {
   selectedInterface?: import('@/lib/api').NetworkInterfaceDto | null
   targetPeer?: import('@/lib/api').DiscoveredPeer | null
   onClearTargetPeer?: () => void
+  onSessionCreated?: (sessionId: string, pin: string) => void
 }
 
 const resolveJoinUrl = (
@@ -192,7 +187,8 @@ async function sendSingleChunk(
 
 async function recordSentAuditLog(
   preparedFiles: PreparedFile[],
-  burnAfter: boolean
+  burnAfter: boolean,
+  persistVault = false
 ): Promise<void> {
   for (const prep of preparedFiles) {
     const txId = cryptoEngine.generateSecureTxId()
@@ -209,9 +205,137 @@ async function recordSentAuditLog(
         burned: burnAfter,
         isCompressed: !!prep.metadata.isCompressed,
       })
+
+      // Wire up 7-day database vault persistence for non-burned items
+      if (persistVault && !burnAfter && prep.item.file.size <= 50 * 1024 * 1024) {
+        try {
+          await api.persistAuditFile(txId, prep.item.file, prep.metadata.mimeType)
+        } catch {
+          // Non-blocking vault persistence
+        }
+      }
     } catch {
       // Non-blocking audit persistence fallback
     }
+  }
+}
+
+async function traverseFileSystemEntry(
+  entry: FileSystemEntry | null,
+  path = ''
+): Promise<SelectedFileItem[]> {
+  if (!entry) return []
+  if (entry.isFile) {
+    const fileEntry = entry as FileSystemFileEntry
+    return new Promise((resolve) => {
+      fileEntry.file(
+        (file: File) => {
+          const typeCategory = detectFileTypeCategory(file.name, file.type)
+          const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
+          resolve([
+            {
+              file,
+              relativePath: path + file.name,
+              size: file.size,
+              previewUrl,
+              typeCategory,
+            },
+          ])
+        },
+        () => resolve([])
+      )
+    })
+  }
+  if (entry.isDirectory) {
+    const dirEntry = entry as FileSystemDirectoryEntry
+    const children = await readDirectoryEntries(dirEntry)
+    const results: SelectedFileItem[] = []
+    for (const child of children) {
+      const subItems = await traverseFileSystemEntry(child, `${path}${entry.name}/`)
+      results.push(...subItems)
+    }
+    return results
+  }
+  return []
+}
+
+async function extractDroppedItems(items: DataTransferItemList): Promise<SelectedFileItem[]> {
+  const collected: SelectedFileItem[] = []
+  for (const element of items) {
+    const item = element
+    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null
+    if (entry) {
+      const res = await traverseFileSystemEntry(entry)
+      collected.push(...res)
+    } else {
+      const file = item.getAsFile()
+      if (file) {
+        const typeCategory = detectFileTypeCategory(file.name, file.type)
+        const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
+        collected.push({
+          file,
+          relativePath: file.name,
+          size: file.size,
+          previewUrl,
+          typeCategory,
+        })
+      }
+    }
+  }
+  return collected
+}
+
+function mapFilesToSelectedItems(fileList: FileList | File[]): SelectedFileItem[] {
+  return Array.from(fileList).map((file) => {
+    const typeCategory = detectFileTypeCategory(file.name, file.type)
+    const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
+    return {
+      file,
+      relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+      size: file.size,
+      previewUrl,
+      typeCategory,
+    }
+  })
+}
+
+interface SignalingMessage {
+  type: string
+  payload?: unknown
+}
+
+function handleSignalingEvent(
+  signal: SignalingMessage,
+  rtc: WebRtcPeerManager,
+  setPeerConnected: (v: boolean) => void,
+  handleResendChunk: (fIdx: number, cIdx: number) => void,
+  onStreamingNeeded: () => void
+) {
+  switch (signal.type) {
+    case 'PEER_CONNECTED':
+      setPeerConnected(true)
+      soundEngine.peerConnect()
+      void rtc.initSenderOffer()
+      break
+    case 'PEER_DISCONNECTED':
+      setPeerConnected(false)
+      break
+    case 'WEBRTC_ANSWER':
+      if (signal.payload) void rtc.handleRemoteAnswer(signal.payload as RTCSessionDescriptionInit)
+      break
+    case 'WEBRTC_ICE_CANDIDATE':
+      if (signal.payload) void rtc.handleRemoteIceCandidate(signal.payload as RTCIceCandidateInit)
+      break
+    case 'RESEND_CHUNK': {
+      const payload = signal.payload as { fileIndex?: unknown; chunkIndex?: unknown } | undefined
+      if (typeof payload?.fileIndex === 'number' && typeof payload?.chunkIndex === 'number') {
+        handleResendChunk(payload.fileIndex, payload.chunkIndex)
+      }
+      break
+    }
+    case 'REQUEST_WEBRTC_CHUNKS':
+      onStreamingNeeded()
+      break
   }
 }
 
@@ -219,11 +343,13 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   selectedInterface,
   targetPeer,
   onClearTargetPeer,
+  onSessionCreated,
 }) => {
   const [files, setFiles] = useState<SelectedFileItem[]>([])
   const [burnAfter, setBurnAfter] = useState(false)
   const [expiryMinutes, setExpiryMinutes] = useState(15)
   const [enableCompression, setEnableCompression] = useState(true)
+  const [persistVault, setPersistVault] = useState(false)
 
   // Transfer state
   const [isTransferring, setIsTransferring] = useState(false)
@@ -251,46 +377,10 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   const preparedFilesRef = useRef<PreparedFile[]>([])
   const rtcManagerRef = useRef<WebRtcPeerManager | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const isStreamingRtcRef = useRef(false)
 
-  // Screen WakeLock API to prevent mobile browsers from sleeping during transfer
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
-
-  const acquireWakeLock = useCallback(async () => {
-    if ('wakeLock' in navigator && !wakeLockRef.current) {
-      try {
-        wakeLockRef.current = await navigator.wakeLock.request('screen')
-        wakeLockRef.current.addEventListener('release', () => {
-          wakeLockRef.current = null
-        })
-      } catch (e) {
-        console.debug('[WakeLock] Request denied or unsupported:', e)
-      }
-    }
-  }, [])
-
-  const releaseWakeLock = useCallback(async () => {
-    if (wakeLockRef.current) {
-      try {
-        await wakeLockRef.current.release()
-      } catch {
-        // ignore
-      }
-      wakeLockRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    const onVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && isTransferring) {
-        await acquireWakeLock()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-      releaseWakeLock()
-    }
-  }, [isTransferring, acquireWakeLock, releaseWakeLock])
+  // Screen WakeLock to prevent mobile browsers from sleeping during transfer
+  const { acquireWakeLock, releaseWakeLock } = useWakeLock(isTransferring)
 
   // Selective chunk retransmission handler
   const handleResendChunk = useCallback(async (fIdx: number, cIdx: number) => {
@@ -312,15 +402,21 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   // WebRTC direct streaming handler using on-demand chunk slices
   const streamViaWebRtc = useCallback(async (prepared: PreparedFile[]) => {
     const rtc = rtcManagerRef.current
-    if (!rtc?.isChannelOpen()) return
+    if (!rtc?.isChannelOpen() || isStreamingRtcRef.current) return
+    isStreamingRtcRef.current = true
 
-    for (let fIdx = 0; fIdx < prepared.length; fIdx++) {
-      const p = prepared[fIdx]
-      const totalChunks = p.metadata.totalChunks
-      for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
-        const chunkData = await getChunkSlice(p, cIdx)
-        await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
+    try {
+      for (let fIdx = 0; fIdx < prepared.length; fIdx++) {
+        const p = prepared[fIdx]
+        const totalChunks = p.metadata.totalChunks
+        for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
+          if (!rtc.isChannelOpen()) return
+          const chunkData = await getChunkSlice(p, cIdx)
+          await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
+        }
       }
+    } finally {
+      isStreamingRtcRef.current = false
     }
   }, [])
 
@@ -335,15 +431,24 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     const rtc = new WebRtcPeerManager('sender')
     rtcManagerRef.current = rtc
 
-    rtc.onStateChange((_, stats) => {
+    rtc.onStateChange((state, stats) => {
       setIsDirectP2p(stats.isDirectP2p)
       if (stats.currentMbps > 0) {
         setTransferSpeedMbps(stats.currentMbps)
+      }
+      if (state === 'CONNECTED' && preparedFilesRef.current.length > 0) {
+        streamViaWebRtc(preparedFilesRef.current)
       }
     })
 
     rtc.onResendChunk((fileIndex, chunkIndex) => {
       handleResendChunk(fileIndex, chunkIndex)
+    })
+
+    rtc.onRequestChunks(() => {
+      if (preparedFilesRef.current.length > 0) {
+        streamViaWebRtc(preparedFilesRef.current)
+      }
     })
 
     const wsUrl = getWebSocketUrl('/ws/signaling')
@@ -361,30 +466,20 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       ws.send(JSON.stringify({ type: 'REGISTER_SENDER', payload: sessionId }))
     }
 
-    ws.onmessage = async (event) => {
+    ws.onmessage = (event) => {
       try {
         const signal = JSON.parse(event.data)
-        if (signal.type === 'PEER_CONNECTED') {
-          setPeerConnected(true)
-          soundEngine.peerConnect()
-          // Initiate WebRTC offer to the connected peer
-          await rtc.initSenderOffer()
-        } else if (signal.type === 'PEER_DISCONNECTED') {
-          setPeerConnected(false)
-        } else if (signal.type === 'WEBRTC_ANSWER' && signal.payload) {
-          await rtc.handleRemoteAnswer(signal.payload)
-        } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
-          await rtc.handleRemoteIceCandidate(signal.payload)
-        } else if (signal.type === 'RESEND_CHUNK') {
-          const { fileIndex, chunkIndex } = signal.payload || {}
-          if (typeof fileIndex === 'number' && typeof chunkIndex === 'number') {
-            handleResendChunk(fileIndex, chunkIndex)
+        handleSignalingEvent(
+          signal,
+          rtc,
+          setPeerConnected,
+          handleResendChunk,
+          () => {
+            if (preparedFilesRef.current.length > 0) {
+              streamViaWebRtc(preparedFilesRef.current)
+            }
           }
-        } else if (signal.type === 'REQUEST_WEBRTC_CHUNKS') {
-          if (preparedFilesRef.current.length > 0) {
-            streamViaWebRtc(preparedFilesRef.current)
-          }
-        }
+        )
       } catch (err) {
         console.warn('Signaling message error:', err)
       }
@@ -400,67 +495,10 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
-  const traverseFileSystemEntry = async (
-    entry: FileSystemEntry | null,
-    path = ''
-  ): Promise<SelectedFileItem[]> => {
-    if (!entry) return []
-    if (entry.isFile) {
-      const fileEntry = entry as FileSystemFileEntry
-      return new Promise((resolve) => {
-        fileEntry.file((file: File) => {
-          const typeCategory = detectFileTypeCategory(file.name, file.type)
-          const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
-          resolve([
-            {
-              file,
-              relativePath: path + file.name,
-              size: file.size,
-              previewUrl,
-              typeCategory,
-            },
-          ])
-        }, () => resolve([]))
-      })
-    } else if (entry.isDirectory) {
-      const dirEntry = entry as FileSystemDirectoryEntry
-      const children = await readDirectoryEntries(dirEntry)
-      const results: SelectedFileItem[] = []
-      for (const child of children) {
-        const subItems = await traverseFileSystemEntry(child, `${path}${entry.name}/`)
-        results.push(...subItems)
-      }
-      return results
-    }
-    return []
-  }
-
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault()
-    const items = e.dataTransfer.items
-    if (items && items.length > 0) {
-      const collected: SelectedFileItem[] = []
-      for (const element of items) {
-        const item = element
-        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null
-        if (entry) {
-          const res = await traverseFileSystemEntry(entry)
-          collected.push(...res)
-        } else {
-          const file = item.getAsFile()
-          if (file) {
-            const typeCategory = detectFileTypeCategory(file.name, file.type)
-            const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
-            collected.push({
-              file,
-              relativePath: file.name,
-              size: file.size,
-              previewUrl,
-              typeCategory,
-            })
-          }
-        }
-      }
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const collected = await extractDroppedItems(e.dataTransfer.items)
       if (collected.length > 0) {
         setFiles((prev) => [...prev, ...collected])
         return
@@ -478,36 +516,14 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   }
 
   const handleFolderInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const items: SelectedFileItem[] = []
-      for (const file of Array.from(e.target.files)) {
-        const typeCategory = detectFileTypeCategory(file.name, file.type)
-        const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
-        items.push({
-          file,
-          relativePath: file.webkitRelativePath || file.name,
-          size: file.size,
-          previewUrl,
-          typeCategory,
-        })
-      }
-      setFiles((prev) => [...prev, ...items])
+    const targetFiles = e.target.files
+    if (targetFiles && targetFiles.length > 0) {
+      setFiles((prev) => [...prev, ...mapFilesToSelectedItems(targetFiles)])
     }
   }
 
   const addFiles = (newFiles: File[]) => {
-    const items: SelectedFileItem[] = newFiles.map((f) => {
-      const typeCategory = detectFileTypeCategory(f.name, f.type)
-      const previewUrl = typeCategory === 'image' ? URL.createObjectURL(f) : undefined
-      return {
-        file: f,
-        relativePath: f.name,
-        size: f.size,
-        previewUrl,
-        typeCategory,
-      }
-    })
-    setFiles((prev) => [...prev, ...items])
+    setFiles((prev) => [...prev, ...mapFilesToSelectedItems(newFiles)])
   }
 
   const removeFile = (index: number) => {
@@ -621,6 +637,9 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       setSessionId(sessionRes.sessionId)
       setPin(sessionRes.pin)
       setJoinUrl(resolveJoinUrl(sessionRes.joinUrl, sessionRes.pin, selectedInterface))
+      if (onSessionCreated) {
+        onSessionCreated(sessionRes.sessionId, sessionRes.pin)
+      }
 
       soundEngine.peerConnect()
       setStatusMessage('Deriving AES-256 keys & processing batch...')
@@ -647,8 +666,8 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       // 4. Stream Chunks to Backend Relay or WebRTC
       await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
 
-      // 5. Register in Audit Ledger
-      await recordSentAuditLog(preparedFiles, burnAfter)
+      // 5. Register in Audit Ledger (and persist to 7-day vault if enabled)
+      await recordSentAuditLog(preparedFiles, burnAfter, persistVault)
 
       setProgressPercent(100)
       setIsTransferring(false)
@@ -681,9 +700,9 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
   const effectiveJoinUrl = resolveJoinUrl(joinUrl || '', pin || '', selectedInterface)
 
-  const copyLink = () => {
+  const copyLink = async () => {
     if (effectiveJoinUrl) {
-      navigator.clipboard.writeText(effectiveJoinUrl)
+      await navigator.clipboard.writeText(effectiveJoinUrl)
       setLinkCopied(true)
       setTimeout(() => setLinkCopied(false), 2000)
     }
@@ -859,6 +878,21 @@ export const SendPanel: React.FC<SendPanelProps> = ({
                 Burn After Reading
               </span>
             </label>
+
+            {!burnAfter && (
+              <label className="flex items-center gap-2 text-ash cursor-pointer" title="Retain encrypted file payload in local database for 7 days">
+                <input
+                  type="checkbox"
+                  checked={persistVault}
+                  onChange={(e) => setPersistVault(e.target.checked)}
+                  className="accent-[#7089ba] rounded"
+                />
+                <span className="flex items-center gap-1">
+                  <ArchiveIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                  7-Day Vault
+                </span>
+              </label>
+            )}
 
             <label className="flex items-center gap-2 text-ash cursor-pointer">
               <input

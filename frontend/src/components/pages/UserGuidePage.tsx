@@ -362,7 +362,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
               </div>
               <h4 className="text-base font-bold text-white font-sans">Audit Ledger & Receipts</h4>
               <p className="text-xs text-steel leading-relaxed">
-                Cryptographic transaction history recording file names, sizes, chunk metrics, and mathematical SHA-256 hashes with exportable signed JSON receipts.
+                Cryptographic transaction history recording filenames, sizes, chunk metrics, and mathematical SHA-256 hashes with exportable signed JSON receipts.
               </p>
             </div>
           </div>

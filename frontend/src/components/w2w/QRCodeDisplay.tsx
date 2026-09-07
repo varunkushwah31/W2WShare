@@ -21,22 +21,23 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
   lightColor = '#ffffff',
   level = 'M',
 }) => {
-  const [dataUrl, setDataUrl] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const isValueEmpty = !value || value.trim() === ''
+  const [generated, setGenerated] = useState<{ value: string; dataUrl: string | null; error: string | null }>({
+    value: '',
+    dataUrl: null,
+    error: null,
+  })
+
+  const loading = !isValueEmpty && generated.value !== value
+  const error = generated.value === value ? generated.error : null
+  const dataUrl = generated.value === value ? generated.dataUrl : null
 
   useEffect(() => {
-    let isMounted = true
-
-    if (!value || value.trim() === '') {
-      setDataUrl(null)
-      setError('No data provided for QR code')
-      setLoading(false)
+    if (isValueEmpty) {
       return
     }
 
-    setLoading(true)
-    setError(null)
+    let isMounted = true
 
     QRCode.toDataURL(value, {
       width: size * 2, // High-DPI 2x scaling for crisp mobile rendering
@@ -49,22 +50,20 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
     })
       .then((url) => {
         if (isMounted) {
-          setDataUrl(url)
-          setLoading(false)
+          setGenerated({ value, dataUrl: url, error: null })
         }
       })
       .catch((err) => {
         if (isMounted) {
           console.error('Failed to generate QR code:', err)
-          setError('Failed to generate QR code')
-          setLoading(false)
+          setGenerated({ value, dataUrl: null, error: 'Failed to generate QR code' })
         }
       })
 
     return () => {
       isMounted = false
     }
-  }, [value, size, darkColor, lightColor, level])
+  }, [value, size, darkColor, lightColor, level, isValueEmpty])
 
   return (
     <div

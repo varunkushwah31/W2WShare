@@ -8,6 +8,7 @@ import com.w2w.share.service.IQrCodeService;
 import com.w2w.share.service.QrCodeService;
 import com.w2w.share.service.NetworkDiscoveryService;
 import com.w2w.share.service.PeerDiscoveryService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -88,9 +89,37 @@ public class NetworkController {
                 .body(qrBytes);
     }
 
+    public record PeerAnnounceRequest(
+            String deviceId,
+            String deviceName,
+            String os,
+            Integer port
+    ) {}
+
     @GetMapping("/peers")
-    public ResponseEntity<List<PeerDiscoveryService.DiscoveredPeer>> getDiscoveredPeers() {
-        return ResponseEntity.ok(peerDiscoveryService.getDiscoveredPeers());
+    public ResponseEntity<List<PeerDiscoveryService.DiscoveredPeer>> getDiscoveredPeers(
+            @RequestParam(required = false) String excludeDeviceId
+    ) {
+        List<PeerDiscoveryService.DiscoveredPeer> peers = peerDiscoveryService.getDiscoveredPeers();
+        if (excludeDeviceId != null && !excludeDeviceId.isBlank()) {
+            peers = peers.stream().filter(p -> !excludeDeviceId.equals(p.deviceId())).toList();
+        }
+        return ResponseEntity.ok(peers);
+    }
+
+    @PostMapping("/peers/announce")
+    public ResponseEntity<PeerDiscoveryService.DiscoveredPeer> announcePeer(
+            @RequestBody(required = false) PeerAnnounceRequest req,
+            HttpServletRequest request
+    ) {
+        String remoteAddr = request.getRemoteAddr();
+        String deviceId = req != null && req.deviceId() != null ? req.deviceId() : java.util.UUID.randomUUID().toString();
+        String deviceName = req != null && req.deviceName() != null ? req.deviceName() : "Browser Peer";
+        String os = req != null && req.os() != null ? req.os() : "Web Client";
+        int port = req != null && req.port() != null ? req.port() : 8080;
+
+        PeerDiscoveryService.DiscoveredPeer peer = peerDiscoveryService.registerPeer(deviceId, deviceName, remoteAddr, port, os);
+        return ResponseEntity.ok(peer);
     }
 
     @PostMapping("/peers/scan")

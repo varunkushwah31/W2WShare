@@ -185,7 +185,7 @@ public class AuditLedgerService implements IAuditLedgerService {
         }
         return repository.findByTransactionId(transactionId)
                 .filter(entity -> !entity.isDeleted() && !entity.isExpired() && entity.getFileData() != null)
-                .map(t -> t.getFileData());
+                .map(AuditRecordEntity::getFileData);
     }
 
     @Override
@@ -230,7 +230,7 @@ public class AuditLedgerService implements IAuditLedgerService {
                 entity.setDeleted(true);
                 repository.save(entity);
                 count++;
-                log.info("🗑️ Auto-purged expired file payload from database for TX [{}] ({}) after 7 days retention",
+                log.info("[AUDIT-PURGE] Auto-purged expired file payload from database for TX [{}] ({}) after 7 days retention",
                         entity.getTransactionId(), entity.getFileName());
             }
         }

@@ -180,7 +180,7 @@ public class SessionService implements ISessionService {
 
         boolean shouldBurn = session.recordDownloadCompleted();
         if (shouldBurn) {
-            log.info("🔥 Burn-After-Reading threshold reached for session [{}]. Purging...", sessionId);
+            log.info("[TRANSFER-BURN] Burn-After-Reading threshold reached for session [{}]. Purging ephemeral storage...", sessionId);
             session.setStatus(TransferSession.SessionStatus.BURNED);
             activeSessions.remove(sessionId);
             pinToSessionId.remove(session.getPin());

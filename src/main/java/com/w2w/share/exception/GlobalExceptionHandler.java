@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SessionNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleSessionNotFound(SessionNotFoundException ex, HttpServletRequest request) {
-        log.warn("Session not found: {} for path: {}", ex.getMessage(), request.getRequestURI());
+        log.warn("[EXCEPTION] Session not found: {} for path: {}", ex.getMessage(), request.getRequestURI());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.NOT_FOUND.value(),
                 ex.getErrorCode(),
@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidPinException.class)
     public ResponseEntity<ErrorResponse> handleInvalidPin(InvalidPinException ex, HttpServletRequest request) {
-        log.warn("Invalid PIN attempt on path {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] Invalid PIN attempt on path {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getErrorCode(),
@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SessionExpiredException.class)
     public ResponseEntity<ErrorResponse> handleSessionExpired(SessionExpiredException ex, HttpServletRequest request) {
-        log.info("Session expired: {} for path: {}", ex.getMessage(), request.getRequestURI());
+        log.info("[EXCEPTION] Session expired: {} for path: {}", ex.getMessage(), request.getRequestURI());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.GONE.value(),
                 ex.getErrorCode(),
@@ -65,7 +65,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitExceededException ex, HttpServletRequest request) {
-        log.warn("Rate limit triggered on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] Rate limit triggered on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.TOO_MANY_REQUESTS.value(),
                 ex.getErrorCode(),
@@ -81,7 +81,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidChunkException.class)
     public ResponseEntity<ErrorResponse> handleInvalidChunk(InvalidChunkException ex, HttpServletRequest request) {
-        log.warn("Invalid chunk on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] Invalid chunk on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getErrorCode(),
@@ -94,7 +94,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(StorageException.class)
     public ResponseEntity<ErrorResponse> handleStorage(StorageException ex, HttpServletRequest request) {
-        log.error("Storage error on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        log.error("[EXCEPTION] Storage error on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 ex.getErrorCode(),
@@ -107,7 +107,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxSize(MaxUploadSizeExceededException ex, HttpServletRequest request) {
-        log.warn("Payload too large on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] Payload too large on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.CONTENT_TOO_LARGE.value(),
                 "CONTENT_TOO_LARGE",
@@ -120,7 +120,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoSuchFileException.class)
     public ResponseEntity<ErrorResponse> handleNoSuchFile(NoSuchFileException ex, HttpServletRequest request) {
-        log.warn("File not found on disk: {} for path: {}", ex.getFile(), request.getRequestURI());
+        log.warn("[EXCEPTION] File not found on disk: {} for path: {}", ex.getFile(), request.getRequestURI());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.NOT_FOUND.value(),
                 "FILE_NOT_FOUND",
@@ -156,7 +156,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
-        log.warn("Malformed JSON or unreadable request body on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] Malformed JSON or unreadable request body on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 "MALFORMED_REQUEST_BODY",
@@ -169,7 +169,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
-        log.warn("Method argument type mismatch on {}: parameter '{}' with value '{}'", request.getRequestURI(), ex.getName(), ex.getValue());
+        log.warn("[EXCEPTION] Method argument type mismatch on {}: parameter '{}' with value '{}'", request.getRequestURI(), ex.getName(), ex.getValue());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 "INVALID_PARAMETER_TYPE",
@@ -182,7 +182,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException ex, HttpServletRequest request) {
-        log.warn("Missing required parameter on {}: {}", request.getRequestURI(), ex.getParameterName());
+        log.warn("[EXCEPTION] Missing required parameter on {}: {}", request.getRequestURI(), ex.getParameterName());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 "MISSING_PARAMETER",
@@ -195,7 +195,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
-        log.warn("HTTP method not supported on {}: {}", request.getRequestURI(), ex.getMethod());
+        log.warn("[EXCEPTION] HTTP method not supported on {}: {}", request.getRequestURI(), ex.getMethod());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.METHOD_NOT_ALLOWED.value(),
                 "METHOD_NOT_ALLOWED",
@@ -208,7 +208,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(org.springframework.web.HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
-        log.warn("Media type not supported on {}: {}", request.getRequestURI(), ex.getContentType());
+        log.warn("[EXCEPTION] Media type not supported on {}: {}", request.getRequestURI(), ex.getContentType());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
                 "UNSUPPORTED_MEDIA_TYPE",
@@ -221,7 +221,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NullPointerException.class)
     public ResponseEntity<ErrorResponse> handleNullPointer(NullPointerException ex, HttpServletRequest request) {
-        log.error("Null pointer encounter on path {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        log.error("[EXCEPTION] Null pointer encounter on path {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "NULL_POINTER_EXCEPTION",
@@ -234,7 +234,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(W2WException.class)
     public ResponseEntity<ErrorResponse> handleW2WBase(W2WException ex, HttpServletRequest request) {
-        log.warn("W2W domain exception on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] W2W domain exception on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getErrorCode(),
@@ -247,7 +247,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ErrorResponse> handleIllegal(RuntimeException ex, HttpServletRequest request) {
-        log.warn("Illegal argument/state on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("[EXCEPTION] Illegal argument/state on {}: {}", request.getRequestURI(), ex.getMessage());
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 "BAD_REQUEST",
@@ -260,7 +260,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+        log.error("[EXCEPTION] Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         ErrorResponse err = ErrorResponse.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "INTERNAL_SERVER_ERROR",

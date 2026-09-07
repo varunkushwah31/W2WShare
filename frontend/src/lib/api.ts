@@ -89,11 +89,6 @@ export interface ChunkProgressDto {
   existingChunks: number[]
 }
 
-export interface SessionStatusResponse {
-  sessionId: string
-  status: string
-  fileProgressList: ChunkProgressDto[]
-}
 
 export interface ChatMessage {
   id: string
@@ -153,8 +148,6 @@ export interface AuditReceipt {
 }
 
 
-const DEFAULT_OFFLINE_IP = '192.168.1.105'
-
 function stripTrailingSlashes(str: string): string {
   let s = str.trim()
   while (s.endsWith('/')) {
@@ -188,9 +181,6 @@ export function getApiBase(): string {
   return resolveApiBase(getActiveBackendUrl())
 }
 
-// Fallback constant for backwards compatibility
-export const API_BASE = resolveApiBase(RAW_BACKEND_URL)
-
 export function getWebSocketUrl(path = '/ws/signaling'): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
 
@@ -219,26 +209,66 @@ export function getWebSocketUrl(path = '/ws/signaling'): string {
   return `${protocol}//${host}${cleanPath}`
 }
 
-export const api = {
-  // Runtime Backend Configuration
-  getCustomBackendUrl(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem('w2w_backend_url')
-  },
+export interface PeerAnnouncePayload {
+  deviceId: string
+  deviceName: string
+  os: string
+  port?: number
+}
 
-  setCustomBackendUrl(url: string): void {
-    if (typeof window === 'undefined') return
-    if (!url?.trim()) {
-      localStorage.removeItem('w2w_backend_url')
-    } else {
-      localStorage.setItem('w2w_backend_url', stripTrailingSlashes(url.trim()))
+function generateSecureDeviceId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `dev_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(6)
+    crypto.getRandomValues(bytes)
+    return `dev_${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
+  }
+  return `dev_${Date.now().toString(36)}`
+}
+
+export function getLocalDeviceInfo(): { deviceId: string; deviceName: string; os: string } {
+  let deviceId = ''
+  if (typeof window !== 'undefined' && window.localStorage) {
+    deviceId = localStorage.getItem('w2w_device_id') || ''
+    if (!deviceId) {
+      deviceId = generateSecureDeviceId()
+      localStorage.setItem('w2w_device_id', deviceId)
     }
-  },
+  }
+  if (!deviceId) {
+    deviceId = generateSecureDeviceId()
+  }
 
-  clearCustomBackendUrl(): void {
-    if (typeof window === 'undefined') return
-    localStorage.removeItem('w2w_backend_url')
-  },
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  let os = 'Unknown OS'
+  let deviceName = 'Browser Peer'
+
+  if (/iPhone/i.test(ua)) {
+    os = 'iOS'
+    deviceName = 'Apple iPhone'
+  } else if (/iPad/i.test(ua)) {
+    os = 'iOS'
+    deviceName = 'Apple iPad'
+  } else if (/Android/i.test(ua)) {
+    os = 'Android'
+    deviceName = 'Android Device'
+  } else if (/Macintosh|Mac OS X/i.test(ua)) {
+    os = 'macOS'
+    deviceName = 'MacBook / Mac'
+  } else if (/Windows/i.test(ua)) {
+    os = 'Windows'
+    deviceName = 'Windows PC'
+  } else if (/Linux/i.test(ua)) {
+    os = 'Linux'
+    deviceName = 'Linux Workstation'
+  }
+
+  return { deviceId, deviceName, os }
+}
+
+export const api = {
   // Network
   async getNetworkInfo(): Promise<NetworkInfoResponse> {
     try {
@@ -249,15 +279,17 @@ export const api = {
     } catch {
       // Fallback offline mock for standalone frontend testing
     }
+    const offlineHost = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1'
+    const offlinePort = typeof window !== 'undefined' && window.location.port ? window.location.port : '8080'
     return {
       status: 'ONLINE_LOCAL',
-      primaryUrl: window.location.origin,
+      primaryUrl: typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8080',
       interfaces: [
         {
           name: 'wlan0',
           displayName: 'Wi-Fi Adapter (Offline P2P)',
-          ip: DEFAULT_OFFLINE_IP,
-          url: `https://${DEFAULT_OFFLINE_IP}:${window.location.port || '8080'}`,
+          ip: offlineHost,
+          url: `https://${offlineHost}:${offlinePort}`,
           isLoopback: false,
           isWifiOrHotspot: true,
         },
@@ -289,27 +321,35 @@ export const api = {
     }
   },
 
-  getWifiQrUrl(ssid: string, password = '', authType = 'WPA', size = 300): string {
-    const params = new URLSearchParams({
-      ssid,
-      password,
-      authType,
-      size: String(size),
-    })
-    return `${getApiBase()}/network/wifi-qr?${params.toString()}`
-  },
-
-  getTransferQrUrl(url: string, size = 400): string {
-    const params = new URLSearchParams({
-      text: url,
-      size: String(size),
-    })
-    return `${getApiBase()}/transfer/qr?${params.toString()}`
-  },
-
-  async getDiscoveredPeers(): Promise<DiscoveredPeer[]> {
+  async announcePresence(payload?: Partial<PeerAnnouncePayload>): Promise<DiscoveredPeer | null> {
     try {
-      const res = await fetch(`${getApiBase()}/network/peers`)
+      const info = getLocalDeviceInfo()
+      const body: PeerAnnouncePayload = {
+        deviceId: payload?.deviceId || info.deviceId,
+        deviceName: payload?.deviceName || info.deviceName,
+        os: payload?.os || info.os,
+        port: payload?.port,
+      }
+      const res = await fetch(`${getApiBase()}/network/peers/announce`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        return await res.json()
+      }
+    } catch {
+      // Fallback when backend is unreachable
+    }
+    return null
+  },
+
+  async getDiscoveredPeers(excludeDeviceId?: string): Promise<DiscoveredPeer[]> {
+    try {
+      const url = excludeDeviceId
+        ? `${getApiBase()}/network/peers?excludeDeviceId=${encodeURIComponent(excludeDeviceId)}`
+        : `${getApiBase()}/network/peers`
+      const res = await fetch(url)
       if (res.ok) {
         return await res.json()
       }
@@ -319,29 +359,20 @@ export const api = {
     return []
   },
 
-  async triggerPeerScan(): Promise<DiscoveredPeer[]> {
+  async triggerPeerScan(excludeDeviceId?: string): Promise<DiscoveredPeer[]> {
     try {
       const res = await fetch(`${getApiBase()}/network/peers/scan`, {
         method: 'POST',
       })
       if (res.ok) {
-        return await res.json()
+        const peers: DiscoveredPeer[] = await res.json()
+        return excludeDeviceId ? peers.filter((p) => p.deviceId !== excludeDeviceId) : peers
       }
     } catch {
       // Fallback to GET peers
     }
-    return this.getDiscoveredPeers()
+    return this.getDiscoveredPeers(excludeDeviceId)
   },
-
-  async getHealth(): Promise<{ status: string }> {
-    try {
-      const res = await fetch(`${getApiBase()}/network/health`)
-      return await res.json()
-    } catch {
-      return { status: 'STANDALONE_UI' }
-    }
-  },
-
 
   // Transfer Sessions
   async createSession(req: CreateSessionRequest = {}): Promise<CreateSessionResponse> {
@@ -351,12 +382,6 @@ export const api = {
       body: JSON.stringify(req),
     })
     if (!res.ok) throw new Error('Failed to create transfer session')
-    return await res.json()
-  },
-
-  async getSession(sessionId: string): Promise<TransferSessionDetails> {
-    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}`)
-    if (!res.ok) throw new Error('Failed to get session details')
     return await res.json()
   },
 
@@ -389,35 +414,66 @@ export const api = {
     sessionId: string,
     fileIndex: number,
     chunkIndex: number,
-    data: Uint8Array
+    data: Uint8Array,
+    maxRetries = 3
   ): Promise<void> {
-    const res = await fetch(
-      `${getApiBase()}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: data as unknown as BodyInit,
+    let lastError: unknown
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(
+          `${getApiBase()}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: data as unknown as BodyInit,
+          }
+        )
+        if (res.ok) return
+        lastError = new Error(`Server HTTP ${res.status}: ${res.statusText}`)
+      } catch (err) {
+        lastError = err
       }
+
+      if (attempt < maxRetries) {
+        const backoffMs = Math.min(250 * Math.pow(2, attempt), 2000)
+        await new Promise((r) => setTimeout(r, backoffMs))
+      }
+    }
+    throw new Error(
+      `Failed to upload chunk ${chunkIndex} (file ${fileIndex}) after ${maxRetries + 1} attempts: ${
+        lastError instanceof Error ? lastError.message : 'Network error'
+      }`
     )
-    if (!res.ok) throw new Error(`Failed to upload chunk ${chunkIndex} for file ${fileIndex}`)
   },
 
   async downloadFileChunk(
     sessionId: string,
     fileIndex: number,
-    chunkIndex: number
+    chunkIndex: number,
+    maxRetries = 3
   ): Promise<ArrayBuffer> {
-    const res = await fetch(
-      `${getApiBase()}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`
-    )
-    if (!res.ok) throw new Error(`Failed to download chunk ${chunkIndex}`)
-    return await res.arrayBuffer()
-  },
+    let lastError: unknown
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(
+          `${getApiBase()}/transfer/session/${sessionId}/file/${fileIndex}/chunk/${chunkIndex}`
+        )
+        if (res.ok) return await res.arrayBuffer()
+        lastError = new Error(`Server HTTP ${res.status}: ${res.statusText}`)
+      } catch (err) {
+        lastError = err
+      }
 
-  async getSessionStatus(sessionId: string): Promise<SessionStatusResponse> {
-    const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/status`)
-    if (!res.ok) throw new Error('Failed to get session resumption status')
-    return await res.json()
+      if (attempt < maxRetries) {
+        const backoffMs = Math.min(250 * Math.pow(2, attempt), 2000)
+        await new Promise((r) => setTimeout(r, backoffMs))
+      }
+    }
+    throw new Error(
+      `Failed to download chunk ${chunkIndex} (file ${fileIndex}) after ${maxRetries + 1} attempts: ${
+        lastError instanceof Error ? lastError.message : 'Network error'
+      }`
+    )
   },
 
   async markTransferComplete(sessionId: string): Promise<{ status: string; burned: boolean }> {
@@ -450,22 +506,6 @@ export const api = {
     return await res.json()
   },
 
-  async saveClipboardByPin(pin: string, encryptedText: string): Promise<{ sessionId?: string }> {
-    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/clipboard`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: encryptedText }),
-    })
-    if (!res.ok) throw new Error('Failed to save clipboard by PIN')
-    return await res.json()
-  },
-
-  async getClipboardByPin(pin: string): Promise<{ text: string; sessionId?: string }> {
-    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/clipboard`)
-    if (!res.ok) throw new Error('Failed to get clipboard by PIN')
-    return await res.json()
-  },
-
   // Chat
   async addChatMessage(sessionId: string, content: string, senderRole = 'Sender'): Promise<ChatMessage> {
     const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/chat`, {
@@ -481,23 +521,6 @@ export const api = {
   async getChatHistory(sessionId: string): Promise<ChatMessage[]> {
     const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/chat`)
     if (!res.ok) throw new Error('Failed to fetch chat history')
-    return await res.json()
-  },
-
-  async addChatMessageByPin(pin: string, content: string, senderRole = 'Sender'): Promise<ChatMessage> {
-    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, senderRole }),
-    })
-    if (!res.ok) throw new Error('Failed to send chat message by PIN')
-    const data = await res.json()
-    return data.message
-  },
-
-  async getChatHistoryByPin(pin: string): Promise<ChatMessage[]> {
-    const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}/chat`)
-    if (!res.ok) throw new Error('Failed to fetch chat history by PIN')
     return await res.json()
   },
 
@@ -555,10 +578,6 @@ export const api = {
     return await res.json()
   },
 
-  getAuditFileDownloadUrl(transactionId: string): string {
-    return `${getApiBase()}/audit/ledger/${transactionId}/download`
-  },
-
   async downloadAuditFile(transactionId: string, fileName: string): Promise<void> {
     const res = await fetch(`${getApiBase()}/audit/ledger/${transactionId}/download`)
     if (res.status === 410) {
@@ -595,10 +614,6 @@ export const api = {
       // Ignore
     }
     localStorage.removeItem('w2w_audit_ledger')
-  },
-
-  async deleteAuditRecord(transactionId: string): Promise<void> {
-    await fetch(`${getApiBase()}/audit/ledger/${transactionId}`, { method: 'DELETE' })
   },
 }
 

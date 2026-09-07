@@ -26,6 +26,7 @@ class PeerDiscoveryServiceTest {
 
     @Test
     void testPeerDiscoveryServiceLifecycle() {
+        assertTrue(peerDiscoveryService.isRunning());
         assertNotNull(peerDiscoveryService.getDiscoveredPeers());
         // Trigger broadcast and evict cycles without exception
         assertDoesNotThrow(() -> peerDiscoveryService.broadcastAnnouncement());
@@ -38,6 +39,16 @@ class PeerDiscoveryServiceTest {
         assertEquals("node-1", peer.nodeId());
         assertEquals("macOS", peer.os());
         assertEquals("MacBook-Pro", peer.deviceName());
+
+        // Test registering a web/mobile peer
+        PeerDiscoveryService.DiscoveredPeer registered = peerDiscoveryService.registerPeer(
+                "phone-123", "iPhone 15", "192.168.1.75", 8080, "iOS"
+        );
+        assertNotNull(registered);
+        assertEquals("phone-123", registered.deviceId());
+        assertEquals("iPhone 15", registered.deviceName());
+        assertEquals("http://192.168.1.75:8080", registered.url());
+        assertTrue(peerDiscoveryService.getDiscoveredPeers().stream().anyMatch(p -> p.deviceId().equals("phone-123")));
 
         assertDoesNotThrow(() -> peerDiscoveryService.triggerScan());
     }

@@ -30,7 +30,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
     if (
       item &&
       (item.mimeType.startsWith('text/') ||
-        item.fileName.match(/\.(txt|json|js|ts|tsx|jsx|html|css|md|py|java|sql|log|xml|csv)$/i))
+          new RegExp(/\.(txt|json|js|ts|tsx|jsx|html|css|md|py|java|sql|log|xml|csv)$/i).exec(item.fileName))
     ) {
       fetch(item.blobUrl)
         .then((res) => res.text())
@@ -56,7 +56,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
 
   return (
     <Dialog open={!!item} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl border border-[#1c1c1c] bg-[#141414] text-white p-6 rounded-2xl">
+      <DialogContent className="max-w-2xl border border-carbon bg-[#141414] text-white p-6 rounded-2xl">
         <DialogHeader className="flex flex-row items-center justify-between pr-6 mb-2">
           <div className="flex items-center gap-2">
             {isImage && <ImageIcon className="w-5 h-5 text-[#7089ba]" />}
@@ -79,7 +79,7 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
         </DialogHeader>
 
         {/* Media Viewport */}
-        <div className="w-full max-h-[60vh] overflow-auto rounded-xl bg-[#000000] border border-[#1c1c1c] p-4 flex items-center justify-center">
+        <div className="w-full max-h-[60vh] overflow-auto rounded-xl bg-void border border-carbon p-4 flex items-center justify-center">
           {isImage && (
             <img
               src={item.blobUrl}
@@ -94,15 +94,19 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
               controls
               autoPlay
               className="w-full max-h-[50vh] rounded"
-            />
+            >
+              <track kind="captions" />
+            </video>
           )}
 
           {isAudio && (
             <div className="w-full py-8 px-4 flex flex-col items-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center text-[#7089ba]">
+              <div className="w-16 h-16 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba]">
                 <MusicNotesIcon className="w-8 h-8" />
               </div>
-              <audio src={item.blobUrl} controls className="w-full max-w-md" />
+              <audio src={item.blobUrl} controls className="w-full max-w-md">
+                <track kind="captions" />
+              </audio>
             </div>
           )}
 
@@ -110,20 +114,20 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
             <iframe
               src={item.blobUrl}
               title={item.fileName}
-              className="w-full h-[50vh] rounded border border-[#1c1c1c]"
+              className="w-full h-[50vh] rounded border border-carbon"
             />
           )}
 
           {isText && !isPdf && (
-            <pre className="w-full font-mono text-xs text-[#ababab] p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+            <pre className="w-full font-mono text-xs text-ash p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
               {textContent}
             </pre>
           )}
 
           {!isImage && !isVideo && !isAudio && !isPdf && !isText && (
             <div className="text-center py-12 space-y-3">
-              <FileTextIcon className="w-12 h-12 text-[#4d4d4d] mx-auto" />
-              <p className="text-sm text-[#808080]">
+              <FileTextIcon className="w-12 h-12 text-graphite mx-auto" />
+              <p className="text-sm text-steel">
                 Binary file format. Preview not available.
               </p>
               <a

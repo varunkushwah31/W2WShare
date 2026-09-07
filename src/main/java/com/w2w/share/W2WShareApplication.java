@@ -9,9 +9,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.List;
 
+@EnableScheduling
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
 public class W2WShareApplication {
 

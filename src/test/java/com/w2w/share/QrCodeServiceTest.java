@@ -17,7 +17,7 @@ class QrCodeServiceTest {
 
     @Test
     void testGenerateQrCodePngSuccess() {
-        byte[] qrBytes = qrCodeService.generateQrCodePng("http://192.168.1.105:8080/?pin=123456", 250, 250);
+        byte[] qrBytes = qrCodeService.generateQrCodePng("http://127.0.0.1:8080/?pin=123456", 250, 250);
         assertNotNull(qrBytes);
         assertTrue(qrBytes.length > 0);
 

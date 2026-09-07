@@ -37,7 +37,7 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, DiscoveredPeer> peers = new ConcurrentHashMap<>();
 
-    private DatagramSocket socket;
+    private MulticastSocket socket;
     private volatile boolean running = false;
 
     public record DiscoveredPeer(
@@ -59,10 +59,12 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
     @Override
     public void start() {
         try {
-            socket = new DatagramSocket(null);
+            socket = new MulticastSocket(null);
             socket.setReuseAddress(true);
             socket.setBroadcast(true);
             socket.bind(new InetSocketAddress(AppConstants.DISCOVERY_PORT));
+
+            joinMulticastGroupAcrossInterfaces();
 
             running = true;
 
@@ -70,9 +72,32 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
             listenerThread.setDaemon(true);
             listenerThread.start();
 
-            log.info("Initialized UDP Subnet Peer Discovery on port {}", AppConstants.DISCOVERY_PORT);
+            log.info("Initialized UDP Subnet Peer Discovery (Broadcast & Multicast) on port {}", AppConstants.DISCOVERY_PORT);
         } catch (Exception e) {
             log.warn("Could not bind UDP discovery socket on port {}: {}", AppConstants.DISCOVERY_PORT, e.getMessage());
+        }
+    }
+
+    private void joinMulticastGroupAcrossInterfaces() {
+        try {
+            InetAddress group = InetAddress.getByName(AppConstants.MULTICAST_ADDRESS);
+            InetSocketAddress groupAddress = new InetSocketAddress(group, AppConstants.DISCOVERY_PORT);
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                joinMulticastOnInterface(interfaces.nextElement(), groupAddress);
+            }
+        } catch (Exception e) {
+            log.debug("Multicast group join failed: {}", e.getMessage());
+        }
+    }
+
+    private void joinMulticastOnInterface(NetworkInterface iface, SocketAddress groupAddress) {
+        try {
+            if (iface.isUp() && !iface.isLoopback() && iface.supportsMulticast()) {
+                socket.joinGroup(groupAddress, iface);
+            }
+        } catch (Exception e) {
+            log.trace("Could not join multicast group on interface {}: {}", iface.getName(), e.getMessage());
         }
     }
 
@@ -115,23 +140,30 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
         });
 
         String peerNodeId = map.containsKey(KEY_DEVICE_ID) ? String.valueOf(map.get(KEY_DEVICE_ID)) : (String) map.get(KEY_NODE_ID);
-        if (peerNodeId != null && !peerNodeId.equals(this.nodeId)) {
-            String peerDevice = map.containsKey(KEY_DEVICE_NAME) ? String.valueOf(map.get(KEY_DEVICE_NAME)) : "Unknown Device";
-            String peerIp = packet.getAddress().getHostAddress();
-            int peerPort = map.containsKey(KEY_PORT) ? ((Number) map.get(KEY_PORT)).intValue() : 8080;
-            String peerOs = map.containsKey(KEY_OS) ? String.valueOf(map.get(KEY_OS)) : System.getProperty(PROP_OS_NAME, "Unknown");
-            String peerUrl = "https://" + peerIp + ":" + peerPort;
+        if (peerNodeId == null || peerNodeId.equals(this.nodeId)) {
+            return;
+        }
 
-            peers.put(peerNodeId, new DiscoveredPeer(
-                    peerNodeId,
-                    peerNodeId,
-                    peerDevice,
-                    peerIp,
-                    peerPort,
-                    peerOs,
-                    peerUrl,
-                    System.currentTimeMillis()
-            ));
+        String peerDevice = map.containsKey(KEY_DEVICE_NAME) ? String.valueOf(map.get(KEY_DEVICE_NAME)) : "Unknown Device";
+        String peerIp = packet.getAddress().getHostAddress();
+        int peerPort = map.containsKey(KEY_PORT) ? ((Number) map.get(KEY_PORT)).intValue() : 8080;
+        String peerOs = map.containsKey(KEY_OS) ? String.valueOf(map.get(KEY_OS)) : System.getProperty(PROP_OS_NAME, "Unknown");
+        String peerUrl = "http://" + peerIp + ":" + peerPort;
+
+        boolean isNew = !peers.containsKey(peerNodeId);
+        peers.put(peerNodeId, new DiscoveredPeer(
+                peerNodeId,
+                peerNodeId,
+                peerDevice,
+                peerIp,
+                peerPort,
+                peerOs,
+                peerUrl,
+                System.currentTimeMillis()
+        ));
+        if (isNew) {
+            log.info("[PEER-RADAR] Discovered new peer via UDP: \"{}\" ({}) at {}:{} [{}]",
+                    peerDevice, peerNodeId, peerIp, peerPort, peerOs);
         }
     }
 
@@ -151,51 +183,81 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
             );
 
             byte[] bytes = objectMapper.writeValueAsBytes(announcement);
-
-            // 1. Send to global broadcast 255.255.255.255
-            try {
-                DatagramPacket globalPacket = new DatagramPacket(
-                        bytes,
-                        bytes.length,
-                        InetAddress.getByName(AppConstants.BROADCAST_ADDRESS),
-                        AppConstants.DISCOVERY_PORT
-                );
-                socket.send(globalPacket);
-            } catch (Exception e) {
-                log.debug("Global broadcast skipped: {}", e.getMessage());
-            }
-
-            // 2. Multi-homed interface-directed broadcast across all active network adapters
-            try {
-                Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-                while (interfaces.hasMoreElements()) {
-                    NetworkInterface iface = interfaces.nextElement();
-                    if (!iface.isUp() || iface.isLoopback() || iface.isVirtual()) continue;
-
-                    for (InterfaceAddress address : iface.getInterfaceAddresses()) {
-                        InetAddress broadcast = address.getBroadcast();
-                        if (broadcast != null) {
-                            try {
-                                DatagramPacket directedPacket = new DatagramPacket(
-                                        bytes,
-                                        bytes.length,
-                                        broadcast,
-                                        AppConstants.DISCOVERY_PORT
-                                );
-                                socket.send(directedPacket);
-                            } catch (Exception ex) {
-                                log.trace("Could not send broadcast to {}: {}", broadcast, ex.getMessage());
-                            }
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                log.debug("Subnet interface iteration encountered error: {}", ex.getMessage());
-            }
+            sendGlobalBroadcast(bytes);
+            sendMulticastBroadcast(bytes);
+            sendDirectedInterfaceBroadcasts(bytes);
         } catch (IOException ioe) {
             log.warn("IO error broadcasting subnet announcement: {}", ioe.getMessage());
         } catch (Exception e) {
             log.warn("Unexpected failure during peer broadcast: {}", e.getMessage(), e);
+        }
+    }
+
+    private void sendGlobalBroadcast(byte[] bytes) {
+        try {
+            DatagramPacket globalPacket = new DatagramPacket(
+                    bytes,
+                    bytes.length,
+                    InetAddress.getByName(AppConstants.BROADCAST_ADDRESS),
+                    AppConstants.DISCOVERY_PORT
+            );
+            socket.send(globalPacket);
+        } catch (Exception e) {
+            log.debug("Global broadcast skipped: {}", e.getMessage());
+        }
+    }
+
+    private void sendMulticastBroadcast(byte[] bytes) {
+        try {
+            DatagramPacket multicastPacket = new DatagramPacket(
+                    bytes,
+                    bytes.length,
+                    InetAddress.getByName(AppConstants.MULTICAST_ADDRESS),
+                    AppConstants.DISCOVERY_PORT
+            );
+            socket.send(multicastPacket);
+        } catch (Exception e) {
+            log.debug("Multicast broadcast skipped: {}", e.getMessage());
+        }
+    }
+
+    private void sendDirectedInterfaceBroadcasts(byte[] bytes) {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                broadcastOnInterface(interfaces.nextElement(), bytes);
+            }
+        } catch (Exception ex) {
+            log.debug("Subnet interface iteration encountered error: {}", ex.getMessage());
+        }
+    }
+
+    private void broadcastOnInterface(NetworkInterface iface, byte[] bytes) {
+        try {
+            if (!iface.isUp() || iface.isLoopback() || iface.isVirtual()) return;
+
+            for (InterfaceAddress address : iface.getInterfaceAddresses()) {
+                sendToBroadcastAddress(address, bytes);
+            }
+        } catch (Exception ex) {
+            log.trace("Error querying interface {}: {}", iface.getName(), ex.getMessage());
+        }
+    }
+
+    private void sendToBroadcastAddress(InterfaceAddress address, byte[] bytes) {
+        InetAddress broadcast = address.getBroadcast();
+        if (broadcast != null && !broadcast.equals(address.getAddress())) {
+            try {
+                DatagramPacket directedPacket = new DatagramPacket(
+                        bytes,
+                        bytes.length,
+                        broadcast,
+                        AppConstants.DISCOVERY_PORT
+                );
+                socket.send(directedPacket);
+            } catch (Exception ex) {
+                log.trace("Could not send broadcast to {}: {}", broadcast, ex.getMessage());
+            }
         }
     }
 
@@ -204,9 +266,15 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
     public void evictStalePeers() {
         try {
             long now = System.currentTimeMillis();
-            peers.entrySet().removeIf(e -> (now - e.getValue().lastSeen()) > 15000);
+            peers.entrySet().removeIf(e -> {
+                boolean stale = (now - e.getValue().lastSeen()) > 15000;
+                if (stale) {
+                    log.info("[PEER-RADAR] Evicted inactive peer: \"{}\" ({})", e.getValue().deviceName(), e.getKey());
+                }
+                return stale;
+            });
         } catch (Exception e) {
-            log.warn("Error during stale peer eviction: {}", e.getMessage(), e);
+            log.warn("[PEER-RADAR] Error during stale peer eviction: {}", e.getMessage(), e);
         }
     }
 
@@ -221,12 +289,54 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
         return new ArrayList<>(peers.values());
     }
 
+    @Override
+    public DiscoveredPeer registerPeer(String deviceId, String deviceName, String clientIp, int port, String os) {
+        if (deviceId == null || deviceId.isBlank() || deviceId.equals(this.nodeId)) {
+            return null;
+        }
+        String ip = normalizeClientIp(clientIp);
+        int peerPort = port > 0 ? port : this.serverPort;
+        String peerOs = (os != null && !os.isBlank()) ? os : "Web Client";
+        String name = (deviceName != null && !deviceName.isBlank()) ? deviceName : "Peer Device";
+        String peerUrl = "http://" + ip + ":" + peerPort;
+
+        boolean isNew = !peers.containsKey(deviceId);
+        DiscoveredPeer peer = new DiscoveredPeer(
+                deviceId,
+                deviceId,
+                name,
+                ip,
+                peerPort,
+                peerOs,
+                peerUrl,
+                System.currentTimeMillis()
+        );
+        peers.put(deviceId, peer);
+        if (isNew) {
+            log.info("[PEER-RADAR] Registered peer via HTTP beacon: \"{}\" ({}) at {}:{} [{}]",
+                    name, deviceId, ip, peerPort, peerOs);
+        }
+        return peer;
+    }
+
+    private static String normalizeClientIp(String clientIp) {
+        if (clientIp == null || clientIp.isBlank() || "0:0:0:0:0:0:0:1".equals(clientIp) || "::1".equals(clientIp)) {
+            return "127.0.0.1";
+        }
+        return clientIp;
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
     private static String resolveDeviceName() {
         try {
             String host = InetAddress.getLocalHost().getHostName();
             if (host != null && !host.isBlank()) return host;
         } catch (UnknownHostException uhe) {
-            log.debug("Unable to resolve local host name, using OS-based identifier: {}", uhe.getMessage());
+            log.debug("Unable to resolve local hostname, using OS-based identifier: {}", uhe.getMessage());
         } catch (Exception e) {
             log.debug("Error while resolving device name: {}", e.getMessage());
         }

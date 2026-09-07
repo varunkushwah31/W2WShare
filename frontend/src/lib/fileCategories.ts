@@ -10,3 +10,16 @@ export const detectFileTypeCategory = (fileName: string, mimeType: string): File
   if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'].includes(ext)) return 'document'
   return 'other'
 }
+
+/**
+ * Calculates optimal chunk size capped at 2MB (matching backend AppConstants.DEFAULT_CHUNK_SIZE)
+ * Ensures low memory footprint, non-blocking WebCrypto AES-GCM operations,
+ * and rapid packet delivery without timeouts.
+ */
+export const calculateOptimalChunkSize = (fileSize?: number): number => {
+  if (fileSize && fileSize > 1024 * 1024 * 1024) {
+    return 2 * 1024 * 1024
+  }
+  return 2 * 1024 * 1024
+}
+

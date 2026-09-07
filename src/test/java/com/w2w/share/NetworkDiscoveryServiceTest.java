@@ -54,5 +54,9 @@ class NetworkDiscoveryServiceTest {
         assertEquals("STANDARD_LAN", NetworkDiscoveryService.classifyType("wlan0", "Office Wi-Fi 6", "192.168.0.15", false, true));
         assertEquals("CAMPUS_WIFI", NetworkDiscoveryService.classifyType("wlan0", "Intel Wi-Fi 6", "10.15.22.45", false, true));
         assertEquals("ETHERNET", NetworkDiscoveryService.classifyType("eth0", "Realtek PCIe GbE", "192.168.1.50", false, false));
+        // VPN / Virtual Tunnel interfaces
+        assertEquals("OTHER", NetworkDiscoveryService.classifyType("iftype53_32769", "Cloudflare WARP Interface Tunnel", "172.16.0.2", false, false));
+        assertEquals("OTHER", NetworkDiscoveryService.classifyType("tap0", "TAP-ProtonVPN Windows Adapter V9", "10.8.0.2", false, false));
+        assertEquals("OTHER", NetworkDiscoveryService.classifyType("docker0", "docker0", "172.17.0.1", false, false));
     }
 }

@@ -32,7 +32,7 @@ public record AuditReceiptDto(
                 entity.getSha256(),
                 entity.isBurned(),
                 entity.isCompressed(),
-                entity.getSignature() != null ? entity.getSignature() : "VALID · LOCAL_DEVICE_KEYSTORE"
+                entity.getSignature() != null ? entity.getSignature() : "VALID - LOCAL_DEVICE_KEYSTORE"
         );
     }
 }

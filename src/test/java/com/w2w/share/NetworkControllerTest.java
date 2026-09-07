@@ -94,6 +94,36 @@ class NetworkControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].deviceId").value("dev-1"))
                 .andExpect(jsonPath("$[0].deviceName").value("Galaxy S24"));
+
+        // With excludeDeviceId
+        mockMvc.perform(get("/api/network/peers").param("excludeDeviceId", "dev-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void testAnnouncePeer() throws Exception {
+        PeerDiscoveryService.DiscoveredPeer peer = new PeerDiscoveryService.DiscoveredPeer(
+                "dev-web", "dev-web", "iPhone Safari", "127.0.0.1", 8080, "iOS", "http://127.0.0.1:8080", System.currentTimeMillis()
+        );
+        when(peerDiscoveryService.registerPeer(any(), any(), any(), anyInt(), any())).thenReturn(peer);
+
+        String json = """
+                {
+                    "deviceId": "dev-web",
+                    "deviceName": "iPhone Safari",
+                    "os": "iOS",
+                    "port": 8080
+                }
+                """;
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/network/peers/announce")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deviceId").value("dev-web"))
+                .andExpect(jsonPath("$.deviceName").value("iPhone Safari"))
+                .andExpect(jsonPath("$.os").value("iOS"));
     }
 
     @Test

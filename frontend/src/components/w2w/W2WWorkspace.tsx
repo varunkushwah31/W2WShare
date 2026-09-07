@@ -23,6 +23,14 @@ interface W2WWorkspaceProps {
   onOpenMobileApp?: () => void
 }
 
+function getSharingHubLabel(iface: NetworkInterfaceDto | null): string {
+  if (!iface?.ip) {
+    return 'Offline Sharing Hub (Method 1 & 2)'
+  }
+  const method = iface.interfaceType === 'HOTSPOT' ? 'Method 1 (Hotspot)' : 'Method 2 (Router)'
+  return `${method}: ${iface.ip}`
+}
+
 export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   initialTab = 'send',
   id = 'workspace',
@@ -40,6 +48,8 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   const [selectedInterface, setSelectedInterface] = useState<NetworkInterfaceDto | null>(null)
   const [targetPeer, setTargetPeer] = useState<import('@/lib/api').DiscoveredPeer | null>(null)
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [activePin, setActivePin] = useState<string | null>(null)
 
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab)
   if (initialTab !== prevInitialTab) {
@@ -108,9 +118,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-white font-semibold">
-                  {selectedInterface?.ip
-                    ? `${selectedInterface.interfaceType === 'HOTSPOT' ? 'Method 1 (Hotspot)' : 'Method 2 (Router)'}: ${selectedInterface.ip}`
-                    : 'Offline Sharing Hub (Method 1 & 2)'}
+                  {getSharingHubLabel(selectedInterface)}
                 </span>
                 <span className="text-[#7089ba] ml-0.5">⚙ Config</span>
               </button>
@@ -160,18 +168,38 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
               selectedInterface={selectedInterface}
               targetPeer={targetPeer}
               onClearTargetPeer={() => setTargetPeer(null)}
+              onSessionCreated={(sId, p) => {
+                setActiveSessionId(sId)
+                setActivePin(p)
+              }}
             />
           )}
-          {activeTab === 'receive' && <ReceivePanel />}
+          {activeTab === 'receive' && (
+            <ReceivePanel
+              selectedInterface={selectedInterface}
+              onSessionJoined={(sId, p) => {
+                setActiveSessionId(sId)
+                setActivePin(p)
+              }}
+              onSwitchToSend={() => setActiveTab('send')}
+            />
+          )}
           {activeTab === 'radar' && (
             <PeerRadarPanel
+              selectedInterface={selectedInterface}
+              onSelectedInterfaceChange={setSelectedInterface}
               onSelectPeer={(peer) => {
                 setTargetPeer(peer)
                 setActiveTab('send')
               }}
             />
           )}
-          {activeTab === 'clipboard' && <ClipboardChatPanel />}
+          {activeTab === 'clipboard' && (
+            <ClipboardChatPanel
+              initialSessionId={activeSessionId}
+              initialPin={activePin}
+            />
+          )}
           {activeTab === 'ledger' && <AuditLedgerPanel />}
         </div>
 
