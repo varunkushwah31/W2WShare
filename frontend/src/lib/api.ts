@@ -181,6 +181,7 @@ export function getApiBase(): string {
   return resolveApiBase(getActiveBackendUrl())
 }
 
+
 export function getWebSocketUrl(path = '/ws/signaling'): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
 
