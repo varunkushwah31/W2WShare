@@ -22,9 +22,29 @@ import {
   MusicNotesIcon,
   ArchiveIcon,
   CodeIcon,
+  TimerIcon,
+  LightningIcon,
 } from '@phosphor-icons/react'
+import { Slider } from '@/components/ui/slider'
 import { detectFileTypeCategory, type FileCategoryType, calculateOptimalChunkSize } from '@/lib/fileCategories'
 import { useWakeLock } from '@/lib/useWakeLock'
+
+interface ExpiryPreset {
+  minutes: number
+  label: string
+  fullLabel: string
+  tag: string
+  description: string
+}
+
+const EXPIRY_PRESETS: readonly ExpiryPreset[] = [
+  { minutes: 5, label: '5m', fullLabel: '5 minutes', tag: 'EPHEMERAL', description: 'Ultra-fast auto-destruct window' },
+  { minutes: 15, label: '15m', fullLabel: '15 minutes', tag: 'STANDARD', description: 'Optimal for quick local P2P transfers' },
+  { minutes: 30, label: '30m', fullLabel: '30 minutes', tag: 'COLLAB', description: 'Convenient for team collaboration' },
+  { minutes: 60, label: '1h', fullLabel: '1 hour', tag: 'EXTENDED', description: 'Generous transfer & claim window' },
+  { minutes: 360, label: '6h', fullLabel: '6 hours', tag: 'HALF-DAY', description: 'Extended multi-device claim time' },
+  { minutes: 1440, label: '24h', fullLabel: '24 hours', tag: 'FULL DAY', description: 'Maximum vault retention limit' },
+] as const
 
 interface SelectedFileItem {
   file: File
@@ -350,6 +370,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   const [expiryMinutes, setExpiryMinutes] = useState(15)
   const [enableCompression, setEnableCompression] = useState(true)
   const [persistVault, setPersistVault] = useState(false)
+
+  const activePresetIndex = Math.max(
+    0,
+    EXPIRY_PRESETS.findIndex((p) => p.minutes === expiryMinutes)
+  )
+  const activePreset = EXPIRY_PRESETS[activePresetIndex !== -1 ? activePresetIndex : 1]
 
   // Transfer state
   const [isTransferring, setIsTransferring] = useState(false)
@@ -799,136 +825,196 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
       {/* Selected Files Staging List */}
       {files.length > 0 && !pin && (
-        <div className="p-5 rounded-2xl bg-[#141414] border border-carbon space-y-4">
-          <div className="flex items-center justify-between border-b border-carbon pb-3">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-white font-bold">
-                BATCH QUEUE ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})
-              </span>
-              <span className="font-mono text-xs text-steel">
-                · {formatBytes(totalBytes)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={clearFiles}
-              className="text-xs text-steel hover:text-[#eb5757] transition-colors cursor-pointer"
-            >
-              Clear All
-            </button>
-          </div>
+        <div className="dashed-container p-6 sm:p-8 rounded-2xl bg-[#141414] relative space-y-5">
+          <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
 
-          <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-            {files.map((item, idx) => (
-              <div
-                key={`${item.relativePath}-${item.size}-${item.file.lastModified}`}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-carbon border border-[#242424] text-xs hover:border-[#333] transition-colors"
+          <div className="relative z-10 space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between dashed-divider-b pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs text-white font-bold tracking-tight">
+                  BATCH QUEUE ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})
+                </span>
+                <span className="font-mono text-xs text-steel">
+                  · {formatBytes(totalBytes)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={clearFiles}
+                className="text-xs font-mono text-steel hover:text-[#eb5757] transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                <div className="flex items-center gap-3 min-w-0 pr-2">
-                  {item.previewUrl ? (
-                    <img
-                      src={item.previewUrl}
-                      alt={item.relativePath}
-                      className="w-10 h-10 rounded-lg object-cover border border-[#7089ba]/30 shrink-0 bg-black"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#282828] flex items-center justify-center shrink-0">
-                      {item.typeCategory === 'video' && <VideoCameraIcon className="w-5 h-5 text-purple-400" />}
-                      {item.typeCategory === 'audio' && <MusicNotesIcon className="w-5 h-5 text-pink-400" />}
-                      {item.typeCategory === 'archive' && <ArchiveIcon className="w-5 h-5 text-amber-400" />}
-                      {item.typeCategory === 'code' && <CodeIcon className="w-5 h-5 text-emerald-400" />}
-                      {item.typeCategory === 'document' && <FileIcon className="w-5 h-5 text-blue-400" />}
-                      {item.typeCategory === 'other' && <FileIcon className="w-5 h-5 text-[#7089ba]" />}
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="truncate text-white font-mono font-medium">{item.relativePath}</div>
-                    <div className="flex items-center gap-2 text-[10px] text-steel font-mono mt-0.5">
-                      <span className="uppercase text-[#7089ba] font-bold">[{item.typeCategory}]</span>
-                      <span>·</span>
-                      <span>{formatBytes(item.size)}</span>
+                <TrashIcon className="w-3.5 h-3.5" />
+                <span>Clear All</span>
+              </button>
+            </div>
+
+            {/* Staged File List */}
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+              {files.map((item, idx) => (
+                <div
+                  key={`${item.relativePath}-${item.size}-${item.file.lastModified}`}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-carbon/70 border border-[#242424] text-xs hover:border-[#333] transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    {item.previewUrl ? (
+                      <img
+                        src={item.previewUrl}
+                        alt={item.relativePath}
+                        className="w-10 h-10 rounded-lg object-cover border border-[#7089ba]/30 shrink-0 bg-black"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#282828] flex items-center justify-center shrink-0">
+                        {item.typeCategory === 'video' && <VideoCameraIcon className="w-5 h-5 text-purple-400" />}
+                        {item.typeCategory === 'audio' && <MusicNotesIcon className="w-5 h-5 text-pink-400" />}
+                        {item.typeCategory === 'archive' && <ArchiveIcon className="w-5 h-5 text-amber-400" />}
+                        {item.typeCategory === 'code' && <CodeIcon className="w-5 h-5 text-emerald-400" />}
+                        {item.typeCategory === 'document' && <FileIcon className="w-5 h-5 text-blue-400" />}
+                        {item.typeCategory === 'other' && <FileIcon className="w-5 h-5 text-[#7089ba]" />}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate text-white font-mono font-medium">{item.relativePath}</div>
+                      <div className="flex items-center gap-2 text-[10px] text-steel font-mono mt-0.5">
+                        <span className="uppercase text-[#7089ba] font-bold">[{item.typeCategory}]</span>
+                        <span>·</span>
+                        <span>{formatBytes(item.size)}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      className="p-1.5 rounded-lg text-steel hover:text-[#eb5757] hover:bg-[#eb5757]/10 transition-colors cursor-pointer"
+                      title="Remove file"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => removeFile(idx)}
-                    className="p-1.5 rounded-lg text-steel hover:text-[#eb5757] hover:bg-[#eb5757]/10 transition-colors cursor-pointer"
-                    title="Remove file"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
+              ))}
+            </div>
+
+            {/* Transfer Configurations */}
+            <div className="pt-2 dashed-divider-t space-y-4">
+              {/* Options Row - Matching Drag & Drop pill buttons */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !burnAfter
+                    setBurnAfter(next)
+                    if (next) setPersistVault(false)
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                    burnAfter
+                      ? 'border-white bg-white text-black font-semibold shadow-xs'
+                      : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
+                  }`}
+                >
+                  <FlameIcon className={`w-3.5 h-3.5 ${burnAfter ? 'text-black' : 'text-[#7089ba]'}`} weight={burnAfter ? 'fill' : 'regular'} />
+                  <span>Burn After Reading</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={burnAfter}
+                  onClick={() => !burnAfter && setPersistVault(!persistVault)}
+                  title={burnAfter ? 'Unavailable with Burn After Reading' : 'Retain encrypted file payload in local database for 7 days'}
+                  className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 ${
+                    burnAfter
+                      ? 'border-[#202020] bg-carbon/30 text-graphite cursor-not-allowed opacity-40'
+                      : persistVault
+                        ? 'border-white bg-white text-black font-semibold shadow-xs cursor-pointer'
+                        : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424] cursor-pointer'
+                  }`}
+                >
+                  <ArchiveIcon className={`w-3.5 h-3.5 ${persistVault && !burnAfter ? 'text-black' : 'text-[#7089ba]'}`} weight={persistVault && !burnAfter ? 'fill' : 'regular'} />
+                  <span>7-Day Vault</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEnableCompression(!enableCompression)}
+                  className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                    enableCompression
+                      ? 'border-white bg-white text-black font-semibold shadow-xs'
+                      : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
+                  }`}
+                >
+                  <LightningIcon className={`w-3.5 h-3.5 ${enableCompression ? 'text-black' : 'text-[#7089ba]'}`} weight={enableCompression ? 'fill' : 'regular'} />
+                  <span>Gzip Pre-Compression</span>
+                </button>
+              </div>
+
+              {/* Slider for Expiration Window */}
+              <div className="p-4 rounded-2xl bg-carbon/50 dashed-container-subtle space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba]">
+                      <TimerIcon className="w-3 h-3" />
+                    </div>
+                    <span className="text-steel">Expires:</span>
+                    <span className="text-white font-bold">{activePreset.fullLabel}</span>
+                  </div>
+                  <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase tracking-wider">
+                    {activePreset.tag}
+                  </span>
+                </div>
+
+                {/* Slider Track */}
+                <div className="px-1 py-0.5">
+                  <Slider
+                    value={[activePresetIndex !== -1 ? activePresetIndex : 1]}
+                    min={0}
+                    max={EXPIRY_PRESETS.length - 1}
+                    step={1}
+                    onValueChange={(val) => {
+                      const preset = EXPIRY_PRESETS[val[0]]
+                      if (preset) {
+                        setExpiryMinutes(preset.minutes)
+                      }
+                    }}
+                    aria-label="Expires in"
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Preset Buttons matching navigation pills */}
+                <div className="flex items-center justify-between gap-1 p-0.5 rounded-full bg-[#141414] border border-[#242424]">
+                  {EXPIRY_PRESETS.map((preset, idx) => {
+                    const isSelected = (activePresetIndex !== -1 ? activePresetIndex : 1) === idx
+                    return (
+                      <button
+                        key={preset.minutes}
+                        type="button"
+                        onClick={() => setExpiryMinutes(preset.minutes)}
+                        className={`flex-1 py-1 rounded-full text-center font-mono text-xs transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-white text-black font-semibold shadow-xs'
+                            : 'text-steel hover:text-white'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Transfer Configurations */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-carbon text-xs">
-            <label className="flex items-center gap-2 text-ash cursor-pointer">
-              <input
-                type="checkbox"
-                checked={burnAfter}
-                onChange={(e) => setBurnAfter(e.target.checked)}
-                className="accent-[#7089ba] rounded"
-              />
-              <span className="flex items-center gap-1">
-                <FlameIcon className="w-3.5 h-3.5 text-[#7089ba]" />
-                Burn After Reading
-              </span>
-            </label>
-
-            {!burnAfter && (
-              <label className="flex items-center gap-2 text-ash cursor-pointer" title="Retain encrypted file payload in local database for 7 days">
-                <input
-                  type="checkbox"
-                  checked={persistVault}
-                  onChange={(e) => setPersistVault(e.target.checked)}
-                  className="accent-[#7089ba] rounded"
-                />
-                <span className="flex items-center gap-1">
-                  <ArchiveIcon className="w-3.5 h-3.5 text-[#7089ba]" />
-                  7-Day Vault
-                </span>
-              </label>
-            )}
-
-            <label className="flex items-center gap-2 text-ash cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enableCompression}
-                onChange={(e) => setEnableCompression(e.target.checked)}
-                className="accent-[#7089ba] rounded"
-              />
-              <span>Gzip Pre-Compression</span>
-            </label>
-
-            <div className="flex items-center gap-2 text-ash">
-              <span>Expires:</span>
-              <select
-                value={expiryMinutes}
-                onChange={(e) => setExpiryMinutes(Number(e.target.value))}
-                className="bg-carbon border border-[#282828] rounded px-2 py-1 text-white font-mono text-xs focus:outline-none"
-              >
-                <option value={5}>5 mins</option>
-                <option value={15}>15 mins</option>
-                <option value={60}>1 hour</option>
-                <option value={1440}>24 hours</option>
-              </select>
             </div>
-          </div>
 
-          {/* Action Trigger */}
-          <button
-            type="button"
-            onClick={startTransfer}
-            disabled={isTransferring}
-            className="w-full py-3 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-          >
-            <ShieldCheckIcon className="w-4 h-4" />
-            <span>Generate Encrypted Transfer Vault</span>
-          </button>
+            {/* Action Trigger */}
+            <button
+              type="button"
+              onClick={startTransfer}
+              disabled={isTransferring}
+              className="w-full py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              <ShieldCheckIcon className="w-4 h-4" />
+              <span>Generate Encrypted Transfer Vault</span>
+            </button>
+          </div>
         </div>
       )}
 
