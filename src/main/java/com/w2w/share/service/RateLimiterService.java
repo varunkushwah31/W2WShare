@@ -18,6 +18,7 @@ public class RateLimiterService implements IRateLimiterService {
     private static class ClientAttempt {
         int failureCount = 0;
         long lockedUntilEpochMs = 0;
+        long lastAttemptEpochMs = System.currentTimeMillis();
     }
 
     private String sanitizeIp(String clientIp) {
@@ -48,6 +49,7 @@ public class RateLimiterService implements IRateLimiterService {
                 attempt = new ClientAttempt();
             }
             attempt.failureCount++;
+            attempt.lastAttemptEpochMs = System.currentTimeMillis();
             if (attempt.failureCount >= AppConstants.RATE_LIMIT_MAX_ATTEMPTS) {
                 attempt.lockedUntilEpochMs = System.currentTimeMillis() + (AppConstants.RATE_LIMIT_LOCKOUT_SECONDS * 1000);
                 log.warn("Client [{}] locked out for {} seconds due to {} failed attempts",
@@ -73,9 +75,13 @@ public class RateLimiterService implements IRateLimiterService {
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 60000)
     public void evictExpiredAttempts() {
         long now = System.currentTimeMillis();
+        long maxIdleMs = 3600_000L; // Evict entries idle for > 1 hour
         attempts.entrySet().removeIf(entry -> {
             ClientAttempt attempt = entry.getValue();
-            return attempt != null && attempt.lockedUntilEpochMs > 0 && attempt.lockedUntilEpochMs < now;
+            if (attempt == null) return true;
+            boolean lockoutExpired = attempt.lockedUntilEpochMs > 0 && attempt.lockedUntilEpochMs < now;
+            boolean idleExpired = (now - attempt.lastAttemptEpochMs) > maxIdleMs;
+            return lockoutExpired || idleExpired;
         });
     }
 }

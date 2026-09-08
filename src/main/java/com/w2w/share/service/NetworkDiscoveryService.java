@@ -82,8 +82,12 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
 
             while (interfaces.hasMoreElements()) {
                 NetworkInterface iface = interfaces.nextElement();
-                if (iface.isUp() && !iface.isVirtual()) {
-                    processNetworkInterface(iface, result);
+                try {
+                    if (iface.isUp() && !iface.isVirtual()) {
+                        processNetworkInterface(iface, result);
+                    }
+                } catch (SocketException se) {
+                    log.debug("Skipping interface {} due to error: {}", iface.getName(), se.getMessage());
                 }
             }
         } catch (SocketException e) {

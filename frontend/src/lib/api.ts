@@ -148,6 +148,23 @@ export interface AuditReceipt {
 }
 
 
+async function extractErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const json = await res.json()
+    if (json && typeof json === 'object') {
+      if ('message' in json && typeof json.message === 'string' && json.message.trim()) {
+        return json.message.trim()
+      }
+      if ('error' in json && typeof json.error === 'string' && json.error.trim()) {
+        return json.error.trim()
+      }
+    }
+  } catch {
+    // Non-JSON error body
+  }
+  return `${fallback} (HTTP ${res.status})`
+}
+
 function stripTrailingSlashes(str: string): string {
   let s = str.trim()
   while (s.endsWith('/')) {
@@ -397,13 +414,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
     })
-    if (!res.ok) throw new Error('Failed to create transfer session')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to create transfer session'))
     return await res.json()
   },
 
   async getSessionByPin(pin: string): Promise<TransferSessionDetails> {
     const res = await fetch(`${getApiBase()}/transfer/session/by-pin/${pin}`)
-    if (!res.ok) throw new Error(`No active session found with PIN: ${pin}`)
+    if (!res.ok) throw new Error(await extractErrorMessage(res, `No active session found with PIN: ${pin}`))
     return await res.json()
   },
 
@@ -413,7 +430,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin, receiverId }),
     })
-    if (!res.ok) throw new Error('Failed to join transfer session')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to join transfer session'))
     return await res.json()
   },
 
@@ -423,7 +440,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch),
     })
-    if (!res.ok) throw new Error('Failed to register file batch offer')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to register file batch offer'))
   },
 
   async uploadFileChunk(
@@ -496,7 +513,7 @@ export const api = {
     const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/complete`, {
       method: 'POST',
     })
-    if (!res.ok) throw new Error('Failed to mark transfer complete')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to mark transfer complete'))
     return await res.json()
   },
 
@@ -513,12 +530,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: encryptedText }),
     })
-    if (!res.ok) throw new Error('Failed to save clipboard')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to save clipboard'))
   },
 
   async getClipboard(sessionId: string): Promise<{ text: string }> {
     const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/clipboard`)
-    if (!res.ok) throw new Error('Failed to get clipboard')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to get clipboard'))
     return await res.json()
   },
 
@@ -529,14 +546,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, senderRole }),
     })
-    if (!res.ok) throw new Error('Failed to send chat message')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to send chat message'))
     const data = await res.json()
     return data.message
   },
 
   async getChatHistory(sessionId: string): Promise<ChatMessage[]> {
     const res = await fetch(`${getApiBase()}/transfer/session/${sessionId}/chat`)
-    if (!res.ok) throw new Error('Failed to fetch chat history')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to fetch chat history'))
     return await res.json()
   },
 
@@ -568,7 +585,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(record),
     })
-    if (!res.ok) throw new Error('Failed to record audit transaction')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to record audit transaction'))
     return await res.json()
   },
 
@@ -590,7 +607,7 @@ export const api = {
       method: 'POST',
       body: formData,
     })
-    if (!res.ok) throw new Error('Failed to persist file in 7-day database vault')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to persist file in 7-day database vault'))
     return await res.json()
   },
 
@@ -614,12 +631,13 @@ export const api = {
     document.body.appendChild(a)
     a.click()
     a.remove()
-    URL.revokeObjectURL(url)
+    // Delay revocation to give Safari and Firefox time to process download
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
   },
 
   async getAuditReceipt(transactionId: string): Promise<AuditReceipt> {
     const res = await fetch(`${getApiBase()}/audit/ledger/${transactionId}/receipt`)
-    if (!res.ok) throw new Error('Failed to fetch audit receipt')
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to fetch audit receipt'))
     return await res.json()
   },
 

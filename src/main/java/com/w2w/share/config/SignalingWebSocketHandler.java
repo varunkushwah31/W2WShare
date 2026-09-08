@@ -118,7 +118,11 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         if (sockets != null) {
             for (WebSocketSession s : sockets) {
                 if (s.isOpen() && !s.getId().equals(session.getId())) {
-                    s.sendMessage(message);
+                    try {
+                        s.sendMessage(message);
+                    } catch (IOException e) {
+                        log.debug("Failed to relay binary frame to socket [{}]: {}", s.getId(), e.getMessage());
+                    }
                 }
             }
         }
@@ -127,6 +131,13 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         log.warn("WebSocket transport error on {}: {}", session.getId(), exception.getMessage());
+        if (session != null && session.isOpen()) {
+            try {
+                session.close(CloseStatus.SERVER_ERROR);
+            } catch (IOException e) {
+                log.debug("Error closing session after transport error: {}", e.getMessage());
+            }
+        }
     }
 
     private void handlePing(WebSocketSession session, SignalMessage signal) throws IOException {
@@ -219,7 +230,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleFileOffer(WebSocketSession session, SignalMessage signal) throws IOException {
+    private void handleFileOffer(WebSocketSession session, SignalMessage signal) {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null && signal.payload() != null) {
             FileMetadata meta = objectMapper.convertValue(signal.payload(), FileMetadata.class);
@@ -230,7 +241,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleBatchOffer(WebSocketSession session, SignalMessage signal) throws IOException {
+    private void handleBatchOffer(WebSocketSession session, SignalMessage signal) {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null && signal.payload() instanceof List<?> rawList) {
             List<FileMetadata> batch = rawList.stream()
@@ -244,7 +255,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleTextMessageRelay(WebSocketSession session, SignalMessage signal) throws IOException {
+    private void handleTextMessageRelay(WebSocketSession session, SignalMessage signal) {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null && signal.payload() != null) {
             String text = String.valueOf(signal.payload());
@@ -253,7 +264,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void handleChatMessage(WebSocketSession session, SignalMessage signal) throws IOException {
+    private void handleChatMessage(WebSocketSession session, SignalMessage signal) {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId == null || signal.payload() == null) {
             return;
@@ -279,7 +290,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         );
     }
 
-    private void handleCancel(WebSocketSession session, SignalMessage signal) throws IOException {
+    private void handleCancel(WebSocketSession session, SignalMessage signal) {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null) {
             relayToOtherPeers(session, transferSessionId, signal);
@@ -287,21 +298,25 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void relayToPeer(WebSocketSession session, SignalMessage signal) throws IOException {
+    private void relayToPeer(WebSocketSession session, SignalMessage signal) {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null) {
             relayToOtherPeers(session, transferSessionId, signal);
         }
     }
 
-    private void relayToOtherPeers(WebSocketSession currentSession, String transferSessionId, SignalMessage signal) throws IOException {
+    private void relayToOtherPeers(WebSocketSession currentSession, String transferSessionId, SignalMessage signal) {
         Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
         if (sockets != null) {
             log.info("[WEBRTC-SIGNAL] Relaying [{}] signal from socket [{}] to peer(s) in session [{}]",
                     signal.type(), currentSession.getId(), transferSessionId);
             for (WebSocketSession s : sockets) {
                 if (s.isOpen() && !s.getId().equals(currentSession.getId())) {
-                    sendSignal(s, signal);
+                    try {
+                        sendSignal(s, signal);
+                    } catch (IOException e) {
+                        log.warn("[WEBRTC-SIGNAL] Failed to send signal [{}] to peer [{}]: {}", signal.type(), s.getId(), e.getMessage());
+                    }
                 }
             }
         }

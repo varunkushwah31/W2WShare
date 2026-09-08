@@ -12,6 +12,7 @@ import {
   type NetworkInfoResponse,
   type NetworkInterfaceDto,
 } from '@/lib/api'
+import { copyToClipboard } from '@/lib/clipboard'
 import { QRCodeDisplay } from './QRCodeDisplay'
 import {
   WifiHighIcon,
@@ -271,9 +272,11 @@ const Method1HotspotSection: React.FC<Method1HotspotSectionProps> = ({
               <button
                 type="button"
                 onClick={async () => {
-                  await navigator.clipboard.writeText(`SSID: ${hotspotSsid} | Password: ${hotspotPassword}`)
-                  setCopiedWifi(true)
-                  setTimeout(() => setCopiedWifi(false), 2000)
+                  const success = await copyToClipboard(`SSID: ${hotspotSsid} | Password: ${hotspotPassword}`)
+                  if (success) {
+                    setCopiedWifi(true)
+                    setTimeout(() => setCopiedWifi(false), 2000)
+                  }
                 }}
                 className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] hover:bg-[#252525] border border-[#303030] text-white text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer w-fit"
               >
@@ -776,9 +779,11 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
   const activeUrl = selectedInterface?.url || networkInfo?.primaryUrl || 'http://localhost:8080'
 
   const handleCopyUrl = async () => {
-    await navigator.clipboard.writeText(activeUrl)
-    setCopiedUrl(true)
-    setTimeout(() => setCopiedUrl(false), 2000)
+    const success = await copyToClipboard(activeUrl)
+    if (success) {
+      setCopiedUrl(true)
+      setTimeout(() => setCopiedUrl(false), 2000)
+    }
   }
 
   const wifiQrPayload =

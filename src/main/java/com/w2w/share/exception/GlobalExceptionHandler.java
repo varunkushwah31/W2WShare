@@ -258,6 +258,35 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
     }
 
+    @ExceptionHandler({
+            org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class
+    })
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(Exception ex, HttpServletRequest request) {
+        log.warn("[EXCEPTION] Resource or endpoint not found on {}: {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.NOT_FOUND.value(),
+                "RESOURCE_NOT_FOUND",
+                "Resource Not Found",
+                "The requested endpoint or static resource was not found: " + request.getRequestURI(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotAcceptable(org.springframework.web.HttpMediaTypeNotAcceptableException ex, HttpServletRequest request) {
+        log.warn("[EXCEPTION] Not acceptable media type on {}: {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse err = ErrorResponse.of(
+                HttpStatus.NOT_ACCEPTABLE.value(),
+                "NOT_ACCEPTABLE",
+                "Not Acceptable",
+                "Could not produce acceptable response representation: " + ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(err);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("[EXCEPTION] Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);

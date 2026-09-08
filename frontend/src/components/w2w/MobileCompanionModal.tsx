@@ -20,6 +20,7 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react'
 import { api, type NetworkInterfaceDto } from '@/lib/api'
+import { copyToClipboard } from '@/lib/clipboard'
 import { QRCodeDisplay } from './QRCodeDisplay'
 
 interface MobileCompanionModalProps {
@@ -97,15 +98,17 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
     }
 
     return window.location.origin
-  }, [activeIface?.ip, activeIface?.url])
+  }, [activeIface])
 
   const isLocalhost = currentHostUrl.includes('localhost') || currentHostUrl.includes('127.0.0.1')
 
   const handleCopy = async () => {
     if (!currentHostUrl) return
-    await navigator.clipboard.writeText(currentHostUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const success = await copyToClipboard(currentHostUrl)
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (

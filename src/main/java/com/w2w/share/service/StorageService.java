@@ -254,8 +254,8 @@ public class StorageService implements IStorageService {
 
             try (Stream<Path> stream = Files.list(fileDir)) {
                 return stream.map(p -> p.getFileName().toString())
-                        .filter(name -> name.startsWith(CHUNK_PREFIX) && name.endsWith(BIN_EXT))
-                        .map(name -> name.replace(CHUNK_PREFIX, "").replace(BIN_EXT, ""))
+                        .filter(name -> name.matches("^chunk_\\d+\\.bin$"))
+                        .map(name -> name.substring(CHUNK_PREFIX.length(), name.length() - BIN_EXT.length()))
                         .map(Integer::parseInt)
                         .collect(Collectors.toSet());
             }

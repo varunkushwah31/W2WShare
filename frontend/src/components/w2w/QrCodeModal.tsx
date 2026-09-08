@@ -16,6 +16,7 @@ import {
   EyeSlashIcon,
 } from '@phosphor-icons/react'
 import QRCode from 'qrcode'
+import { copyToClipboard } from '@/lib/clipboard'
 import { QRCodeDisplay } from './QRCodeDisplay'
 
 interface QrCodeModalProps {
@@ -157,15 +158,23 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
   useEffect(() => {
     if (!activePayload) return
+    let active = true
     QRCode.toDataURL(activePayload, { width: 600, margin: 2 })
-      .then(setDownloadUrl)
+      .then((dataUrl) => {
+        if (active) setDownloadUrl(dataUrl)
+      })
       .catch(() => {})
+    return () => {
+      active = false
+    }
   }, [activePayload])
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const success = await copyToClipboard(url)
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (
@@ -262,9 +271,11 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           copied={copied}
           handleCopy={handleCopy}
           handleCopyWifi={async () => {
-            await navigator.clipboard.writeText(`SSID: ${hotspotSsid} | Password: ${hotspotPass}`)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
+            const success = await copyToClipboard(`SSID: ${hotspotSsid} | Password: ${hotspotPass}`)
+            if (success) {
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }
           }}
           downloadUrl={downloadUrl}
           pin={pin}

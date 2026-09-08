@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { api, type AuditRecord } from '@/lib/api'
 import { soundEngine } from '@/lib/sound'
+import { copyToClipboard } from '@/lib/clipboard'
 import {
   ArrowDownLeftIcon,
   ArrowsClockwiseIcon,
@@ -13,6 +14,7 @@ import {
   ShieldCheckIcon,
   TrashIcon,
   XIcon,
+  WarningIcon,
 } from '@phosphor-icons/react'
 
 interface AuditLedgerPanelProps {
@@ -47,6 +49,7 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSen
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  const [auditError, setAuditError] = useState<string | null>(null)
 
   const loadLedger = useCallback(async () => {
     setLoading(true)
@@ -91,11 +94,13 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSen
     }
   }, [])
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text).catch(() => {})
-    setCopiedId(id)
-    soundEngine.chatMsg()
-    setTimeout(() => setCopiedId(null), 1800)
+  const handleCopy = async (text: string, id: string) => {
+    const success = await copyToClipboard(text)
+    if (success) {
+      setCopiedId(id)
+      soundEngine.chatMsg()
+      setTimeout(() => setCopiedId(null), 1800)
+    }
   }
 
   const handleDownloadReceipt = async (record: AuditRecord) => {
@@ -123,7 +128,7 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSen
       document.body.appendChild(a)
       a.click()
       a.remove()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 2000)
       soundEngine.peerConnect()
     } catch {
       soundEngine.errorTone()
@@ -132,10 +137,12 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSen
 
   const handleDownloadFile = async (record: AuditRecord) => {
     setDownloadingId(record.id)
+    setAuditError(null)
     try {
       await api.downloadAuditFile(record.id, record.fileName)
       soundEngine.transferComplete()
-    } catch {
+    } catch (err) {
+      setAuditError(err instanceof Error ? err.message : 'Failed to download file from ledger vault')
       soundEngine.errorTone()
     } finally {
       setDownloadingId(null)
@@ -156,7 +163,7 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSen
     document.body.appendChild(a)
     a.click()
     a.remove()
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
     soundEngine.peerConnect()
   }
 
@@ -238,6 +245,22 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSen
           )}
         </div>
       </div>
+
+      {auditError && (
+        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5">
+            <WarningIcon className="w-4 h-4 shrink-0 text-red-400" />
+            <span>{auditError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAuditError(null)}
+            className="text-red-400/80 hover:text-red-200 font-mono text-[10px] uppercase px-2 py-0.5 rounded border border-red-500/30 transition-colors cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* 2. Uncluttered Search & Direction Filter */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-[#141414] border border-carbon">

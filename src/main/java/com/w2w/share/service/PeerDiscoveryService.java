@@ -146,7 +146,19 @@ public class PeerDiscoveryService implements IPeerDiscoveryService {
 
         String peerDevice = map.containsKey(KEY_DEVICE_NAME) ? String.valueOf(map.get(KEY_DEVICE_NAME)) : "Unknown Device";
         String peerIp = packet.getAddress().getHostAddress();
-        int peerPort = map.containsKey(KEY_PORT) ? ((Number) map.get(KEY_PORT)).intValue() : 8080;
+        int peerPort = 8080;
+        if (map.containsKey(KEY_PORT)) {
+            Object portObj = map.get(KEY_PORT);
+            if (portObj instanceof Number n) {
+                peerPort = n.intValue();
+            } else if (portObj != null) {
+                try {
+                    peerPort = Integer.parseInt(String.valueOf(portObj).trim());
+                } catch (NumberFormatException _) {
+                    peerPort = 8080;
+                }
+            }
+        }
         String peerOs = map.containsKey(KEY_OS) ? String.valueOf(map.get(KEY_OS)) : System.getProperty(PROP_OS_NAME, "Unknown");
         String peerUrl = "http://" + peerIp + ":" + peerPort;
 

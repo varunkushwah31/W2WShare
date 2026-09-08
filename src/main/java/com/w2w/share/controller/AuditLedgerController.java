@@ -107,10 +107,17 @@ public class AuditLedgerController {
                 ? entity.getMimeType()
                 : "application/octet-stream";
 
+        MediaType contentType;
+        try {
+            contentType = MediaType.parseMediaType(mimeType);
+        } catch (Exception _) {
+            contentType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
         String safeFileName = entity.getFileName() != null ? entity.getFileName().replace("\"", "\\\"") : "shared-file.bin";
 
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(mimeType))
+                .contentType(contentType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeFileName + "\"")
                 .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(fileBytes.length))
                 .header("X-W2W-Transaction-Id", entity.getTransactionId())

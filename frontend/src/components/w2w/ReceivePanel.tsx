@@ -303,6 +303,10 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
 
   const handlePasteFromClipboard = async () => {
     try {
+      if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+        setErrorMsg('Clipboard reading is unsupported in this browser/context. Please type PIN.')
+        return
+      }
       const text = await navigator.clipboard.readText()
       const code = extractPinCode(text)
       if (code.length === 6) {
@@ -376,8 +380,20 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
       }
     }
 
+    ws.onerror = (err) => {
+      console.warn('[Signaling] WebSocket error, maintaining fallback channel:', err)
+    }
+
+    ws.onclose = () => {
+      console.debug('[Signaling] WebSocket closed')
+    }
+
     return () => {
-      ws.close()
+      try {
+        ws.close()
+      } catch {
+        // Socket already closed
+      }
       rtc.close()
     }
   }, [sessionId, activePin])
@@ -398,6 +414,8 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
       soundEngine.transferComplete()
     } catch (err) {
       console.error('Failed to generate ZIP archive:', err)
+      setErrorMsg(`Failed to bundle ZIP: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      soundEngine.errorTone()
     } finally {
       setIsZipping(false)
     }

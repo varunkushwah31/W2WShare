@@ -3,6 +3,7 @@ import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
+import { copyToClipboard } from '@/lib/clipboard'
 import { WebRtcPeerManager } from '@/lib/webrtc'
 import { TransferTelemetryChart } from './TransferTelemetryChart'
 import { QrCodeModal } from './QrCodeModal'
@@ -511,8 +512,20 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       }
     }
 
+    ws.onerror = (err) => {
+      console.warn('[Signaling] Sender WebSocket error, keeping fallback active:', err)
+    }
+
+    ws.onclose = () => {
+      console.debug('[Signaling] Sender WebSocket closed')
+    }
+
     return () => {
-      ws.close()
+      try {
+        ws.close()
+      } catch {
+        // Socket already closed
+      }
       rtc.close()
     }
   }, [sessionId, streamViaWebRtc, handleResendChunk])
@@ -728,9 +741,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
   const copyLink = async () => {
     if (effectiveJoinUrl) {
-      await navigator.clipboard.writeText(effectiveJoinUrl)
-      setLinkCopied(true)
-      setTimeout(() => setLinkCopied(false), 2000)
+      const success = await copyToClipboard(effectiveJoinUrl)
+      if (success) {
+        setLinkCopied(true)
+        setTimeout(() => setLinkCopied(false), 2000)
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { api, getWebSocketUrl, type ChatMessage } from '@/lib/api'
 import { soundEngine } from '@/lib/sound'
+import { copyToClipboard } from '@/lib/clipboard'
 import { QrCodeModal } from './QrCodeModal'
 import {
   ClipboardTextIcon,
@@ -16,6 +17,7 @@ import {
   PlusCircleIcon,
   ChatCircleTextIcon,
   PowerIcon,
+  WarningIcon,
 } from '@phosphor-icons/react'
 
 interface ClipboardChatPanelProps {
@@ -32,6 +34,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   const [sessionId, setSessionId] = useState<string>(initialSessionId || '')
   const [pin, setPin] = useState<string>(initialPin || '')
   const [joinPinInput, setJoinPinInput] = useState('')
+  const [joinError, setJoinError] = useState<string | null>(null)
   const [clipboardText, setClipboardText] = useState('')
   const [copied, setCopied] = useState(false)
   const [syncingClip, setSyncingClip] = useState(false)
@@ -132,31 +135,42 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     }
   }, [sessionId, pin])
 
-  // Polling fallback to ensure 100% reliability
+  // Polling fallback to ensure 100% reliability without dependency re-trigger loops
   useEffect(() => {
     if (!sessionId) return
+    let active = true
     const poll = async () => {
       try {
         const [chatHistory, clipData] = await Promise.all([
           api.getChatHistory(sessionId),
           api.getClipboard(sessionId),
         ])
+        if (!active) return
         setMessages(chatHistory)
-        if (clipData.text && clipData.text !== clipboardText) {
-          setClipboardText(clipData.text)
-          setLastSyncTime(Date.now())
+        if (clipData.text) {
+          setClipboardText((prev) => {
+            if (prev !== clipData.text) {
+              setLastSyncTime(Date.now())
+              return clipData.text
+            }
+            return prev
+          })
         }
       } catch {
         // Session might be initializing
       }
     }
 
-    poll()
+    void poll()
     const timer = setInterval(poll, 3000)
-    return () => clearInterval(timer)
-  }, [sessionId, clipboardText])
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [sessionId])
 
   const handleCreateNewSession = async () => {
+    setJoinError(null)
     try {
       const res = await api.createSession({ expiresInSeconds: 3600 })
       setSessionId(res.sessionId)
@@ -165,7 +179,8 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
       setClipboardText('')
       setLastSyncTime(null)
       soundEngine.peerConnect()
-    } catch {
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Failed to create synchronization session')
       soundEngine.errorTone()
     }
   }
@@ -174,6 +189,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
     e.preventDefault()
     const cleanPin = joinPinInput.trim()
     if (cleanPin.length !== 6) return
+    setJoinError(null)
 
     try {
       const session = await api.getSessionByPin(cleanPin)
@@ -191,7 +207,8 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         setLastSyncTime(Date.now())
       }
       soundEngine.peerConnect()
-    } catch {
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Invalid or expired pairing PIN')
       soundEngine.errorTone()
     }
   }
@@ -273,9 +290,11 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   }
 
   const handleCopyClipboard = async () => {
-    await navigator.clipboard.writeText(clipboardText)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const success = await copyToClipboard(clipboardText)
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   const handleSendMessage = async (e: React.SubmitEvent) => {
@@ -310,9 +329,11 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
   }
 
   const handleCopyMessage = async (msgId: string, text: string) => {
-    await navigator.clipboard.writeText(text)
-    setCopiedMsgId(msgId)
-    setTimeout(() => setCopiedMsgId(null), 2000)
+    const success = await copyToClipboard(text)
+    if (success) {
+      setCopiedMsgId(msgId)
+      setTimeout(() => setCopiedMsgId(null), 2000)
+    }
   }
 
   const handleClearChat = () => {
@@ -456,6 +477,22 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
           )}
         </div>
       </div>
+
+      {joinError && (
+        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5">
+            <WarningIcon className="w-4 h-4 shrink-0 text-red-400" />
+            <span>{joinError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setJoinError(null)}
+            className="text-red-400/80 hover:text-red-200 font-mono text-[10px] uppercase px-2 py-0.5 rounded border border-red-500/30 transition-colors cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Main 2-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
