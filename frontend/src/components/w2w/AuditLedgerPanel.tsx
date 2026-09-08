@@ -39,9 +39,7 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
-export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({
-  onSwitchToSend,
-}) => {
+export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({onSwitchToSend,}) => {
   const [records, setRecords] = useState<AuditRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState<'ALL' | 'SENT' | 'RECEIVED'>('ALL')
@@ -266,11 +264,7 @@ export const AuditLedgerPanel: React.FC<AuditLedgerPanelProps> = ({
         <div className="flex items-center p-0.5 rounded-lg bg-void border border-[#242424] text-xs shrink-0">
           {(['ALL', 'SENT', 'RECEIVED'] as const).map((type) => {
             const count =
-              type === 'ALL'
-                ? records.length
-                : type === 'SENT'
-                ? sentCount
-                : receivedCount
+              type === 'ALL' ? records.length : type === 'SENT' ? sentCount : receivedCount
             return (
               <button
                 key={type}
