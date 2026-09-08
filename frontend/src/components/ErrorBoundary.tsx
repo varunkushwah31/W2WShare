@@ -31,10 +31,10 @@ export class ErrorBoundary extends Component<Props, State> {
   public override render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#000000] text-white flex items-center justify-center p-6 relative">
+        <div className="min-h-screen bg-void text-white flex items-center justify-center p-6 relative">
           <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none" />
           <div className="dashed-container p-8 sm:p-10 rounded-2xl bg-[#141414] max-w-lg w-full text-center relative z-10 shadow-2xl space-y-6">
-            <div className="w-12 h-12 rounded-full bg-[#1c1c1c] border border-[#242424] flex items-center justify-center mx-auto text-[#7089ba]">
+            <div className="w-12 h-12 rounded-full bg-carbon border border-[#242424] flex items-center justify-center mx-auto text-[#7089ba]">
               <span className="font-mono text-xl font-bold">!</span>
             </div>
 

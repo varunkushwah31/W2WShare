@@ -57,13 +57,13 @@ export const Navigation: React.FC<NavigationProps> = ({
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           scrolled
-            ? 'bg-black/90 backdrop-blur-md border-b border-[#1c1c1c]'
+            ? 'bg-black/90 backdrop-blur-md border-b border-carbon'
             : 'bg-transparent border-b border-transparent'
         }`}
       >
-        <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between relative">
+        <div className="max-w-300 mx-auto px-6 h-16 flex items-center justify-between relative">
           {/* Technical scale indicator */}
-          <div className="hidden lg:block absolute left-[-60px] top-1/2 -translate-y-1/2 font-mono text-sm text-[#4d4d4d] select-none pointer-events-none">
+          <div className="hidden lg:block absolute -left-15 top-1/2 -translate-y-1/2 font-mono text-sm text-graphite select-none pointer-events-none">
             1.00
           </div>
 
@@ -105,7 +105,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   className={`text-sm transition-colors relative py-1 cursor-pointer ${
                     isActive
                       ? 'text-white font-semibold'
-                      : 'text-[#808080] hover:text-white font-medium'
+                      : 'text-steel hover:text-white font-medium'
                   }`}
                 >
                   <span>{link.label}</span>
@@ -157,7 +157,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 top-16 z-30 bg-black/95 backdrop-blur-lg md:hidden p-6 flex flex-col justify-between border-b border-[#1c1c1c]">
+        <div className="fixed inset-0 top-16 z-30 bg-black/95 backdrop-blur-lg md:hidden p-6 flex flex-col justify-between border-b border-carbon">
           <div className="space-y-4">
             {navLinks.map((link) => {
               const isActive = currentPage === link.id
@@ -167,7 +167,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   key={link.id}
                   onClick={() => handleNavClick(link.id)}
                   className={`block w-full text-left text-lg py-1 ${
-                    isActive ? 'text-white font-bold' : 'text-[#808080] hover:text-white font-medium'
+                    isActive ? 'text-white font-bold' : 'text-steel hover:text-white font-medium'
                   }`}
                 >
                   <span>{link.label}</span>
@@ -176,7 +176,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             })}
           </div>
 
-          <div className="space-y-3 pt-6 border-t border-[#1c1c1c]">
+          <div className="space-y-3 pt-6 border-t border-carbon">
 
             {onOpenMobileApp && (
               <button

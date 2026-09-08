@@ -27,7 +27,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-275 mx-auto space-y-10 animate-in fade-in duration-300">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1c1c1c] pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
@@ -59,7 +59,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
         <button
           type="button"
           onClick={() => setActiveTab('instructions')}
-          className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+          className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'instructions'
               ? 'bg-white text-black font-semibold shadow-sm'
               : 'text-steel hover:text-white'
@@ -71,7 +71,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
         <button
           type="button"
           onClick={() => setActiveTab('mobile-hotspot')}
-          className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+          className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'mobile-hotspot'
               ? 'bg-white text-black font-semibold shadow-sm'
               : 'text-steel hover:text-white'
@@ -83,7 +83,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
         <button
           type="button"
           onClick={() => setActiveTab('features')}
-          className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+          className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'features'
               ? 'bg-white text-black font-semibold shadow-sm'
               : 'text-steel hover:text-white'
@@ -95,7 +95,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
         <button
           type="button"
           onClick={() => setActiveTab('network')}
-          className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+          className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'network'
               ? 'bg-white text-black font-semibold shadow-sm'
               : 'text-steel hover:text-white'

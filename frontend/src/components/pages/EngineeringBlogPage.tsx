@@ -40,9 +40,9 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-[1050px] mx-auto space-y-12 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-262.5 mx-auto space-y-12 animate-in fade-in duration-300">
       {/* Top Header */}
-      <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-6">
+      <div className="flex items-center justify-between border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
@@ -63,7 +63,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
           W2W Dispatches
         </h1>
-        <p className="text-sm text-[#808080] leading-relaxed">
+        <p className="text-sm text-steel leading-relaxed">
           Engineering dispatches contain technical insights and architectural deep dives into browser-native cryptography, high-throughput stream piping, and air-gapped threat modeling.
         </p>
       </div>
@@ -73,9 +73,9 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
         {articles.map((art) => (
           <article
             key={art.id}
-            className="p-7 rounded-2xl bg-[#141414] border border-[#1c1c1c] hover:border-[#2a2a2a] transition-all space-y-4 group cursor-default"
+            className="p-7 rounded-2xl bg-[#141414] border border-carbon hover:border-[#2a2a2a] transition-all space-y-4 group cursor-default"
           >
-            <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-[#808080]">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-steel">
               <span className="inline-flex items-center gap-1 text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20">
                 <TagIcon className="w-3 h-3" />
                 {art.tag}
@@ -93,11 +93,11 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
               {art.title}
             </h2>
 
-            <p className="text-xs text-[#808080] leading-relaxed font-sans">
+            <p className="text-xs text-steel leading-relaxed font-sans">
               {art.excerpt}
             </p>
 
-            <div className="pt-2 flex items-center gap-2 text-xs font-mono text-[#ababab]">
+            <div className="pt-2 flex items-center gap-2 text-xs font-mono text-ash">
               <UserIcon className="w-3.5 h-3.5 text-[#7089ba]" />
               <span>{art.author}</span>
             </div>

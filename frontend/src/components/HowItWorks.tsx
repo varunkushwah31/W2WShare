@@ -27,10 +27,10 @@ export const HowItWorks: React.FC = () => {
   ]
 
   return (
-    <section className="w-full max-w-[1200px] mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-[#000000]/60">
+    <section className="w-full max-w-300 mx-auto px-6 py-20 dashed-container my-12 rounded-2xl bg-void/60">
       {/* Centered Heading */}
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-        <div className="font-mono text-xs uppercase tracking-[0.08em] text-[#808080] flex items-center justify-center gap-1.5">
+        <div className="font-mono text-xs uppercase tracking-[0.08em] text-steel flex items-center justify-center gap-1.5">
           <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
           <span>3 EASY STEPS</span>
         </div>
@@ -45,7 +45,7 @@ export const HowItWorks: React.FC = () => {
           <div key={item.step} className="flex flex-col items-start space-y-4 p-4">
             {/* Step Icon & Counter */}
             <div className="flex items-center justify-between w-full">
-              <div className="w-10 h-10 rounded-full bg-[#1c1c1c] border border-[#282828] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-carbon border border-[#282828] flex items-center justify-center">
                 {item.icon}
               </div>
               <span className="font-mono text-[10px] text-[#7089ba] tracking-wider bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
@@ -59,7 +59,7 @@ export const HowItWorks: React.FC = () => {
             </h3>
 
             {/* Description */}
-            <p className="text-sm text-[#808080] leading-relaxed">
+            <p className="text-sm text-steel leading-relaxed">
               {item.description}
             </p>
           </div>

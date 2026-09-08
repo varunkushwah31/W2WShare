@@ -79,9 +79,9 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-[1100px] mx-auto space-y-12 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-275 mx-auto space-y-12 animate-in fade-in duration-300">
       {/* Top Breadcrumb Header */}
-      <div className="flex items-center justify-between border-b border-[#1c1c1c] pb-6">
+      <div className="flex items-center justify-between border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
@@ -101,13 +101,13 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
           W2W Share System Updates
         </h1>
-        <p className="text-sm text-[#808080] max-w-2xl leading-relaxed">
+        <p className="text-sm text-steel max-w-2xl leading-relaxed">
           Record of cryptographic enhancements, UDP discovery protocols, performance benchmarks.
         </p>
       </div>
 
       {/* Release Timeline */}
-      <div className="space-y-12 divide-y divide-[#1c1c1c]">
+      <div className="space-y-12 divide-y divide-carbon">
         {releases.map((rel) => (
           <div key={rel.version} className="pt-10 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -119,7 +119,7 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
                   {rel.tag}
                 </span>
               </div>
-              <span className="font-mono text-xs text-[#808080]">{rel.date}</span>
+              <span className="font-mono text-xs text-steel">{rel.date}</span>
             </div>
 
             <h3 className="text-xl font-bold text-white font-sans">
@@ -130,7 +130,7 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
               {rel.items.map((item) => (
                 <div
                   key={item.title}
-                  className="p-5 rounded-2xl bg-[#141414] border border-[#1c1c1c] space-y-2.5 hover:border-[#2a2a2a] transition-all"
+                  className="p-5 rounded-2xl bg-[#141414] border border-carbon space-y-2.5 hover:border-[#2a2a2a] transition-all"
                 >
                   <div className="flex items-center gap-2 font-mono text-[10px] text-[#7089ba]">
                     {item.type === 'SECURITY' && <ShieldCheckIcon className="w-3.5 h-3.5" />}
@@ -140,7 +140,7 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
                     <span>{item.type}</span>
                   </div>
                   <h4 className="text-sm font-semibold text-white">{item.title}</h4>
-                  <p className="text-xs text-[#808080] leading-relaxed">{item.desc}</p>
+                  <p className="text-xs text-steel leading-relaxed">{item.desc}</p>
                 </div>
               ))}
             </div>

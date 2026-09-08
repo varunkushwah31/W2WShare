@@ -98,7 +98,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
 
   return (
     <Dialog open={!!type} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl border border-[#1c1c1c] bg-[#141414] text-white p-7 rounded-2xl">
+      <DialogContent className="max-w-2xl border border-carbon bg-[#141414] text-white p-7 rounded-2xl">
         <DialogHeader className="space-y-2 mb-4">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded border border-[#7089ba]/20 flex items-center gap-1">
@@ -114,14 +114,14 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
 
         <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-2 text-xs font-mono">
           {doc.content.map((sec) => (
-            <div key={sec.h} className="p-4 rounded-xl bg-[#000000] border border-[#1c1c1c] space-y-1.5">
+            <div key={sec.h} className="p-4 rounded-xl bg-void border border-carbon space-y-1.5">
               <h4 className="text-white font-semibold text-sm">{sec.h}</h4>
-              <p className="text-[#808080] leading-relaxed font-sans text-xs">{sec.p}</p>
+              <p className="text-steel leading-relaxed font-sans text-xs">{sec.p}</p>
             </div>
           ))}
         </div>
 
-        <div className="pt-4 border-t border-[#1c1c1c] flex justify-end">
+        <div className="pt-4 border-t border-carbon flex justify-end">
           <button
             type="button"
             onClick={onClose}

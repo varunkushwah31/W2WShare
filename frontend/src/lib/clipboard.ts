@@ -43,7 +43,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       textarea.setSelectionRange(0, textarea.value.length)
 
       const successful = document.execCommand('copy')
-      document.body.removeChild(textarea)
+      textarea.remove()
       return successful
     } catch {
       // Ignore fallback failures
