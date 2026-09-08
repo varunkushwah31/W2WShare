@@ -184,10 +184,21 @@ export function getApiBase(): string {
 export function getWebSocketUrl(path = '/ws/signaling'): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
 
+  const normalizeUrl = (raw: string): string => {
+    // Collapse any repeated /ws/signaling or /ws paths (e.g. /ws/signaling/ws/signaling -> /ws/signaling)
+    return raw
+      .replace(/(\/ws\/signaling)+/g, '/ws/signaling')
+      .replace(/(\/ws\/signal)+/g, '/ws/signal')
+      .replace(/(\/ws\/transfer)+/g, '/ws/transfer')
+  }
+
   // 1. Explicit VITE_WS_URL
   if (import.meta.env.VITE_WS_URL) {
     const wsBase = stripTrailingSlashes(import.meta.env.VITE_WS_URL)
-    return `${wsBase}${cleanPath}`
+    if (wsBase.endsWith(cleanPath)) {
+      return normalizeUrl(wsBase)
+    }
+    return normalizeUrl(`${wsBase}${cleanPath}`)
   }
 
   // 2. Derived from active backend URL (runtime override or env var)
@@ -197,7 +208,11 @@ export function getWebSocketUrl(path = '/ws/signaling'): string {
       const fullUrl = activeBackend.startsWith('http') ? activeBackend : `https://${activeBackend}`
       const parsed = new URL(fullUrl)
       const wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
-      return `${wsProto}//${parsed.host}${cleanPath}`
+      const pathname = stripTrailingSlashes(parsed.pathname || '')
+      if (pathname.endsWith(cleanPath)) {
+        return normalizeUrl(`${wsProto}//${parsed.host}${pathname}`)
+      }
+      return normalizeUrl(`${wsProto}//${parsed.host}${pathname}${cleanPath}`)
     } catch {
       // Fallback to window.location
     }
@@ -206,7 +221,7 @@ export function getWebSocketUrl(path = '/ws/signaling'): string {
   // 3. Fallback to current browser location (monolith or local dev proxy)
   const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = typeof window !== 'undefined' ? (window.location.host || 'localhost:8080') : 'localhost:8080'
-  return `${protocol}//${host}${cleanPath}`
+  return normalizeUrl(`${protocol}//${host}${cleanPath}`)
 }
 
 export interface PeerAnnouncePayload {
