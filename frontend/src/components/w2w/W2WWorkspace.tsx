@@ -100,64 +100,78 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
     <section id={id} className="w-full max-w-300 mx-auto px-6 py-8">
       {/* Container with Dashed Containment & Cyber-Grid */}
       <div className="dashed-container rounded-2xl bg-void cyber-grid p-6 sm:p-10 space-y-8 relative overflow-hidden">
-        {/* Top Header & Tab Navigation Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-carbon pb-6">
+        {/* Top Header: Title & Utility Controls */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
                 OFFLINE PEER STUDIO
               </span>
               <span className="font-mono text-[10px] text-steel">
                 SPEC: 1.0.0 · AES-256-GCM
               </span>
-              <button
-                type="button"
-                onClick={() => setIsNetworkModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#161616] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#7089ba]/50 text-[10px] font-mono text-[#aaa] transition-all cursor-pointer"
-                title="Click to configure offline sharing: Method 1 (Smartphone Personal Hotspot) or Method 2 (Standard Wi-Fi Router / LAN)"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-white font-semibold">
-                  {getSharingHubLabel(selectedInterface)}
-                </span>
-                <span className="text-[#7089ba] ml-0.5">⚙ Config</span>
-              </button>
-
-              {onOpenMobileApp && (
-                <button
-                  type="button"
-                  onClick={onOpenMobileApp}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#7089ba]/10 hover:bg-[#7089ba]/20 border border-[#7089ba]/30 hover:border-[#7089ba]/60 text-[10px] font-mono text-[#7089ba] transition-all cursor-pointer"
-                  title="Open Mobile Companion QR & PWA Setup"
-                >
-                  <DeviceMobileIcon className="w-3 h-3 text-[#7089ba]" />
-                  <span className="font-semibold">Mobile Client</span>
-                  <span className="text-[8px] bg-[#7089ba]/20 px-1 rounded text-[#7089ba] font-bold">PWA</span>
-                </button>
-              )}
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
               Encrypted Peer Sharing Terminal
             </h2>
           </div>
 
-          {/* Navigation Pill Buttons */}
-          <div className="flex flex-wrap items-center p-1 rounded-full bg-[#141414] border border-[#242424] self-stretch md:self-auto">
+          {/* Utility Controls: Network Interface & Mobile Companion */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsNetworkModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#7089ba]/50 text-[11px] font-mono text-[#aaa] transition-all cursor-pointer shadow-sm"
+              title="Click to configure offline sharing: Method 1 (Smartphone Personal Hotspot) or Method 2 (Standard Wi-Fi Router / LAN)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-white font-semibold">
+                {getSharingHubLabel(selectedInterface)}
+              </span>
+              <span className="text-[#7089ba] ml-0.5">⚙ Config</span>
+            </button>
+
+            {onOpenMobileApp && (
+              <button
+                type="button"
+                onClick={onOpenMobileApp}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#7089ba]/10 hover:bg-[#7089ba]/20 border border-[#7089ba]/30 hover:border-[#7089ba]/60 text-[11px] font-mono text-[#7089ba] transition-all cursor-pointer shadow-sm"
+                title="Open Mobile Companion QR & PWA Setup"
+              >
+                <DeviceMobileIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                <span className="font-semibold">Mobile Client</span>
+                <span className="text-[9px] bg-[#7089ba]/20 px-1.5 py-0.5 rounded text-[#7089ba] font-bold">PWA</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Dedicated Horizontal Tab Navigation Dock (Never Wraps Awkwardly) */}
+        <div className="border-t border-b border-carbon/80 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex items-center p-1 rounded-xl bg-[#141414] border border-[#242424] flex-nowrap overflow-x-auto no-scrollbar gap-1 max-w-full">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeTab === t.id
                     ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-steel hover:text-white'
+                    : 'text-steel hover:text-white hover:bg-[#1a1a1a]'
                 }`}
               >
                 {t.icon}
                 <span>{t.label}</span>
               </button>
             ))}
+          </div>
+
+          {/* Telemetry Status Readout */}
+          <div className="hidden md:flex items-center gap-2 font-mono text-[11px] text-steel shrink-0 pr-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>RAM_DIRECT</span>
+            <span className="text-[#333]">·</span>
+            <span className="text-[#7089ba]">ZERO-CLOUD</span>
           </div>
         </div>
 
