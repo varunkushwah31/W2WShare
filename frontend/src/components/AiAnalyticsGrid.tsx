@@ -1,9 +1,9 @@
 import React from 'react'
 import {
-  LaptopWandCadIllustration,
-  PedestalAwardCadIllustration,
-  LightningVortexCadIllustration,
-  CoinStacksCadIllustration,
+  FastStreamSinkCadIllustration,
+  EphemeralDestructCadIllustration,
+  SubnetRadarCadIllustration,
+  CryptographicLedgerCadIllustration,
 } from './CadIllustrations'
 import { ShieldCheckIcon } from '@phosphor-icons/react'
 
@@ -12,22 +12,22 @@ export const AiAnalyticsGrid: React.FC = () => {
     {
       title: 'Fast Stream Sink',
       description: 'Stream 10GB+ files and recursive folder hierarchies with 2MB binary chunk pipelining.',
-      illustration: <LaptopWandCadIllustration />,
+      illustration: <FastStreamSinkCadIllustration />,
     },
     {
       title: 'Ephemeral Auto-Destruct',
       description: 'Auto-destruct protocol that wipes memory buffers after single claim or receiver confirmation.',
-      illustration: <PedestalAwardCadIllustration />,
+      illustration: <EphemeralDestructCadIllustration />,
     },
     {
       title: 'Subnet Peer Radar',
       description: 'Automatic UDP discovery of active peers across local Wi-Fi, Ethernet, and mobile hotspots.',
-      illustration: <LightningVortexCadIllustration />,
+      illustration: <SubnetRadarCadIllustration />,
     },
     {
       title: 'Cryptographic Audit Ledger',
       description: 'Immutable transaction logs with downloadable signed SHA-256 cryptographic receipts.',
-      illustration: <CoinStacksCadIllustration />,
+      illustration: <CryptographicLedgerCadIllustration />,
     },
   ]
 

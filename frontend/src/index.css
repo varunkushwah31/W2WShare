@@ -247,6 +247,11 @@
   animation: scanlinePulse 2s ease-in-out infinite;
 }
 
+.animate-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* Cyber-Grid & Neon aesthetics inspired by MangoShare */
 .cyber-grid {
   background-size: 32px 32px;
