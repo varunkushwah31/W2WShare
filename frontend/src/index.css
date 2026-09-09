@@ -170,10 +170,13 @@
 
 /* Keyframe Animations */
 @keyframes rotateGearSlow {
-  from {
+  0% {
     transform: rotate(0deg);
   }
-  to {
+  75% {
+    transform: rotate(360deg);
+  }
+  100% {
     transform: rotate(360deg);
   }
 }
@@ -223,7 +226,8 @@
 }
 
 .animate-gear-spin {
-  animation: rotateGearSlow 28s linear infinite;
+  animation: rotateGearSlow 8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  transform-box: fill-box;
   transform-origin: center;
 }
 

@@ -102,17 +102,17 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
         {/* Isometric Rotating Precision CAD Gear */}
         <g transform="translate(180, 180)">
           {/* Animated gear teeth & spokes group */}
-          <g className="animate-gear-spin">
+          <g className="animate-gear-spin" style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
             {/* Gear Central Axis & Hub Circles */}
             <circle cx="0" cy="0" r="22" stroke="#7089ba" strokeWidth="1.6" strokeDasharray="3 2" fill="rgba(112, 137, 186, 0.1)" />
 
             {/* 8 Radial Gear Teeth Outline */}
             <path
               d="
-                M -12 -54 L 12 -54 L 14 -40 L 26 -36 L 40 -48 L 54 -34 L 42 -20 L 46 -8 
-                L 58 -4 L 58 12 L 44 18 L 38 30 L 48 44 L 34 56 L 20 46 L 8 48 
-                L 4 60 L -12 60 L -18 46 L -30 42 L -44 52 L -56 38 L -46 24 L -48 10 
-                L -60 6 L -60 -10 L -46 -16 L -40 -28 L -50 -42 L -36 -54 L -22 -44 L -10 -46 Z
+                M -11.2 -52.8 L 11.2 -52.8 L 12.4 -38.0 L 18.2 -35.6 L 29.4 -45.3 L 45.3 -29.4 L 35.6 -18.2 L 38.0 -12.4 
+                L 52.8 -11.2 L 52.8 11.2 L 38.0 12.4 L 35.6 18.2 L 45.3 29.4 L 29.4 45.3 L 18.2 35.6 L 12.4 38.0 
+                L 11.2 52.8 L -11.2 52.8 L -12.4 38.0 L -18.2 35.6 L -29.4 45.3 L -45.3 29.4 L -35.6 18.2 L -38.0 12.4 
+                L -52.8 11.2 L -52.8 -11.2 L -38.0 -12.4 L -35.6 -18.2 L -45.3 -29.4 L -29.4 -45.3 L -18.2 -35.6 L -12.4 -38.0 Z
               "
               stroke="#7089ba"
               strokeWidth="1.8"
