@@ -55,7 +55,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 pt-[env(safe-area-inset-top,0px)] ${
           scrolled
             ? 'bg-black/90 backdrop-blur-md border-b border-carbon'
             : 'bg-transparent border-b border-transparent'

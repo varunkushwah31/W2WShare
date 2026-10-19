@@ -862,9 +862,9 @@ export const CoinStacksCadIllustration = CryptographicLedgerCadIllustration
 /**
  * Hero Bottom Radial Fan Stipple Pattern
  */
-export const HeroLightBeamStipple: React.FC<CadIllustrationProps> = ({ className = '' }) => {
+export const HeroLightBeamStipple: React.FC<CadIllustrationProps> = ({ className = 'h-25' }) => {
   return (
-    <div className={`w-full max-w-120 h-25 flex items-center justify-center relative overflow-hidden ${className}`}>
+    <div className={`w-full max-w-120 flex items-center justify-center relative overflow-hidden ${className}`}>
       <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full opacity-70 overflow-visible">
         <g stroke="#7089ba" strokeWidth="0.8" strokeDasharray="2 4" className="animate-dash-flow">
           <line x1="200" y1="100" x2="60" y2="10" />
