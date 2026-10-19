@@ -195,6 +195,19 @@
   background: var(--hero-radial-glow-base);
 }
 
+/* Hardware-Accelerated Smooth Cursor Following Dim Light */
+.hero-cursor-glow {
+  background: 
+    radial-gradient(circle at 50% 50%, rgba(190, 215, 255, 0.35) 0%, rgba(112, 137, 186, 0.18) 20%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(112, 137, 186, 0.16) 0%, rgba(70, 95, 140, 0.06) 40%, transparent 70%);
+}
+
+html:not(.dark) .hero-cursor-glow {
+  background: 
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.98) 0%, rgba(224, 235, 255, 0.70) 20%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(191, 219, 254, 0.35) 0%, rgba(147, 197, 253, 0.10) 40%, transparent 70%);
+}
+
 /* Stippled Particle Grid Pattern */
 .bg-stipple-grid {
   background-image: radial-gradient(var(--stipple-dot) 1.25px, transparent 1.25px);

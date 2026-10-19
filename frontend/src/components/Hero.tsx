@@ -8,98 +8,88 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
   const containerRef = useRef<HTMLElement>(null)
-  const spotlightRef = useRef<HTMLDivElement>(null)
+  const glowRef = useRef<HTMLDivElement>(null)
   const coordsRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
     const container = containerRef.current
-    const spotlight = spotlightRef.current
-    if (!container || !spotlight) return
+    const glow = glowRef.current
+    if (!container || !glow) return
 
     let rafId: number | null = null
+    let hasMoved = false
 
-    const renderSpotlight = (x: number, y: number) => {
-      const isDark = document.documentElement.classList.contains('dark')
-
-      if (isDark) {
-        spotlight.style.background = `radial-gradient(280px circle at ${x}px ${y}px, rgba(165, 195, 255, 0.28) 0%, rgba(112, 137, 186, 0.14) 35%, rgba(112, 137, 186, 0.03) 65%, transparent 80%), radial-gradient(720px circle at ${x}px ${y}px, rgba(112, 137, 186, 0.16) 0%, rgba(70, 95, 140, 0.07) 35%, rgba(35, 48, 75, 0.02) 60%, transparent 80%)`
-      } else {
-        spotlight.style.background = `radial-gradient(280px circle at ${x}px ${y}px, rgba(255, 255, 255, 0.98) 0%, rgba(219, 234, 254, 0.55) 35%, rgba(37, 99, 235, 0.10) 65%, transparent 85%), radial-gradient(720px circle at ${x}px ${y}px, rgba(37, 99, 235, 0.12) 0%, rgba(59, 130, 246, 0.06) 30%, rgba(147, 197, 253, 0.02) 55%, transparent 75%)`
-      }
-
-      if (coordsRef.current) {
-        coordsRef.current.textContent = `POS_X: ${Math.max(0, x).toFixed(1)}mm · POS_Y: ${Math.max(0, y).toFixed(1)}mm · SCALE: 1.00`
-      }
-    }
-
-    // Initialize spotlight position in center
-    const initRect = container.getBoundingClientRect()
-    renderSpotlight(initRect.width / 2, initRect.height * 0.38)
-    spotlight.style.opacity = '0.5'
-
-    const handlePointerMove = (e: MouseEvent) => {
+    const updateGlowPosition = (clientX: number, clientY: number) => {
       const rect = container.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
+      const x = clientX - rect.left
+      const y = clientY - rect.top
+
+      // Check if mouse is within or near the hero bounds
+      if (x < -100 || x > rect.width + 100 || y < -100 || y > rect.height + 100) {
+        glow.style.opacity = '0'
+        return
+      }
 
       if (rafId !== null) {
         cancelAnimationFrame(rafId)
       }
 
       rafId = requestAnimationFrame(() => {
-        renderSpotlight(x, y)
-        spotlight.style.opacity = '1'
+        if (!glowRef.current) return
+
+        if (!hasMoved) {
+          // Snap directly on initial entry without fly-in transition
+          glowRef.current.style.transition = 'opacity 0.4s ease-out'
+          glowRef.current.style.transform = `translate3d(${x - 360}px, ${y - 360}px, 0)`
+          glowRef.current.style.opacity = '1'
+          hasMoved = true
+          requestAnimationFrame(() => {
+            if (glowRef.current) {
+              glowRef.current.style.transition = 'opacity 0.4s ease-out, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1)'
+            }
+          })
+        } else {
+          glowRef.current.style.transform = `translate3d(${x - 360}px, ${y - 360}px, 0)`
+          glowRef.current.style.opacity = '1'
+        }
+
+        if (coordsRef.current) {
+          coordsRef.current.textContent = `POS_X: ${Math.max(0, x).toFixed(1)}mm · POS_Y: ${Math.max(0, y).toFixed(1)}mm · SCALE: 1.00`
+        }
       })
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      updateGlowPosition(e.clientX, e.clientY)
     }
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 0) return
-      const touch = e.touches[0]
-      const rect = container.getBoundingClientRect()
-      const x = touch.clientX - rect.left
-      const y = touch.clientY - rect.top
+      if (e.touches.length > 0) {
+        updateGlowPosition(e.touches[0].clientX, e.touches[0].clientY)
+      }
+    }
 
+    const handleMouseLeave = () => {
       if (rafId !== null) {
         cancelAnimationFrame(rafId)
       }
-
-      rafId = requestAnimationFrame(() => {
-        renderSpotlight(x, y)
-        spotlight.style.opacity = '1'
-      })
-    }
-
-    const handlePointerLeave = () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
+      if (glowRef.current) {
+        glowRef.current.style.opacity = '0'
       }
-      spotlight.style.opacity = '0.3'
     }
 
-    const handlePointerEnter = () => {
-      spotlight.style.opacity = '1'
-    }
-
-    const handleThemeChange = () => {
-      const rect = container.getBoundingClientRect()
-      renderSpotlight(rect.width / 2, rect.height * 0.38)
-    }
-
-    container.addEventListener('mousemove', handlePointerMove, { passive: true })
-    container.addEventListener('touchmove', handleTouchMove, { passive: true })
-    container.addEventListener('mouseleave', handlePointerLeave)
-    container.addEventListener('mouseenter', handlePointerEnter)
-    window.addEventListener('w2w-theme-change', handleThemeChange)
+    // Attach to window for effortless, uninterrupted tracking across all child elements and sticky header
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+    document.addEventListener('mouseleave', handleMouseLeave)
 
     return () => {
       if (rafId !== null) {
         cancelAnimationFrame(rafId)
       }
-      container.removeEventListener('mousemove', handlePointerMove)
-      container.removeEventListener('touchmove', handleTouchMove)
-      container.removeEventListener('mouseleave', handlePointerLeave)
-      container.removeEventListener('mouseenter', handlePointerEnter)
-      window.removeEventListener('w2w-theme-change', handleThemeChange)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('mouseleave', handleMouseLeave)
     }
   }, [])
 
@@ -108,16 +98,14 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       ref={containerRef}
       className="relative min-h-[100svh] min-h-[100dvh] w-full pt-16 sm:pt-24 md:pt-28 pb-4 sm:pb-8 md:pb-10 safe-area-bottom flex flex-col justify-between items-center overflow-hidden dashed-divider-b bg-void cursor-default"
     >
-      {/* Subtle architectural base ambient lighting */}
-      <div className="hero-spotlight absolute inset-0 pointer-events-none opacity-40 dark:opacity-30" />
-      <div className="hero-radial-glow absolute inset-0 pointer-events-none opacity-30 dark:opacity-20" />
-
-      {/* Mouse cursor following dim light effect */}
+      {/* Smooth hardware-accelerated cursor following dim light effect */}
       <div
-        ref={spotlightRef}
-        className="absolute inset-0 pointer-events-none transition-opacity duration-300 ease-out"
+        ref={glowRef}
+        className="hero-cursor-glow pointer-events-none absolute top-0 left-0 rounded-full opacity-0 will-change-transform z-0"
         style={{
-          opacity: 0.5,
+          width: '720px',
+          height: '720px',
+          transition: 'opacity 0.4s ease-out, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       />
 
