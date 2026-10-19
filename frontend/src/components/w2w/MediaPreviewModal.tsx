@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { DownloadSimpleIcon, FileTextIcon, ImageIcon, MusicNotesIcon, VideoIcon } from '@phosphor-icons/react'
+import { DownloadSimpleIcon, FileTextIcon, ImageIcon, MusicNotesIcon, VideoIcon, ShareNetworkIcon } from '@phosphor-icons/react'
 
 export interface MediaPreviewItem {
   fileName: string
@@ -54,28 +54,64 @@ export const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
   const isPdf = item.mimeType.includes('pdf') || item.fileName.endsWith('.pdf')
   const isText = textContent !== null
 
+  const handleShareFile = async () => {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try {
+        const response = await fetch(item.blobUrl)
+        const blob = await response.blob()
+        const file = new File([blob], item.fileName, { type: item.mimeType })
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: item.fileName,
+          })
+          return
+        }
+        await navigator.share({
+          title: item.fileName,
+          url: window.location.href,
+        })
+      } catch {
+        // User dismissed share sheet
+      }
+    }
+  }
+
   return (
     <Dialog open={!!item} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl border border-carbon bg-[#141414] text-white p-6 rounded-2xl">
-        <DialogHeader className="flex flex-row items-center justify-between pr-6 mb-2">
-          <div className="flex items-center gap-2">
-            {isImage && <ImageIcon className="w-5 h-5 text-[#7089ba]" />}
-            {isVideo && <VideoIcon className="w-5 h-5 text-[#7089ba]" />}
-            {isAudio && <MusicNotesIcon className="w-5 h-5 text-[#7089ba]" />}
-            {isPdf && <FileTextIcon className="w-5 h-5 text-[#7089ba]" />}
-            {isText && !isPdf && <FileTextIcon className="w-5 h-5 text-[#7089ba]" />}
-            <DialogTitle className="text-base font-semibold truncate max-w-md">
+      <DialogContent className="max-w-2xl border border-carbon bg-[#141414] text-white p-4 sm:p-6 rounded-2xl">
+        <DialogHeader className="flex flex-row items-center justify-between pr-8 mb-2 gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 min-w-0">
+            {isImage && <ImageIcon className="w-5 h-5 text-[#7089ba] shrink-0" />}
+            {isVideo && <VideoIcon className="w-5 h-5 text-[#7089ba] shrink-0" />}
+            {isAudio && <MusicNotesIcon className="w-5 h-5 text-[#7089ba] shrink-0" />}
+            {isPdf && <FileTextIcon className="w-5 h-5 text-[#7089ba] shrink-0" />}
+            {isText && !isPdf && <FileTextIcon className="w-5 h-5 text-[#7089ba] shrink-0" />}
+            <DialogTitle className="text-sm sm:text-base font-semibold truncate max-w-[140px] sm:max-w-md">
               {item.fileName}
             </DialogTitle>
           </div>
-          <a
-            href={item.blobUrl}
-            download={item.fileName}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all"
-          >
-            <DownloadSimpleIcon className="w-3.5 h-3.5" />
-            <span>Save</span>
-          </a>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {typeof navigator !== 'undefined' && 'share' in navigator && (
+              <button
+                type="button"
+                onClick={handleShareFile}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#7089ba]/15 text-[#7089ba] border border-[#7089ba]/30 hover:bg-[#7089ba]/25 text-xs font-mono transition-colors cursor-pointer"
+                title="Share file via mobile sheet"
+              >
+                <ShareNetworkIcon className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Share</span>
+              </button>
+            )}
+            <a
+              href={item.blobUrl}
+              download={item.fileName}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all cursor-pointer"
+            >
+              <DownloadSimpleIcon className="w-3.5 h-3.5" />
+              <span>Save</span>
+            </a>
+          </div>
         </DialogHeader>
 
         {/* Media Viewport */}

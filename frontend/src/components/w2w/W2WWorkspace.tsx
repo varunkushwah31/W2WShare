@@ -97,64 +97,64 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   ]
 
   return (
-    <section id={id} className="w-full max-w-300 mx-auto px-6 py-8">
+    <section id={id} className="w-full max-w-300 mx-auto px-3 sm:px-6 py-4 sm:py-8">
       {/* Container with Dashed Containment & Cyber-Grid */}
-      <div className="dashed-container rounded-2xl bg-void cyber-grid p-6 sm:p-10 space-y-8 relative overflow-hidden">
+      <div className="dashed-container rounded-2xl bg-void cyber-grid p-3.5 sm:p-10 space-y-6 sm:space-y-8 relative overflow-hidden">
         {/* Top Header: Title & Utility Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
+              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
                 OFFLINE PEER STUDIO
               </span>
-              <span className="font-mono text-[10px] text-steel">
+              <span className="font-mono text-[9px] sm:text-[10px] text-steel">
                 SPEC: 1.0.0 · AES-256-GCM
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+            <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
               Encrypted Peer Sharing Terminal
             </h2>
           </div>
 
           {/* Utility Controls: Network Interface & Mobile Companion */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setIsNetworkModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#7089ba]/50 text-[11px] font-mono text-[#aaa] transition-all cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#7089ba]/50 text-[10px] sm:text-[11px] font-mono text-[#aaa] transition-all cursor-pointer shadow-sm truncate max-w-full"
               title="Click to configure offline sharing: Method 1 (Smartphone Personal Hotspot) or Method 2 (Standard Wi-Fi Router / LAN)"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-white font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="text-white font-semibold truncate">
                 {getSharingHubLabel(selectedInterface)}
               </span>
-              <span className="text-[#7089ba] ml-0.5">⚙ Config</span>
+              <span className="text-[#7089ba] ml-0.5 shrink-0">Config</span>
             </button>
 
             {onOpenMobileApp && (
               <button
                 type="button"
                 onClick={onOpenMobileApp}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#7089ba]/10 hover:bg-[#7089ba]/20 border border-[#7089ba]/30 hover:border-[#7089ba]/60 text-[11px] font-mono text-[#7089ba] transition-all cursor-pointer shadow-sm"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#7089ba]/10 hover:bg-[#7089ba]/20 border border-[#7089ba]/30 hover:border-[#7089ba]/60 text-[10px] sm:text-[11px] font-mono text-[#7089ba] transition-all cursor-pointer shadow-sm shrink-0"
                 title="Open Mobile Companion QR & PWA Setup"
               >
                 <DeviceMobileIcon className="w-3.5 h-3.5 text-[#7089ba]" />
-                <span className="font-semibold">Mobile Client</span>
-                <span className="text-[9px] bg-[#7089ba]/20 px-1.5 py-0.5 rounded text-[#7089ba] font-bold">PWA</span>
+                <span className="font-semibold">Mobile App</span>
+                <span className="text-[9px] bg-[#7089ba]/20 px-1.5 py-0.2 rounded text-[#7089ba] font-bold">PWA</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Dedicated Horizontal Tab Navigation Dock (Never Wraps Awkwardly) */}
-        <div className="border-t border-b border-carbon/80 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="flex items-center p-1 rounded-xl bg-[#141414] border border-[#242424] flex-nowrap overflow-x-auto no-scrollbar gap-1 max-w-full">
+        {/* Dedicated Horizontal Tab Navigation Dock */}
+        <div className="border-t border-b border-carbon/80 py-2 sm:py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex items-center p-1 rounded-xl bg-[#141414] border border-[#242424] flex-nowrap overflow-x-auto no-scrollbar gap-1 max-w-full touch-pan-x">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeTab === t.id
                     ? 'bg-white text-black font-semibold shadow-sm'
                     : 'text-steel hover:text-white hover:bg-[#1a1a1a]'
@@ -234,6 +234,36 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
           onSelectedInterfaceChange={setSelectedInterface}
         />
       </div>
+
+      {/* Mobile Sticky Bottom Quick Dock */}
+      <nav aria-label="Mobile Navigation Dock" className="fixed bottom-3 inset-x-3 z-30 sm:hidden bg-[#121212]/90 backdrop-blur-md border border-[#282828] rounded-2xl p-1 shadow-2xl flex items-center justify-around safe-area-bottom">
+        {tabs.map((t) => {
+          const isActive = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(t.id)
+                const el = document.getElementById(id)
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' })
+                }
+              }}
+              className={`flex-1 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-white text-black font-bold shadow-sm'
+                  : 'text-steel hover:text-white'
+              }`}
+            >
+              {t.icon}
+              <span className="text-[9px] font-mono leading-none tracking-tight">
+                {t.id === 'send' ? 'Send' : t.id === 'receive' ? 'Receive' : t.id === 'radar' ? 'Radar' : t.id === 'clipboard' ? 'Chat' : 'Ledger'}
+              </span>
+            </button>
+          )
+        })}
+      </nav>
     </section>
   )
 }

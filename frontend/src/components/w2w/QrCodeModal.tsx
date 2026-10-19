@@ -179,7 +179,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm sm:max-w-md border border-carbon bg-[#141414] text-white p-6 rounded-2xl">
+      <DialogContent className="max-w-sm sm:max-w-md border border-carbon bg-[#141414] text-white p-4 sm:p-6 rounded-2xl">
         <DialogHeader className="text-center sm:text-center">
           <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20 mb-2 font-bold">
             OPTICAL SCANNER & OFFLINE CONNECT

@@ -548,28 +548,28 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     <div className="space-y-6">
       {/* 6-Digit PIN Entry Box (Split Cells Inspired by MangoShare) */}
       {!sessionId && (
-        <div className="dashed-container p-8 sm:p-12 rounded-2xl bg-[#141414] text-center max-w-lg mx-auto relative cyber-grid">
+        <div className="dashed-container p-4 sm:p-12 rounded-2xl bg-[#141414] text-center max-w-lg mx-auto relative cyber-grid">
           <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-5">
-            <div className="w-14 h-14 rounded-full bg-carbon border border-[#7089ba]/40 flex items-center justify-center text-[#7089ba] animate-pulse-neon">
-              <ShieldCheckIcon className="w-7 h-7" weight="duotone" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-carbon border border-[#7089ba]/40 flex items-center justify-center text-[#7089ba] animate-pulse-neon">
+              <ShieldCheckIcon className="w-6 h-6 sm:w-7 sm:h-7" weight="duotone" />
             </div>
 
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#7089ba]/10 border border-[#7089ba]/20 text-[10px] font-mono text-[#7089ba] font-bold mb-2">
                 <span>MANGO-P2P ZERO-KNOWLEDGE CLAIM</span>
               </div>
-              <h4 className="text-xl font-bold text-white font-sans">
+              <h4 className="text-lg sm:text-xl font-bold text-white font-sans">
                 Enter 6-Digit Room Code / PIN
               </h4>
               <p className="text-xs text-steel mt-1 max-w-sm">
                 Instant peer claim. Decrypted directly inside your browser with hardware AES-256-GCM.
               </p>
               {selectedInterface && (
-                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 border border-[#222] text-[10px] font-mono text-steel">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{' '}
-                  <span>Interface: <strong className="text-white">{selectedInterface.name}</strong> ({selectedInterface.ip})</span>
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 border border-[#222] text-[10px] font-mono text-steel max-w-full truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>{' '}
+                  <span className="truncate">Interface: <strong className="text-white">{selectedInterface.name}</strong> ({selectedInterface.ip})</span>
                 </div>
               )}
             </div>
@@ -582,7 +582,7 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
               className="w-full space-y-4"
             >
               {/* Interactive 6-Cell Split PIN Box */}
-              <div className="flex items-center justify-center gap-2 sm:gap-3 my-2">
+              <div className="flex items-center justify-center gap-1 sm:gap-2.5 my-2">
                 {PIN_SLOT_IDS.map((slotId, index) => (
                   <input
                     key={slotId}
@@ -595,7 +595,7 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
                     onChange={(e) => handleDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     onPaste={handlePaste}
-                    className="w-11 h-13 sm:w-13 sm:h-16 text-center text-2xl sm:text-3xl font-mono font-extrabold bg-[#0d0d0d] border border-[#2c2c2c] focus:shadow-[0_0_15px_rgba(112,137,186,0.3)] focus:outline-none rounded-xl text-white transition-all caret-[#7089ba] cursor-text"
+                    className="w-9 h-12 sm:w-13 sm:h-16 text-center text-xl sm:text-3xl font-mono font-extrabold bg-[#0d0d0d] border border-[#2c2c2c] focus:shadow-[0_0_15px_rgba(112,137,186,0.3)] focus:outline-none rounded-xl text-white transition-all caret-[#7089ba] cursor-text"
                   />
                 ))}
               </div>
@@ -652,7 +652,7 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
 
       {/* Found Session Details & Staged Download */}
       {sessionId && (
-        <div className="p-6 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-6 cyber-grid">
+        <div className="p-4 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-5 sm:space-y-6 cyber-grid">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-carbon pb-4">
             <div>
@@ -796,7 +796,7 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
                   <span>Decrypted & Verified Files ({receivedFiles.length}):</span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {onSwitchToSend && (
                     <button
                       type="button"

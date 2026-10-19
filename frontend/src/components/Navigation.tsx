@@ -61,7 +61,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             : 'bg-transparent border-b border-transparent'
         }`}
       >
-        <div className="max-w-300 mx-auto px-6 h-16 flex items-center justify-between relative">
+        <div className="max-w-300 mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative">
           {/* Technical scale indicator */}
           <div className="hidden lg:block absolute -left-15 top-1/2 -translate-y-1/2 font-mono text-sm text-graphite select-none pointer-events-none">
             1.00
@@ -143,15 +143,25 @@ export const Navigation: React.FC<NavigationProps> = ({
             </button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden text-white p-2"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <XIcon className="w-6 h-6" /> : <ListIcon className="w-6 h-6" />}
-          </button>
+          {/* Mobile Action Controls */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenDemo}
+              className="px-3 py-1 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+            >
+              <LightningIcon className="w-3.5 h-3.5" weight="fill" />
+              <span>Claim</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <XIcon className="w-6 h-6" /> : <ListIcon className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
       </header>
 

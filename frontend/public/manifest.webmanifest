@@ -1,0 +1,35 @@
+{
+  "name": "W2W Share - Encrypted Offline Peer Sharing",
+  "short_name": "W2W Share",
+  "description": "Zero-trust, P2P offline encrypted file sharing with AES-256-GCM and WebSockets/WebRTC.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "share_target": {
+    "action": "/?mode=receiver",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

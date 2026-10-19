@@ -68,6 +68,8 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
               <input
                 id="claim-pin-input"
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 required
                 maxLength={6}
                 pattern="[0-9]{6}"
@@ -75,7 +77,6 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                 value={pinValue}
                 onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
                 className="w-full py-3 pl-11 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-base font-mono tracking-[0.2em] text-white transition-all"
-                autoFocus
               />
             </div>
           </div>

@@ -25,6 +25,8 @@ import {
   CodeIcon,
   TimerIcon,
   LightningIcon,
+  CameraIcon,
+  ShareNetworkIcon,
 } from '@phosphor-icons/react'
 import { Slider } from '@/components/ui/slider'
 import { detectFileTypeCategory, type FileCategoryType, calculateOptimalChunkSize } from '@/lib/fileCategories'
@@ -533,6 +535,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault()
@@ -749,6 +752,22 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     }
   }
 
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && 'share' in navigator && effectiveJoinUrl) {
+      try {
+        await navigator.share({
+          title: 'W2W Share - Encrypted Transfer',
+          text: `Claim offline encrypted files with PIN: ${pin}`,
+          url: effectiveJoinUrl,
+        })
+      } catch {
+        // User dismissed share dialog
+      }
+    } else {
+      await copyLink()
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Target Peer Radar Beacon Banner */}
@@ -782,37 +801,47 @@ export const SendPanel: React.FC<SendPanelProps> = ({
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleFileDrop}
-          className="dashed-container p-8 sm:p-12 rounded-2xl bg-[#141414] hover:bg-[#181818] transition-colors text-center cursor-pointer relative group"
+          className="dashed-container p-4 sm:p-12 rounded-2xl bg-[#141414] hover:bg-[#181818] transition-colors text-center cursor-pointer relative group"
         >
           <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-4">
-            <div className="w-14 h-14 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:scale-105 transition-transform">
-              <UploadSimpleIcon className="w-7 h-7" weight="duotone" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:scale-105 transition-transform">
+              <UploadSimpleIcon className="w-6 h-6 sm:w-7 sm:h-7" weight="duotone" />
             </div>
 
             <div>
-              <h4 className="text-lg font-bold text-white font-sans">
-                Drag & drop files or folders here
+              <h4 className="text-base sm:text-lg font-bold text-white font-sans">
+                Drag & drop files or choose media
               </h4>
               <p className="text-xs text-steel mt-1">
                 Zero size limit. Direct chunk streaming with browser-native AES-256-GCM.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all flex items-center gap-1.5"
+                className="px-3.5 sm:px-4 py-2 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <FileIcon className="w-3.5 h-3.5" />
                 <span>Select Files</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="px-3.5 sm:px-4 py-2 rounded-full border border-[#282828] bg-carbon text-white font-semibold text-xs hover:bg-[#242424] transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <CameraIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                <span>Camera / Photo</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => folderInputRef.current?.click()}
-                className="px-4 py-2 rounded-full border border-[#282828] bg-carbon text-white font-semibold text-xs hover:bg-[#242424] transition-all flex items-center gap-1.5"
+                className="px-3.5 sm:px-4 py-2 rounded-full border border-[#282828] bg-carbon text-white font-semibold text-xs hover:bg-[#242424] transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <FolderSimpleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
                 <span>Select Folder</span>
@@ -822,6 +851,14 @@ export const SendPanel: React.FC<SendPanelProps> = ({
                 ref={fileInputRef}
                 type="file"
                 multiple
+                onChange={handleFileInput}
+                className="hidden"
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*,video/*"
+                capture="environment"
                 onChange={handleFileInput}
                 className="hidden"
               />
@@ -840,7 +877,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
       {/* Selected Files Staging List */}
       {files.length > 0 && !pin && (
-        <div className="dashed-container p-6 sm:p-8 rounded-2xl bg-[#141414] relative space-y-5">
+        <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-[#141414] relative space-y-5">
           <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 space-y-5">
@@ -1035,11 +1072,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
       {/* Live Active Transfer Stream / PIN Display */}
       {pin && (
-        <div className="p-6 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-6">
+        <div className="p-4 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-5 sm:space-y-6">
           {/* PIN Banner */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-void border border-[#282828]">
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
                   OFFLINE CLAIM PIN / ROOM CODE
                 </span>
@@ -1052,7 +1089,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => setQrModalOpen(true)}
@@ -1061,6 +1098,19 @@ export const SendPanel: React.FC<SendPanelProps> = ({
               >
                 <QrCodeIcon className="w-5 h-5" />
               </button>
+
+              {typeof navigator !== 'undefined' && 'share' in navigator && (
+                <button
+                  type="button"
+                  onClick={handleNativeShare}
+                  className="px-3.5 py-2 rounded-full bg-[#7089ba]/15 text-[#7089ba] border border-[#7089ba]/30 hover:bg-[#7089ba]/25 text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Share PIN and link via mobile sheet"
+                >
+                  <ShareNetworkIcon className="w-3.5 h-3.5" />
+                  <span>Share PIN</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={copyLink}

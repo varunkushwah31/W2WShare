@@ -371,7 +371,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
         {/* Pairing controls */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {pin ? (
-            <div className="flex items-center gap-2 relative">
+            <div className="flex flex-wrap items-center gap-2 relative">
               <div className="px-3 py-1 rounded-xl bg-void border border-[#282828] text-xs font-mono text-white flex items-center gap-2">
                 <span className="text-steel">PIN:</span>
                 <strong className="tracking-widest text-[#7089ba] text-sm">{pin}</strong>
@@ -405,7 +405,7 @@ export const ClipboardChatPanel: React.FC<ClipboardChatPanelProps> = ({
                 </button>
 
                 {confirmTerminate && (
-                  <div className="absolute right-0 top-full mt-2 w-72 p-3.5 rounded-xl bg-[#181818] border border-red-500/40 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-3rem)] p-3.5 rounded-xl bg-[#181818] border border-red-500/40 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="flex items-center gap-2 text-white font-medium text-xs mb-1.5">
                       <PowerIcon className="w-4 h-4 text-red-400 shrink-0" />
                       <span>Terminate Active Session?</span>
