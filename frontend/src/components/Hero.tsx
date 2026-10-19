@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { ArrowUpRightIcon, LightningIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { HeroLightBeamStipple } from './CadIllustrations'
 
@@ -8,35 +8,56 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
   const containerRef = useRef<HTMLElement>(null)
-  const [coords, setCoords] = useState({ x: 420.5, y: 188.2 })
+  const coordsRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let rafId: number | null = null
+
     const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return
-      const rect = containerRef.current.getBoundingClientRect()
+      const rect = container.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
 
-      // Update CSS variables for 60fps hardware-accelerated spotlight
-      containerRef.current.style.setProperty('--mouse-x', `${x}px`)
-      containerRef.current.style.setProperty('--mouse-y', `${y}px`)
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
 
-      // Update blueprint coordinate readout
-      setCoords({
-        x: Number(Math.max(0, x).toFixed(1)),
-        y: Number(Math.max(0, y).toFixed(1)),
+      rafId = requestAnimationFrame(() => {
+        container.style.setProperty('--mouse-x', `${x}px`)
+        container.style.setProperty('--mouse-y', `${y}px`)
+        container.style.setProperty('--mouse-light-opacity', '1')
+
+        if (coordsRef.current) {
+          coordsRef.current.textContent = `POS_X: ${Math.max(0, x).toFixed(1)}mm · POS_Y: ${Math.max(0, y).toFixed(1)}mm · SCALE: 1.00`
+        }
       })
     }
 
-    const container = containerRef.current
-    if (container) {
-      container.addEventListener('mousemove', handleMouseMove)
+    const handleMouseLeave = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+      container.style.setProperty('--mouse-light-opacity', '0.4')
     }
 
+    const handleMouseEnter = () => {
+      container.style.setProperty('--mouse-light-opacity', '1')
+    }
+
+    container.addEventListener('mousemove', handleMouseMove, { passive: true })
+    container.addEventListener('mouseleave', handleMouseLeave)
+    container.addEventListener('mouseenter', handleMouseEnter)
+
     return () => {
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove)
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
       }
+      container.removeEventListener('mousemove', handleMouseMove)
+      container.removeEventListener('mouseleave', handleMouseLeave)
+      container.removeEventListener('mouseenter', handleMouseEnter)
     }
   }, [])
 
@@ -44,25 +65,25 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
     <section
       ref={containerRef}
       className="relative min-h-[100svh] min-h-[100dvh] w-full pt-16 sm:pt-24 md:pt-28 pb-4 sm:pb-8 md:pb-10 safe-area-bottom flex flex-col justify-between items-center overflow-hidden dashed-divider-b bg-void cursor-default"
-      style={
-        {
-          '--mouse-x': '50%',
-          '--mouse-y': '38%',
-        } as React.CSSProperties
-      }
     >
+      {/* Static architectural base ambient lighting */}
+      <div className="hero-spotlight absolute inset-0 pointer-events-none opacity-80" />
+      <div className="hero-radial-glow absolute inset-0 pointer-events-none opacity-60" />
+
       {/* Drafting table spotlight radial wash following mouse */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none transition-opacity duration-300 ease-out"
         style={{
           background: 'var(--hero-mouse-spotlight)',
+          opacity: 'var(--mouse-light-opacity, 0.7)',
         }}
       />
-      {/* Concentrated periwinkle desk lamp core glow */}
+      {/* Concentrated desk lamp core glow following mouse */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none transition-opacity duration-200 ease-out"
         style={{
           background: 'var(--hero-mouse-glow)',
+          opacity: 'var(--mouse-light-opacity, 0.7)',
         }}
       />
 
@@ -70,7 +91,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       <div className="hidden lg:block absolute bottom-6 left-8 font-mono text-[10px] text-graphite select-none pointer-events-none z-20">
         <div>DRAFTING TABLE: ARCHITECTURAL_SPACE</div>
         <div className="text-periwinkle">
-          POS_X: {coords.x}mm · POS_Y: {coords.y}mm · SCALE: 1.00
+          <span ref={coordsRef}>POS_X: 420.5mm · POS_Y: 188.2mm · SCALE: 1.00</span>
         </div>
       </div>
 
