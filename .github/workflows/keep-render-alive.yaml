@@ -1,49 +1,129 @@
-name: Keep Render Alive
+name: Keep Render & Services Alive
 
 on:
   schedule:
-    # Runs every 14 minutes to prevent Render free tier from sleeping (15-min idle timeout)
-    - cron: '*/14 * * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+    # Render free tier sleeps after 15 minutes of inactivity.
+    # Scheduled to run every 10 minutes to guarantee the ping arrives before the 15-min idle timeout,
+    # even when GitHub Actions scheduler experiences queue delays.
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      backend_url:
+        description: 'Backend (Render) URL to ping (leave blank to use Repo Variable/Secret/Default)'
+        required: false
+        default: ''
+        type: string
+      frontend_url:
+        description: 'Frontend (Vercel) URL to ping (optional)'
+        required: false
+        default: ''
+        type: string
+
+# Ensure only one keep-alive ping runs at a time
+concurrency:
+  group: keep-render-alive
+  cancel-in-progress: true
 
 jobs:
-  ping:
-    name: Ping Render Service
+  heartbeat:
+    name: Ping Services
     runs-on: ubuntu-latest
     steps:
       - name: Send Keep-Alive Heartbeat
         env:
-          CONFIGURED_URL: ${{ vars.RENDER_APP_URL || secrets.RENDER_APP_URL || vars.RENDER_URL || secrets.RENDER_URL || '' }}
+          INPUT_BACKEND: ${{ github.event.inputs.backend_url }}
+          INPUT_FRONTEND: ${{ github.event.inputs.frontend_url }}
+          ENV_BACKEND: ${{ vars.RENDER_APP_URL || secrets.RENDER_APP_URL || vars.RENDER_URL || secrets.RENDER_URL || vars.BACKEND_URL || secrets.BACKEND_URL || '' }}
+          ENV_FRONTEND: ${{ vars.VERCEL_APP_URL || secrets.VERCEL_APP_URL || vars.VERCEL_URL || secrets.VERCEL_URL || vars.FRONTEND_URL || secrets.FRONTEND_URL || '' }}
         run: |
-          TARGET_URL="${CONFIGURED_URL:-https://w2w-share-backend.onrender.com}"
-          TARGET_URL="${TARGET_URL%/}"
+          BACKEND_URL="${INPUT_BACKEND:-${ENV_BACKEND:-https://w2w-share-backend.onrender.com}}"
+          BACKEND_URL="${BACKEND_URL%/}"
 
-          echo "Target service: $TARGET_URL"
-          echo "Pinging health endpoints to prevent instance sleep..."
+          FRONTEND_URL="${INPUT_FRONTEND:-${ENV_FRONTEND}}"
+          FRONTEND_URL="${FRONTEND_URL%/}"
 
-          # Ping actuator health endpoint, fallback to root / if actuator does not return 200
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 5 --max-time 60 "$TARGET_URL/actuator/health" || echo "000")
+          echo "=========================================="
+          echo "W2W-Share Keep-Alive Heartbeat"
+          echo "=========================================="
+          echo "Backend URL : $BACKEND_URL"
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "Frontend URL: $FRONTEND_URL"
+          else
+            echo "Frontend URL: (not configured)"
+          fi
+          echo "Timestamp   : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "=========================================="
 
+          # Initialize GitHub Actions step summary
+          echo "### Service Heartbeat Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Target URL | HTTP Code | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|:---|:---|:---:|:---|" >> $GITHUB_STEP_SUMMARY
+
+          # ----------------------------------------------------
+          # 1. PING BACKEND (Render free tier 15-min idle prevention)
+          # ----------------------------------------------------
+          echo ""
+          echo "Pinging Backend: $BACKEND_URL/actuator/health ..."
+
+          # Try actuator health first with retries and 60s timeout for cold start wake-up
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 5 --max-time 60 "$BACKEND_URL/actuator/health" || echo "000")
+
+          # Fallback to root / endpoint if actuator does not return 200
           if [ "$HTTP_CODE" != "200" ]; then
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 5 --max-time 30 "$TARGET_URL/" || echo "$HTTP_CODE")
+            echo "Actuator returned $HTTP_CODE, trying root / endpoint..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 5 --max-time 30 "$BACKEND_URL/" || echo "$HTTP_CODE")
           fi
 
-          echo "Response code: $HTTP_CODE"
+          echo "Backend response code: $HTTP_CODE"
 
+          BACKEND_STATUS="UNKNOWN"
           case "$HTTP_CODE" in
             200)
-              echo "✅ Render instance is active and warm! (HTTP 200)"
+              echo "[OK] Render backend is active and warm (HTTP 200)"
+              BACKEND_STATUS="Active (200 OK)"
               ;;
             502|503|504)
-              echo "ℹ️ Render instance is waking up from sleep (HTTP $HTTP_CODE). Keep-alive ping successfully reached Render!"
+              echo "[INFO] Render backend is waking up from sleep (HTTP $HTTP_CODE). Keep-alive successfully reached Render."
+              BACKEND_STATUS="Waking up (HTTP $HTTP_CODE)"
               ;;
             404)
-              echo "::warning title=Render Service 404::Received HTTP 404 from '$TARGET_URL'. If your Render service has a different URL, set the 'RENDER_APP_URL' secret or repository variable in GitHub."
+              echo "::warning title=Render Backend 404::Service URL '$BACKEND_URL' returned 404. Verify your Render service name and configure RENDER_APP_URL in GitHub Repository Variables."
+              BACKEND_STATUS="Not Found (404)"
               ;;
             000)
-              echo "::warning title=Connection Timeout::Could not reach '$TARGET_URL' within timeout. Render may still be spinning up."
+              echo "::warning title=Render Connection Timeout::Could not reach '$BACKEND_URL' within timeout. Render may still be spinning up."
+              BACKEND_STATUS="Timeout (000)"
               ;;
             *)
-              echo "ℹ️ Keep-alive ping sent to $TARGET_URL (HTTP $HTTP_CODE)."
+              echo "[INFO] Backend responded with HTTP $HTTP_CODE"
+              BACKEND_STATUS="Response ($HTTP_CODE)"
               ;;
           esac
+
+          echo "| **Render Backend** | \`$BACKEND_URL\` | \`$HTTP_CODE\` | $BACKEND_STATUS |" >> $GITHUB_STEP_SUMMARY
+
+          # ----------------------------------------------------
+          # 2. PING FRONTEND (Optional - Vercel)
+          # ----------------------------------------------------
+          if [ -n "$FRONTEND_URL" ]; then
+            echo ""
+            echo "Pinging Frontend: $FRONTEND_URL ..."
+            FE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 2 --retry-delay 3 --max-time 20 "$FRONTEND_URL" || echo "000")
+            echo "Frontend response code: $FE_CODE"
+
+            FE_STATUS="UNKNOWN"
+            case "$FE_CODE" in
+              200|301|302|304|307|308)
+                echo "[OK] Frontend is responsive (HTTP $FE_CODE)"
+                FE_STATUS="Active (HTTP $FE_CODE)"
+                ;;
+              *)
+                echo "[WARN] Frontend responded with HTTP $FE_CODE"
+                FE_STATUS="HTTP $FE_CODE"
+                ;;
+            esac
+            echo "| **Vercel Frontend** | \`$FRONTEND_URL\` | \`$FE_CODE\` | $FE_STATUS |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo ""
+          echo "Keep-alive check finished at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
