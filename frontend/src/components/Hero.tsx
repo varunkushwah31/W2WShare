@@ -16,79 +16,96 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
     const glow = glowRef.current
     if (!container || !glow) return
 
-    let rafId: number | null = null
-    let hasMoved = false
+    let animFrameId: number | null = null
+    let isHovered = false
 
-    const updateGlowPosition = (clientX: number, clientY: number) => {
-      const rect = container.getBoundingClientRect()
-      const x = clientX - rect.left
-      const y = clientY - rect.top
+    // Initialize positions to hero center
+    const rect = container.getBoundingClientRect()
+    let currentX = rect.width / 2
+    let currentY = rect.height * 0.38
+    let targetX = currentX
+    let targetY = currentY
 
-      // Check if mouse is within or near the hero bounds
-      if (x < -100 || x > rect.width + 100 || y < -100 || y > rect.height + 100) {
-        glow.style.opacity = '0'
-        return
-      }
+    // Position immediately at center on mount with zero offset flicker
+    glow.style.transform = `translate3d(${currentX - 360}px, ${currentY - 360}px, 0)`
 
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
-      }
+    const animate = () => {
+      // Fluid physics damping: 0.14 gives responsive, buttery smooth cursor following at native 60-144fps
+      const dx = targetX - currentX
+      const dy = targetY - currentY
 
-      rafId = requestAnimationFrame(() => {
-        if (!glowRef.current) return
-
-        if (!hasMoved) {
-          // Snap directly on initial entry without fly-in transition
-          glowRef.current.style.transition = 'opacity 0.4s ease-out'
-          glowRef.current.style.transform = `translate3d(${x - 360}px, ${y - 360}px, 0)`
-          glowRef.current.style.opacity = '1'
-          hasMoved = true
-          requestAnimationFrame(() => {
-            if (glowRef.current) {
-              glowRef.current.style.transition = 'opacity 0.4s ease-out, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1)'
-            }
-          })
-        } else {
-          glowRef.current.style.transform = `translate3d(${x - 360}px, ${y - 360}px, 0)`
-          glowRef.current.style.opacity = '1'
+      if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+        currentX += dx * 0.14
+        currentY += dy * 0.14
+        if (glowRef.current) {
+          glowRef.current.style.transform = `translate3d(${currentX - 360}px, ${currentY - 360}px, 0)`
         }
 
-        if (coordsRef.current) {
-          coordsRef.current.textContent = `POS_X: ${Math.max(0, x).toFixed(1)}mm · POS_Y: ${Math.max(0, y).toFixed(1)}mm · SCALE: 1.00`
+        if (coordsRef.current && isHovered) {
+          coordsRef.current.textContent = `POS_X: ${Math.max(0, currentX).toFixed(1)}mm · POS_Y: ${Math.max(0, currentY).toFixed(1)}mm · SCALE: 1.00`
         }
-      })
+      }
+
+      animFrameId = requestAnimationFrame(animate)
+    }
+
+    animFrameId = requestAnimationFrame(animate)
+
+    const handlePointerMove = (clientX: number, clientY: number) => {
+      const bRect = container.getBoundingClientRect()
+      const x = clientX - bRect.left
+      const y = clientY - bRect.top
+
+      // Check if cursor is within or reasonably close to hero section bounds
+      if (x >= -50 && x <= bRect.width + 50 && y >= -50 && y <= bRect.height + 50) {
+        isHovered = true
+        targetX = Math.max(0, Math.min(bRect.width, x))
+        targetY = Math.max(0, Math.min(bRect.height, y))
+      } else {
+        // Return gracefully to center rest position when cursor leaves hero
+        isHovered = false
+        targetX = bRect.width / 2
+        targetY = bRect.height * 0.38
+      }
     }
 
     const handleMouseMove = (e: MouseEvent) => {
-      updateGlowPosition(e.clientX, e.clientY)
+      handlePointerMove(e.clientX, e.clientY)
     }
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
-        updateGlowPosition(e.touches[0].clientX, e.touches[0].clientY)
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)
       }
     }
 
     const handleMouseLeave = () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
-      }
-      if (glowRef.current) {
-        glowRef.current.style.opacity = '0'
+      const bRect = container.getBoundingClientRect()
+      isHovered = false
+      targetX = bRect.width / 2
+      targetY = bRect.height * 0.38
+    }
+
+    const handleResize = () => {
+      if (!isHovered) {
+        const bRect = container.getBoundingClientRect()
+        targetX = bRect.width / 2
+        targetY = bRect.height * 0.38
       }
     }
 
-    // Attach to window for effortless, uninterrupted tracking across all child elements and sticky header
     window.addEventListener('mousemove', handleMouseMove, { passive: true })
     window.addEventListener('touchmove', handleTouchMove, { passive: true })
+    window.addEventListener('resize', handleResize, { passive: true })
     document.addEventListener('mouseleave', handleMouseLeave)
 
     return () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
+      if (animFrameId !== null) {
+        cancelAnimationFrame(animFrameId)
       }
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('resize', handleResize)
       document.removeEventListener('mouseleave', handleMouseLeave)
     }
   }, [])
@@ -101,11 +118,10 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       {/* Smooth hardware-accelerated cursor following dim light effect */}
       <div
         ref={glowRef}
-        className="hero-cursor-glow pointer-events-none absolute top-0 left-0 rounded-full opacity-0 will-change-transform z-0"
+        className="hero-cursor-glow pointer-events-none absolute top-0 left-0 rounded-full will-change-transform z-0"
         style={{
           width: '720px',
           height: '720px',
-          transition: 'opacity 0.4s ease-out, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       />
 
