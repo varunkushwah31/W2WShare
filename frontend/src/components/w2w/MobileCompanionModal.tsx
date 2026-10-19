@@ -172,7 +172,7 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
           <div className="space-y-4 text-center">
             {/* Interface selector chips if multiple interfaces exist */}
             {networkInterfaces.length > 1 && (
-              <div className="flex flex-wrap items-center justify-center gap-1.5 p-1 bg-[#111] rounded-lg border border-[#222]">
+              <div className="flex flex-wrap items-center justify-center gap-1.5 p-1 bg-surface-alt rounded-lg border border-carbon">
                 <span className="text-[10px] font-mono text-steel uppercase px-1">Network IP:</span>
                 {networkInterfaces.map((iface) => {
                   const isSelected = activeIface?.ip === iface.ip
@@ -183,8 +183,8 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
                       onClick={() => setUserSelectedIface(iface)}
                       className={`text-[10px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-[#7089ba] text-black font-bold shadow-sm'
-                          : 'bg-[#1a1a1a] text-steel hover:text-white border border-[#2a2a2a]'
+                          ? 'bg-periwinkle text-white dark:text-black font-bold shadow-sm'
+                          : 'bg-carbon text-steel hover:text-paper border border-carbon'
                       }`}
                     >
                       {iface.ip} {getInterfaceBadge(iface)}
@@ -194,47 +194,48 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
               </div>
             )}
 
-            <div className="p-4 rounded-xl bg-black border border-[#222] flex flex-col items-center justify-center relative">
-              <div className="p-2.5 rounded-xl bg-white shadow-lg animate-pulse-cyan">
+            <div className="p-4 rounded-2xl bg-void border border-carbon flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
+              <div className="p-3 rounded-xl bg-white shadow-lg animate-pulse-cyan relative z-10 flex items-center justify-center" data-no-invert>
                 <QRCodeDisplay
                   value={currentHostUrl}
-                  size={208}
+                  size={200}
                   alt="W2W Share Mobile QR Code"
                 />
               </div>
-              <p className="font-mono text-[11px] text-[#7089ba] mt-3 font-semibold">
+              <p className="font-mono text-[11px] text-periwinkle mt-3 font-semibold relative z-10">
                 Scan with any iPhone / Android Camera or QR Scanner
               </p>
             </div>
 
             {isLocalhost && (
-              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-mono flex items-center gap-2 text-left">
-                <WarningIcon className="w-4 h-4 shrink-0 text-amber-400" />
+              <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-mono flex items-center gap-2 text-left">
+                <WarningIcon className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>
-                  Mobile phones cannot reach <code className="bg-black/40 px-1 py-0.5 rounded">localhost</code>. Connect to the same Wi-Fi and select your LAN IP above.
+                  Mobile phones cannot reach <code className="bg-amber-500/15 dark:bg-black/40 px-1 py-0.5 rounded font-bold">localhost</code>. Connect to the same Wi-Fi and select your LAN IP above.
                 </span>
               </div>
             )}
 
             {/* Direct URL & Copy */}
-            <div className="p-3 rounded-xl bg-[#141414] border border-[#222] flex items-center justify-between gap-2">
+            <div className="p-3 rounded-xl bg-surface-alt border border-carbon flex items-center justify-between gap-2">
               <div className="min-w-0 text-left">
                 <div className="text-[10px] font-mono text-steel uppercase">Local Mobile Access Link</div>
-                <div className="text-xs font-mono text-white truncate font-medium">{currentHostUrl}</div>
+                <div className="text-xs font-mono text-paper truncate font-medium">{currentHostUrl}</div>
               </div>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="shrink-0 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-mono text-white border border-[#333] flex items-center gap-1.5 transition-all cursor-pointer"
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-carbon hover:bg-carbon-hover text-xs font-mono text-paper border border-carbon flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               >
                 {copied ? (
                   <>
-                    <CheckIcon className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">Copied</span>
+                    <CheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-600 dark:text-emerald-400">Copied</span>
                   </>
                 ) : (
                   <>
-                    <CopyIcon className="w-3.5 h-3.5" />
+                    <CopyIcon className="w-3.5 h-3.5 text-paper" />
                     <span>Copy</span>
                   </>
                 )}
@@ -246,36 +247,36 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
         {/* Tab 2: Mobile Native Capabilities (PWA & Share Sheet) */}
         {activeTab === 'features' && (
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-[#222] flex items-start gap-3">
-              <div className="w-7 h-7 rounded-lg bg-[#7089ba]/10 border border-[#7089ba]/30 flex items-center justify-center shrink-0 text-[#7089ba]">
+            <div className="p-3.5 rounded-xl bg-surface-alt border border-carbon flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-periwinkle/10 border border-periwinkle/30 flex items-center justify-center shrink-0 text-periwinkle">
                 <DownloadSimpleIcon className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-white font-bold text-xs">1-Click PWA Installation</div>
+                <div className="text-paper font-bold text-xs">1-Click PWA Installation</div>
                 <p className="text-[11px] text-steel mt-0.5 leading-relaxed">
-                  Open link on Chrome (Android) or Safari (iOS) and tap <span className="text-[#7089ba] font-semibold">"Add to Home Screen"</span>. Works 100% offline like a native app.
+                  Open link on Chrome (Android) or Safari (iOS) and tap <span className="text-periwinkle font-semibold">"Add to Home Screen"</span>. Works 100% offline like a native app.
                 </p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-[#222] flex items-start gap-3">
-              <div className="w-7 h-7 rounded-lg bg-[#7089ba]/10 border border-[#7089ba]/30 flex items-center justify-center shrink-0 text-[#7089ba]">
+            <div className="p-3.5 rounded-xl bg-surface-alt border border-carbon flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-periwinkle/10 border border-periwinkle/30 flex items-center justify-center shrink-0 text-periwinkle">
                 <ShareNetworkIcon className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-white font-bold text-xs">System Share Target</div>
+                <div className="text-paper font-bold text-xs">System Share Target</div>
                 <p className="text-[11px] text-steel mt-0.5 leading-relaxed">
                   Share photos, 4K videos, or PDFs from any app directly into W2W Share via your phone's native Share menu.
                 </p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-[#222] flex items-start gap-3">
-              <div className="w-7 h-7 rounded-lg bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center shrink-0 text-emerald-400">
+            <div className="p-3.5 rounded-xl bg-surface-alt border border-carbon flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
                 <HardDrivesIcon className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-white font-bold text-xs">Zero-Storage Streaming</div>
+                <div className="text-paper font-bold text-xs">Zero-Storage Streaming</div>
                 <p className="text-[11px] text-steel mt-0.5 leading-relaxed">
                   Raw binary chunks pipe directly through browser memory buffers with AES-256-GCM hardware encryption. Zero cloud storage.
                 </p>
@@ -287,28 +288,28 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
         {/* Tab 3: Offline Modes (Method 1: Hotspot & Method 2: Wi-Fi Router) */}
         {activeTab === 'hotspot' && (
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-amber-900/40 space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-surface-alt border border-amber-500/30 dark:border-amber-900/40 space-y-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
                   <LightningIcon className="w-4 h-4" />
                   <span>Method 1: Smartphone Hotspot (Recommended)</span>
                 </div>
-                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold">
+                <span className="text-[9px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
                   0 MB DATA
                 </span>
               </div>
               <p className="text-[11px] text-steel leading-relaxed">
-                Turn on your phone's <strong className="text-white">Personal Hotspot</strong> with Mobile Data <strong className="text-white">OFF</strong>. Connect laptop to phone and transfer directly over 5GHz Wi-Fi at 50–100+ MB/s.
+                Turn on your phone's <strong className="text-paper">Personal Hotspot</strong> with Mobile Data <strong className="text-paper">OFF</strong>. Connect laptop to phone and transfer directly over 5GHz Wi-Fi at 50–100+ MB/s.
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-[#141414] border border-blue-900/40 space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-surface-alt border border-blue-500/30 dark:border-blue-900/40 space-y-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-blue-400 font-bold">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold">
                   <WifiHighIcon className="w-4 h-4" />
                   <span>Method 2: Standard Wi-Fi Router / Home LAN</span>
                 </div>
-                <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">
+                <span className="text-[9px] bg-blue-500/15 text-blue-800 dark:text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
                   ROUTER LAN
                 </span>
               </div>
@@ -317,8 +318,8 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
               </p>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] flex items-center gap-2">
-              <ShieldCheckIcon className="w-4 h-4 shrink-0" />
+            <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-[10px] flex items-center gap-2 font-medium">
+              <ShieldCheckIcon className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span>100% Offline • Zero cloud persistence • Client-side AES-256-GCM hardware encryption</span>
             </div>
           </div>

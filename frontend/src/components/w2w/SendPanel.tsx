@@ -1390,18 +1390,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-              <span className="text-[10px] px-2 py-0.5 rounded bg-black/60 border border-current font-mono">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-surface-alt border border-carbon font-mono text-paper">
                 {peerConnected ? 'TUNNEL_READY' : 'LISTENING_PORT_8888'}
               </span>
             </div>
           </div>
 
           {/* Live Sharing Control Deck: Dynamic File Drops & Screen Sharing */}
-          <div className="p-4 rounded-xl bg-carbon/50 border border-[#282828] space-y-4">
+          <div className="p-4 rounded-xl bg-carbon/50 border border-carbon space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 dashed-divider-b pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-mono text-xs font-bold text-white tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-mono text-xs font-bold text-paper tracking-wider">
                   LIVE SHARING ROOM
                 </span>
                 <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase">

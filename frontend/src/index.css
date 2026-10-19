@@ -377,6 +377,7 @@ html:not(.dark) body {
 
 /* Map hardcoded dark panels to crisp architectural drafting card surfaces */
 html:not(.dark) .bg-\[\#0a0a0a\],
+html:not(.dark) .bg-\[\#0b0b0b\],
 html:not(.dark) .bg-\[\#0c0c0c\],
 html:not(.dark) .bg-\[\#0d0d0d\],
 html:not(.dark) .bg-\[\#0e0e0e\],
@@ -516,6 +517,42 @@ html:not(.dark) [class*="border-\[\#7089ba\]\/30"] {
 /* Architectural paper card elevation in light mode */
 html:not(.dark) .dashed-container {
   box-shadow: 0 1px 4px 0 rgba(15, 23, 42, 0.04);
+}
+
+/* CAD SVG Blueprint Drafting Wireframes in light mode */
+html:not(.dark) .cursor-crosshair svg [stroke="#7089ba"],
+html:not(.dark) .dashed-container svg [stroke="#7089ba"] {
+  stroke: var(--w2w-periwinkle);
+}
+
+html:not(.dark) .cursor-crosshair svg [stroke="#ffffff"]:not([data-no-invert]),
+html:not(.dark) .dashed-container svg [stroke="#ffffff"]:not([data-no-invert]) {
+  stroke: var(--w2w-paper);
+}
+
+html:not(.dark) .cursor-crosshair svg [fill="#ffffff"]:not([data-no-invert]),
+html:not(.dark) .dashed-container svg [fill="#ffffff"]:not([data-no-invert]) {
+  fill: var(--w2w-paper);
+}
+
+html:not(.dark) .cursor-crosshair svg [fill="#121212"],
+html:not(.dark) .cursor-crosshair svg [fill="#141414"],
+html:not(.dark) .cursor-crosshair svg [fill="#181818"],
+html:not(.dark) .cursor-crosshair svg [fill="#1c1c1c"],
+html:not(.dark) .cursor-crosshair svg [fill="rgba(28, 28, 28, 0.85)"],
+html:not(.dark) .cursor-crosshair svg [fill="rgba(28, 28, 28, 0.9)"],
+html:not(.dark) .cursor-crosshair svg [fill="rgba(28, 28, 28, 0.95)"] {
+  fill: var(--w2w-surface-alt);
+}
+
+html:not(.dark) .cursor-crosshair svg [stroke="#4d4d4d"],
+html:not(.dark) .cursor-crosshair svg [stroke="#808080"] {
+  stroke: var(--w2w-graphite);
+}
+
+html:not(.dark) .cursor-crosshair svg text[fill="#808080"],
+html:not(.dark) .cursor-crosshair svg text[fill="#7089ba"] {
+  fill: var(--w2w-steel);
 }
 
 /* Technical Drafting Scrollbars */

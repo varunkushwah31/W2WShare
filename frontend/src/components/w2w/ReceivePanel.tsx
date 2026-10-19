@@ -857,16 +857,16 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#7089ba]/10 border border-[#7089ba]/20 text-[10px] font-mono text-[#7089ba] font-bold mb-2">
                 <span>MANGO-P2P ZERO-KNOWLEDGE CLAIM</span>
               </div>
-              <h4 className="text-lg sm:text-xl font-bold text-white font-sans">
+              <h4 className="text-lg sm:text-xl font-bold text-paper font-sans">
                 Enter 6-Digit Room Code / PIN
               </h4>
               <p className="text-xs text-steel mt-1 max-w-sm">
                 Instant peer claim. Decrypted directly inside your browser with hardware AES-256-GCM.
               </p>
               {selectedInterface && (
-                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 border border-[#222] text-[10px] font-mono text-steel max-w-full truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>{' '}
-                  <span className="truncate">Interface: <strong className="text-white">{selectedInterface.name}</strong> ({selectedInterface.ip})</span>
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-alt border border-carbon text-[10px] font-mono text-steel max-w-full truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>{' '}
+                  <span className="truncate">Interface: <strong className="text-paper">{selectedInterface.name}</strong> ({selectedInterface.ip})</span>
                 </div>
               )}
             </div>

@@ -43,7 +43,7 @@ const WifiSettingsSubbar: React.FC<WifiSettingsSubbarProps> = ({
   showPass,
   setShowPass,
 }) => (
-  <div className="p-3 rounded-lg bg-[#0a0a0a] border border-[#222] grid grid-cols-2 gap-2 text-xs font-mono">
+  <div className="p-3 rounded-lg bg-surface-alt border border-carbon grid grid-cols-2 gap-2 text-xs font-mono">
     <div>
       <label htmlFor="qr-hotspot-ssid" className="text-[10px] text-steel block mb-0.5">Hotspot SSID</label>
       <input
@@ -51,7 +51,7 @@ const WifiSettingsSubbar: React.FC<WifiSettingsSubbarProps> = ({
         type="text"
         value={hotspotSsid}
         onChange={(e) => setHotspotSsid(e.target.value)}
-        className="w-full bg-[#141414] border border-[#333] rounded px-2 py-1 text-xs text-white"
+        className="w-full bg-carbon border border-carbon rounded px-2 py-1 text-xs text-paper focus:outline-none focus:border-periwinkle"
       />
     </div>
     <div>
@@ -62,12 +62,12 @@ const WifiSettingsSubbar: React.FC<WifiSettingsSubbarProps> = ({
           type={showPass ? 'text' : 'password'}
           value={hotspotPass}
           onChange={(e) => setHotspotPass(e.target.value)}
-          className="w-full bg-[#141414] border border-[#333] rounded px-2 py-1 text-xs text-white pr-6"
+          className="w-full bg-carbon border border-carbon rounded px-2 py-1 text-xs text-paper pr-6 focus:outline-none focus:border-periwinkle"
         />
         <button
           type="button"
           onClick={() => setShowPass(!showPass)}
-          className="absolute right-1.5 top-1.5 text-[#666] hover:text-white"
+          className="absolute right-1.5 top-1.5 text-steel hover:text-paper"
           aria-label={showPass ? 'Hide password' : 'Show password'}
         >
           {showPass ? <EyeSlashIcon className="w-3 h-3" /> : <EyeIcon className="w-3 h-3" />}
@@ -131,7 +131,7 @@ const QrCodeActionFooter: React.FC<QrCodeActionFooterProps> = ({
       download={activeTab === 'claim' ? `w2w-qr-${pin}.png` : `w2w-wifi-${hotspotSsid}.png`}
       target="_blank"
       rel="noopener noreferrer"
-      className="w-full py-2 px-4 rounded-full bg-carbon border border-[#282828] text-neutral-300 font-medium text-xs hover:text-white hover:border-[#7089ba]/50 flex items-center justify-center gap-2 transition-all cursor-pointer"
+      className="w-full py-2 px-4 rounded-full bg-carbon border border-carbon text-steel font-medium text-xs hover:text-paper hover:border-periwinkle/50 flex items-center justify-center gap-2 transition-all cursor-pointer"
     >
       <DownloadSimpleIcon className="w-3.5 h-3.5" />
       <span>Download QR Code Image</span>
@@ -253,13 +253,13 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
               </div>
               <div className="mt-2.5 pt-2.5 border-t border-carbon w-full flex items-center justify-between text-xs">
                 <span className="text-steel font-mono">ENCRYPTED PIN:</span>
-                <span className="font-mono text-base font-bold text-white tracking-widest bg-carbon px-3 py-1 rounded border border-[#282828]">
+                <span className="font-mono text-base font-bold text-paper tracking-widest bg-carbon px-3 py-1 rounded border border-carbon">
                   {pin}
                 </span>
               </div>
             </>
           ) : (
-            <div className="mt-3 text-center text-xs text-[#aaa] font-mono">
+            <div className="mt-3 text-center text-xs text-steel font-mono">
               Scan with mobile camera → Phone automatically connects to Hotspot Wi-Fi.
             </div>
           )}

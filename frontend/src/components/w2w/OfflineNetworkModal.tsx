@@ -51,28 +51,28 @@ function getInterfaceMethodBadge(iface: NetworkInterfaceDto) {
 
   if (isHotspot) {
     return (
-      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-bold border border-amber-500/25">
+      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/25">
         HOTSPOT
       </span>
     )
   }
   if (iface.interfaceType === 'STANDARD_LAN') {
     return (
-      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#7089ba]/15 text-[#7089ba] font-bold border border-[#7089ba]/25">
+      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-periwinkle/15 text-periwinkle font-bold border border-periwinkle/25">
         ROUTER LAN
       </span>
     )
   }
   if (iface.isLoopback) {
     return (
-      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#1f1f1f] text-steel border border-[#2a2a2a]">
+      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-carbon text-steel border border-carbon">
         LOOPBACK
       </span>
     )
   }
   if (iface.interfaceType) {
     return (
-      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#1f1f1f] text-ash border border-[#2a2a2a]">
+      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-carbon text-ash border border-carbon">
         {iface.interfaceType}
       </span>
     )
