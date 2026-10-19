@@ -57,8 +57,8 @@
   --mouse-x: 50%;
   --mouse-y: 38%;
   --mouse-light-opacity: 0.7;
-  --hero-spotlight-base: radial-gradient(circle at 50% 32%, rgba(255, 255, 255, 0.9) 0%, rgba(232, 240, 252, 0.45) 45%, transparent 75%);
-  --hero-radial-glow-base: radial-gradient(ellipse 65% 50% at 50% 25%, rgba(37, 99, 235, 0.08) 0%, rgba(230, 238, 250, 0.3) 45%, transparent 75%);
+  --hero-spotlight-base: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(255, 255, 255, 0.6) 0%, rgba(235, 242, 252, 0.25) 50%, transparent 80%);
+  --hero-radial-glow-base: radial-gradient(ellipse 70% 50% at 50% 25%, rgba(37, 99, 235, 0.05) 0%, transparent 70%);
   --hero-mouse-spotlight: radial-gradient(650px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(37, 99, 235, 0.09) 0%, rgba(59, 130, 246, 0.05) 30%, rgba(147, 197, 253, 0.02) 55%, transparent 75%);
   --hero-mouse-glow: radial-gradient(260px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(255, 255, 255, 0.95) 0%, rgba(219, 234, 254, 0.45) 35%, rgba(37, 99, 235, 0.08) 65%, transparent 80%);
 
@@ -113,8 +113,8 @@
   --mouse-x: 50%;
   --mouse-y: 38%;
   --mouse-light-opacity: 0.7;
-  --hero-spotlight-base: radial-gradient(circle at 50% 30%, rgba(28, 28, 38, 0.8) 0%, rgba(16, 20, 32, 0.5) 35%, transparent 75%);
-  --hero-radial-glow-base: radial-gradient(ellipse 65% 50% at 50% 25%, rgba(112, 137, 186, 0.14) 0%, rgba(28, 32, 48, 0.3) 45%, transparent 75%);
+  --hero-spotlight-base: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(20, 24, 38, 0.4) 0%, rgba(12, 14, 22, 0.15) 50%, transparent 80%);
+  --hero-radial-glow-base: radial-gradient(ellipse 70% 50% at 50% 25%, rgba(112, 137, 186, 0.08) 0%, transparent 70%);
   --hero-mouse-spotlight: radial-gradient(650px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(112, 137, 186, 0.16) 0%, rgba(70, 95, 140, 0.08) 35%, rgba(35, 48, 75, 0.02) 60%, transparent 80%);
   --hero-mouse-glow: radial-gradient(260px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(190, 215, 255, 0.24) 0%, rgba(112, 137, 186, 0.12) 40%, rgba(112, 137, 186, 0.03) 70%, transparent 80%);
 

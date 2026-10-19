@@ -8,15 +8,36 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
   const containerRef = useRef<HTMLElement>(null)
+  const spotlightRef = useRef<HTMLDivElement>(null)
   const coordsRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    const spotlight = spotlightRef.current
+    if (!container || !spotlight) return
 
     let rafId: number | null = null
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const renderSpotlight = (x: number, y: number) => {
+      const isDark = document.documentElement.classList.contains('dark')
+
+      if (isDark) {
+        spotlight.style.background = `radial-gradient(280px circle at ${x}px ${y}px, rgba(165, 195, 255, 0.28) 0%, rgba(112, 137, 186, 0.14) 35%, rgba(112, 137, 186, 0.03) 65%, transparent 80%), radial-gradient(720px circle at ${x}px ${y}px, rgba(112, 137, 186, 0.16) 0%, rgba(70, 95, 140, 0.07) 35%, rgba(35, 48, 75, 0.02) 60%, transparent 80%)`
+      } else {
+        spotlight.style.background = `radial-gradient(280px circle at ${x}px ${y}px, rgba(255, 255, 255, 0.98) 0%, rgba(219, 234, 254, 0.55) 35%, rgba(37, 99, 235, 0.10) 65%, transparent 85%), radial-gradient(720px circle at ${x}px ${y}px, rgba(37, 99, 235, 0.12) 0%, rgba(59, 130, 246, 0.06) 30%, rgba(147, 197, 253, 0.02) 55%, transparent 75%)`
+      }
+
+      if (coordsRef.current) {
+        coordsRef.current.textContent = `POS_X: ${Math.max(0, x).toFixed(1)}mm · POS_Y: ${Math.max(0, y).toFixed(1)}mm · SCALE: 1.00`
+      }
+    }
+
+    // Initialize spotlight position in center
+    const initRect = container.getBoundingClientRect()
+    renderSpotlight(initRect.width / 2, initRect.height * 0.38)
+    spotlight.style.opacity = '0.5'
+
+    const handlePointerMove = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
@@ -26,38 +47,59 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       }
 
       rafId = requestAnimationFrame(() => {
-        container.style.setProperty('--mouse-x', `${x}px`)
-        container.style.setProperty('--mouse-y', `${y}px`)
-        container.style.setProperty('--mouse-light-opacity', '1')
-
-        if (coordsRef.current) {
-          coordsRef.current.textContent = `POS_X: ${Math.max(0, x).toFixed(1)}mm · POS_Y: ${Math.max(0, y).toFixed(1)}mm · SCALE: 1.00`
-        }
+        renderSpotlight(x, y)
+        spotlight.style.opacity = '1'
       })
     }
 
-    const handleMouseLeave = () => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return
+      const touch = e.touches[0]
+      const rect = container.getBoundingClientRect()
+      const x = touch.clientX - rect.left
+      const y = touch.clientY - rect.top
+
       if (rafId !== null) {
         cancelAnimationFrame(rafId)
       }
-      container.style.setProperty('--mouse-light-opacity', '0.4')
+
+      rafId = requestAnimationFrame(() => {
+        renderSpotlight(x, y)
+        spotlight.style.opacity = '1'
+      })
     }
 
-    const handleMouseEnter = () => {
-      container.style.setProperty('--mouse-light-opacity', '1')
+    const handlePointerLeave = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+      spotlight.style.opacity = '0.3'
     }
 
-    container.addEventListener('mousemove', handleMouseMove, { passive: true })
-    container.addEventListener('mouseleave', handleMouseLeave)
-    container.addEventListener('mouseenter', handleMouseEnter)
+    const handlePointerEnter = () => {
+      spotlight.style.opacity = '1'
+    }
+
+    const handleThemeChange = () => {
+      const rect = container.getBoundingClientRect()
+      renderSpotlight(rect.width / 2, rect.height * 0.38)
+    }
+
+    container.addEventListener('mousemove', handlePointerMove, { passive: true })
+    container.addEventListener('touchmove', handleTouchMove, { passive: true })
+    container.addEventListener('mouseleave', handlePointerLeave)
+    container.addEventListener('mouseenter', handlePointerEnter)
+    window.addEventListener('w2w-theme-change', handleThemeChange)
 
     return () => {
       if (rafId !== null) {
         cancelAnimationFrame(rafId)
       }
-      container.removeEventListener('mousemove', handleMouseMove)
-      container.removeEventListener('mouseleave', handleMouseLeave)
-      container.removeEventListener('mouseenter', handleMouseEnter)
+      container.removeEventListener('mousemove', handlePointerMove)
+      container.removeEventListener('touchmove', handleTouchMove)
+      container.removeEventListener('mouseleave', handlePointerLeave)
+      container.removeEventListener('mouseenter', handlePointerEnter)
+      window.removeEventListener('w2w-theme-change', handleThemeChange)
     }
   }, [])
 
@@ -66,24 +108,16 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       ref={containerRef}
       className="relative min-h-[100svh] min-h-[100dvh] w-full pt-16 sm:pt-24 md:pt-28 pb-4 sm:pb-8 md:pb-10 safe-area-bottom flex flex-col justify-between items-center overflow-hidden dashed-divider-b bg-void cursor-default"
     >
-      {/* Static architectural base ambient lighting */}
-      <div className="hero-spotlight absolute inset-0 pointer-events-none opacity-80" />
-      <div className="hero-radial-glow absolute inset-0 pointer-events-none opacity-60" />
+      {/* Subtle architectural base ambient lighting */}
+      <div className="hero-spotlight absolute inset-0 pointer-events-none opacity-40 dark:opacity-30" />
+      <div className="hero-radial-glow absolute inset-0 pointer-events-none opacity-30 dark:opacity-20" />
 
-      {/* Drafting table spotlight radial wash following mouse */}
+      {/* Mouse cursor following dim light effect */}
       <div
+        ref={spotlightRef}
         className="absolute inset-0 pointer-events-none transition-opacity duration-300 ease-out"
         style={{
-          background: 'var(--hero-mouse-spotlight)',
-          opacity: 'var(--mouse-light-opacity, 0.7)',
-        }}
-      />
-      {/* Concentrated desk lamp core glow following mouse */}
-      <div
-        className="absolute inset-0 pointer-events-none transition-opacity duration-200 ease-out"
-        style={{
-          background: 'var(--hero-mouse-glow)',
-          opacity: 'var(--mouse-light-opacity, 0.7)',
+          opacity: 0.5,
         }}
       />
 
