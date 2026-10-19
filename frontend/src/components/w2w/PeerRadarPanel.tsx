@@ -78,8 +78,8 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({
   return (
     <div className="space-y-8">
       {/* Radar Visual Header Banner */}
-      <div className="p-8 rounded-2xl bg-[#141414] border border-carbon flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
+      <div className="p-8 rounded-2xl bg-carbon border border-carbon flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-stipple-grid opacity-50 pointer-events-none rounded-2xl" />
 
         {/* Left Info */}
         <div className="space-y-3 relative z-10 max-w-md">

@@ -845,11 +845,11 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     <div className="space-y-6">
       {/* 6-Digit PIN Entry Box (Split Cells Inspired by MangoShare) */}
       {!sessionId && (
-        <div className="dashed-container p-4 sm:p-12 rounded-2xl bg-[#141414] text-center max-w-lg mx-auto relative cyber-grid">
-          <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
+        <div className="dashed-container p-4 sm:p-12 rounded-2xl bg-carbon text-center max-w-lg mx-auto relative cyber-grid">
+          <div className="absolute inset-0 bg-stipple-grid opacity-60 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-5">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-carbon border border-[#7089ba]/40 flex items-center justify-center text-[#7089ba] animate-pulse-neon">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-surface-alt border border-periwinkle/40 flex items-center justify-center text-periwinkle animate-pulse-neon">
               <ShieldCheckIcon className="w-6 h-6 sm:w-7 sm:h-7" weight="duotone" />
             </div>
 

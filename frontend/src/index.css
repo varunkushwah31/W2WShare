@@ -49,9 +49,9 @@
   --w2w-border-subtle: #e8edf5;
   --grid-line: rgba(37, 99, 235, 0.08);
   --grid-line-dense: rgba(37, 99, 235, 0.05);
-  --stipple-dot: rgba(15, 23, 42, 0.16);
-  --stipple-dot-faint: rgba(15, 23, 42, 0.08);
-  --stipple-dot-dense: rgba(37, 99, 235, 0.22);
+  --stipple-dot: rgba(50, 205, 50, 0.45);
+  --stipple-dot-faint: rgba(50, 205, 50, 0.22);
+  --stipple-dot-dense: rgba(50, 205, 50, 0.65);
   --cad-line: rgba(37, 99, 235, 0.12);
 
   --hero-spotlight-base: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.95) 0%, rgba(224, 235, 255, 0.75) 40%, rgba(246, 248, 251, 0.98) 75%);
@@ -102,9 +102,9 @@
   --w2w-border-subtle: #1c1c1c;
   --grid-line: rgba(112, 137, 186, 0.05);
   --grid-line-dense: rgba(112, 137, 186, 0.04);
-  --stipple-dot: rgba(255, 255, 255, 0.25);
-  --stipple-dot-faint: rgba(255, 255, 255, 0.12);
-  --stipple-dot-dense: rgba(112, 137, 186, 0.3);
+  --stipple-dot: rgba(50, 205, 50, 0.35);
+  --stipple-dot-faint: rgba(50, 205, 50, 0.18);
+  --stipple-dot-dense: rgba(50, 205, 50, 0.5);
   --cad-line: rgba(112, 137, 186, 0.1);
 
   --hero-spotlight-base: radial-gradient(circle at 50% 30%, rgba(28, 28, 28, 0.95) 0%, rgba(16, 22, 38, 0.6) 35%, rgba(0, 0, 0, 0.98) 75%);
@@ -191,12 +191,12 @@
 
 /* Stippled Particle Grid Pattern */
 .bg-stipple-grid {
-  background-image: radial-gradient(var(--stipple-dot) 1px, transparent 1px);
+  background-image: radial-gradient(var(--stipple-dot) 1.25px, transparent 1.25px);
   background-size: 16px 16px;
 }
 
 .bg-stipple-dense {
-  background-image: radial-gradient(var(--stipple-dot-dense) 1px, transparent 1px);
+  background-image: radial-gradient(var(--stipple-dot-dense) 1.25px, transparent 1.25px);
   background-size: 12px 12px;
 }
 

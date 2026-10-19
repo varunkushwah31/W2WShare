@@ -195,7 +195,7 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
             )}
 
             <div className="p-4 rounded-2xl bg-void border border-carbon flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
+              <div className="absolute inset-0 bg-stipple-grid opacity-40 pointer-events-none" />
               <div className="p-3 rounded-xl bg-white shadow-lg animate-pulse-cyan relative z-10 flex items-center justify-center" data-no-invert>
                 <QRCodeDisplay
                   value={currentHostUrl}

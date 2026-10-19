@@ -234,7 +234,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
         {/* High-Contrast QR Code Card */}
         <div className="p-4 rounded-2xl bg-void border border-carbon flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
+          <div className="absolute inset-0 bg-stipple-grid opacity-40 pointer-events-none" />
 
           {/* White container for maximum optical contrast */}
           <div className="p-3 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-47.5 min-h-47.5" data-no-invert>

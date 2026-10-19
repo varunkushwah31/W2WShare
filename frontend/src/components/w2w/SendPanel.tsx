@@ -1028,17 +1028,17 @@ export const SendPanel: React.FC<SendPanelProps> = ({
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleFileDrop}
-          className="dashed-container p-4 sm:p-12 rounded-2xl bg-[#141414] hover:bg-[#181818] transition-colors text-center cursor-pointer relative group"
+          className="dashed-container p-4 sm:p-12 rounded-2xl bg-carbon hover:bg-carbon-hover transition-colors text-center cursor-pointer relative group"
         >
-          <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
+          <div className="absolute inset-0 bg-stipple-grid opacity-60 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-surface-alt border border-carbon flex items-center justify-center text-periwinkle group-hover:scale-105 transition-transform">
               <UploadSimpleIcon className="w-6 h-6 sm:w-7 sm:h-7" weight="duotone" />
             </div>
 
             <div>
-              <h4 className="text-base sm:text-lg font-bold text-white font-sans">
+              <h4 className="text-base sm:text-lg font-bold text-paper font-sans">
                 Drag & drop files or choose media
               </h4>
               <p className="text-xs text-steel mt-1">
@@ -1104,8 +1104,8 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
       {/* Selected Files Staging List */}
       {files.length > 0 && !pin && (
-        <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-[#141414] relative space-y-5">
-          <div className="absolute inset-0 bg-stipple-grid opacity-15 pointer-events-none rounded-2xl" />
+        <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-carbon relative space-y-5">
+          <div className="absolute inset-0 bg-stipple-grid opacity-60 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 space-y-5">
             {/* Header */}
