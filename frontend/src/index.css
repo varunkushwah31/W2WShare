@@ -102,9 +102,9 @@
   --w2w-border-subtle: #1c1c1c;
   --grid-line: rgba(112, 137, 186, 0.05);
   --grid-line-dense: rgba(112, 137, 186, 0.04);
-  --stipple-dot: rgba(50, 205, 50, 0.35);
-  --stipple-dot-faint: rgba(50, 205, 50, 0.18);
-  --stipple-dot-dense: rgba(50, 205, 50, 0.5);
+  --stipple-dot: rgba(255, 255, 255, 0.25);
+  --stipple-dot-faint: rgba(255, 255, 255, 0.12);
+  --stipple-dot-dense: rgba(112, 137, 186, 0.3);
   --cad-line: rgba(112, 137, 186, 0.1);
 
   --hero-spotlight-base: radial-gradient(circle at 50% 30%, rgba(28, 28, 28, 0.95) 0%, rgba(16, 22, 38, 0.6) 35%, rgba(0, 0, 0, 0.98) 75%);
