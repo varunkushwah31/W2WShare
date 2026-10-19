@@ -416,7 +416,7 @@ export class WebRtcPeerManager {
     }
   }
 
-  private handleBinaryPacket(data: ArrayBuffer): void {
+  public handleBinaryPacket(data: ArrayBuffer): void {
     if (data.byteLength < PACKET_HEADER_SIZE) return
 
     // Parse 10-byte binary packet header
@@ -578,9 +578,13 @@ export class WebRtcPeerManager {
     fileIndex: number,
     chunkIndex: number,
     _totalChunks: number,
-    chunkData: Uint8Array
+    chunkData: Uint8Array,
+    fallbackWs?: WebSocket | null
   ): Promise<boolean> {
-    if (this.dataChannel?.readyState !== 'open') {
+    const isDcOpen = this.dataChannel?.readyState === 'open'
+    const isWsOpen = fallbackWs?.readyState === WebSocket.OPEN
+
+    if (!isDcOpen && !isWsOpen) {
       return false
     }
 
@@ -605,16 +609,21 @@ export class WebRtcPeerManager {
         // Copy slice payload into packet
         packet.set(chunkData.subarray(start, end), PACKET_HEADER_SIZE)
 
-        // Flow control backpressure: maintain pipe saturation without overflowing SCTP buffer
-        if (this.dataChannel.bufferedAmount > this.HIGH_WATER_MARK) {
-          await this.waitForBufferDrain()
+        if (isDcOpen && this.dataChannel) {
+          // Flow control backpressure: maintain pipe saturation without overflowing SCTP buffer
+          if (this.dataChannel.bufferedAmount > this.HIGH_WATER_MARK) {
+            await this.waitForBufferDrain()
+          }
+
+          if (this.dataChannel.readyState !== 'open') {
+            return false
+          }
+
+          this.dataChannel.send(packet.buffer)
+        } else if (isWsOpen && fallbackWs) {
+          fallbackWs.send(packet.buffer)
         }
 
-        if (this.dataChannel.readyState !== 'open') {
-          return false
-        }
-
-        this.dataChannel.send(packet.buffer)
         this.totalBytesTransferred += sliceLen
       }
 

@@ -56,7 +56,9 @@ async function downloadAndDecryptChunk(
   keyObj: DerivedKeyObj,
   meta: FileMetadata,
   webrtcChunksRef: React.RefObject<Map<string, ArrayBuffer>>,
-  rtcManagerRef: React.RefObject<WebRtcPeerManager | null>
+  chunkWaitersRef: React.RefObject<Map<string, (buf: ArrayBuffer) => void>>,
+  rtcManagerRef: React.RefObject<WebRtcPeerManager | null>,
+  wsRef?: React.RefObject<WebSocket | null>
 ): Promise<ArrayBuffer> {
   const chunkKey = `${fIdx}-${cIdx}`
   let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(chunkKey)
@@ -64,23 +66,45 @@ async function downloadAndDecryptChunk(
     // Release encrypted WebRTC chunk buffer immediately to prevent double memory storage
     webrtcChunksRef.current.delete(chunkKey)
   } else {
-    // Network retry up to 3 times on transient drops
-    let attempt = 0
-    let lastErr: unknown
-    while (attempt < 3) {
-      try {
-        chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
-        break
-      } catch (err) {
-        lastErr = err
-        attempt++
-        if (attempt < 3) {
-          await new Promise((res) => setTimeout(res, attempt * 150))
+    // Wait for incoming live chunk from peer (WebRTC or live WebSocket pipe)
+    chunkData = await new Promise<ArrayBuffer | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        chunkWaitersRef.current.delete(chunkKey)
+        resolve(undefined)
+      }, 7000)
+
+      chunkWaitersRef.current.set(chunkKey, (buf) => {
+        clearTimeout(timer)
+        resolve(buf)
+      })
+
+      // Signal sender to stream chunks if channel is open
+      if (rtcManagerRef.current?.isChannelOpen()) {
+        rtcManagerRef.current.sendRequestChunks()
+      } else if (wsRef?.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'REQUEST_WEBRTC_CHUNKS' }))
+      }
+    })
+
+    if (!chunkData) {
+      // Live peer stream timed out; fallback to backend HTTP relay with retry
+      let attempt = 0
+      let lastErr: unknown
+      while (attempt < 3) {
+        try {
+          chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+          break
+        } catch (err) {
+          lastErr = err
+          attempt++
+          if (attempt < 3) {
+            await new Promise((res) => setTimeout(res, attempt * 150))
+          }
         }
       }
-    }
-    if (!chunkData) {
-      throw lastErr
+      if (!chunkData) {
+        throw lastErr
+      }
     }
   }
 
@@ -91,13 +115,32 @@ async function downloadAndDecryptChunk(
     console.warn(`[Crypto] Chunk ${cIdx} tag verification failed. Requesting retransmission...`, decryptErr)
   }
 
-  // Attempt selective retransmit via WebRTC
+  // Attempt selective retransmit via WebRTC or WebSocket
+  let resendSent = false
   if (rtcManagerRef.current?.sendResendRequest(fIdx, cIdx)) {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    const resent = webrtcChunksRef.current.get(chunkKey)
-    if (resent) {
-      webrtcChunksRef.current.delete(chunkKey)
-      const dec = await cryptoEngine.decryptChunk(resent, keyObj, cIdx, meta.iv)
+    resendSent = true
+  } else if (wsRef?.current?.readyState === WebSocket.OPEN) {
+    wsRef.current.send(JSON.stringify({
+      type: 'RESEND_CHUNK',
+      payload: { fileIndex: fIdx, chunkIndex: cIdx },
+    }))
+    resendSent = true
+  }
+
+  if (resendSent) {
+    const resentBuf = await new Promise<ArrayBuffer | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        chunkWaitersRef.current.delete(chunkKey)
+        resolve(undefined)
+      }, 3000)
+      chunkWaitersRef.current.set(chunkKey, (buf) => {
+        clearTimeout(timer)
+        resolve(buf)
+      })
+    })
+
+    if (resentBuf) {
+      const dec = await cryptoEngine.decryptChunk(resentBuf, keyObj, cIdx, meta.iv)
       return dec.buffer as ArrayBuffer
     }
   }
@@ -245,6 +288,7 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
   const rtcManagerRef = useRef<WebRtcPeerManager | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const webrtcChunksRef = useRef<Map<string, ArrayBuffer>>(new Map())
+  const chunkWaitersRef = useRef<Map<string, (buf: ArrayBuffer) => void>>(new Map())
 
   // Live Sharing state & refs
   const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null)
@@ -335,7 +379,9 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
               keyObj,
               meta,
               webrtcChunksRef,
-              rtcManagerRef
+              chunkWaitersRef,
+              rtcManagerRef,
+              wsRef
             )
 
             decryptedChunks[cIdx] = decryptedChunk
@@ -453,7 +499,9 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
               keyObj,
               meta,
               webrtcChunksRef,
-              rtcManagerRef
+              chunkWaitersRef,
+              rtcManagerRef,
+              wsRef
             )
 
             decryptedChunks[cIdx] = decryptedChunk
@@ -673,7 +721,14 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     })
 
     rtc.onChunkReceived((fileIndex, chunkIndex, buffer) => {
-      webrtcChunksRef.current.set(`${fileIndex}-${chunkIndex}`, buffer)
+      const chunkKey = `${fileIndex}-${chunkIndex}`
+      const waiter = chunkWaitersRef.current.get(chunkKey)
+      if (waiter) {
+        chunkWaitersRef.current.delete(chunkKey)
+        waiter(buffer)
+      } else {
+        webrtcChunksRef.current.set(chunkKey, buffer)
+      }
     })
 
     rtc.onRemoteStream((stream) => {
@@ -690,6 +745,7 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     const wsUrl = getWebSocketUrl('/ws/signaling')
 
     const ws = new WebSocket(wsUrl)
+    ws.binaryType = 'arraybuffer'
     wsRef.current = ws
 
     rtc.setSignalingSender((signal) => {
@@ -703,6 +759,10 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     }
 
     ws.onmessage = async (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        rtc.handleBinaryPacket(event.data)
+        return
+      }
       try {
         const signal = JSON.parse(event.data)
         if (signal.type === 'WEBRTC_OFFER' && signal.payload) {

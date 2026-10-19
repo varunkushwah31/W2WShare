@@ -202,11 +202,12 @@ async function sendSingleChunk(
   cIdx: number,
   totalChunks: number,
   chunkData: Uint8Array,
-  rtc: WebRtcPeerManager | null
+  rtc: WebRtcPeerManager | null,
+  ws?: WebSocket | null
 ): Promise<void> {
   let sentViaRtc = false
-  if (rtc?.isChannelOpen()) {
-    sentViaRtc = await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
+  if (rtc?.isChannelOpen() || (ws && ws.readyState === WebSocket.OPEN)) {
+    sentViaRtc = await (rtc ? rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData, ws) : false)
   }
   if (!sentViaRtc) {
     let attempt = 0
@@ -358,6 +359,7 @@ function handleSignalingEvent(
       setPeerConnected(true)
       soundEngine.peerConnect()
       void rtc.initSenderOffer()
+      onStreamingNeeded()
       break
     case 'PEER_DISCONNECTED':
       setPeerConnected(false)
@@ -446,8 +448,8 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     try {
       const chunkData = await getChunkSlice(prep, cIdx)
       const rtc = rtcManagerRef.current
-      if (rtc?.isChannelOpen()) {
-        await rtc.sendChunk(fIdx, cIdx, prep.metadata.totalChunks, chunkData)
+      if (rtc) {
+        await rtc.sendChunk(fIdx, cIdx, prep.metadata.totalChunks, chunkData, wsRef.current)
       } else if (sessionId) {
         await api.uploadFileChunk(sessionId, fIdx, cIdx, chunkData)
       }
@@ -456,26 +458,82 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     }
   }, [sessionId])
 
-  // WebRTC direct streaming handler using on-demand chunk slices
-  const streamViaWebRtc = useCallback(async (prepared: PreparedFile[]) => {
+  // Live direct streaming handler: Streams chunks directly to receiver via WebRTC / WebSocket relay with telemetry
+  const streamLiveToPeer = useCallback(async (prepared: PreparedFile[]) => {
     const rtc = rtcManagerRef.current
-    if (!rtc?.isChannelOpen() || isStreamingRtcRef.current) return
+    const ws = wsRef.current
+    if (prepared.length === 0 || isStreamingRtcRef.current) return
+    if (!rtc?.isChannelOpen() && ws?.readyState !== WebSocket.OPEN) return
+
     isStreamingRtcRef.current = true
+    setIsTransferring(true)
+    setTransferDone(false)
+    await acquireWakeLock()
+
+    const totalBytesAllFiles = prepared.reduce(
+      (acc, p) => acc + p.metadata.fileSize,
+      0
+    )
+    let uploadedBytesTotal = 0
+    const startTime = Date.now()
 
     try {
+      setStatusMessage('Streaming live encrypted chunks directly to peer...')
+
       for (let fIdx = 0; fIdx < prepared.length; fIdx++) {
         const p = prepared[fIdx]
+        setCurrentFileName(p.metadata.fileName)
         const totalChunks = p.metadata.totalChunks
+
         for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
-          if (!rtc.isChannelOpen()) return
           const chunkData = await getChunkSlice(p, cIdx)
-          await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
+          const sent = rtc
+            ? await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData, wsRef.current)
+            : false
+
+          if (!sent && persistVault && sessionId) {
+            await api.uploadFileChunk(sessionId, fIdx, cIdx, chunkData)
+          }
+
+          uploadedBytesTotal += chunkData.length
+          setUploadedBytes(uploadedBytesTotal)
+          setCurrentChunkInfo({ current: cIdx + 1, total: totalChunks })
+
+          const elapsedSec = (Date.now() - startTime) / 1000
+          if (elapsedSec > 0) {
+            const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
+            setTransferSpeedMbps(speed)
+            const remainingBytes = Math.max(0, totalBytesAllFiles - uploadedBytesTotal)
+            if (speed > 0) {
+              setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+            }
+          }
+
+          const percent = Math.min(
+            99,
+            Math.round((uploadedBytesTotal / totalBytesAllFiles) * 100)
+          )
+          setProgressPercent(percent)
+          setStatusMessage(`Live streaming chunk (${cIdx + 1}/${totalChunks}) - ${p.metadata.fileName}`)
         }
       }
+
+      setProgressPercent(100)
+      setTransferEtaSeconds(0)
+      setIsTransferring(false)
+      setTransferDone(true)
+      setStatusMessage('Live direct stream completed! All chunks delivered to peer.')
+      soundEngine.transferComplete()
+
+      await recordSentAuditLog(prepared, burnAfter, persistVault)
+    } catch (err) {
+      console.warn('Live direct stream error:', err)
+      setStatusMessage(`Live stream error: ${err instanceof Error ? err.message : 'Unknown'}`)
     } finally {
       isStreamingRtcRef.current = false
+      await releaseWakeLock()
     }
-  }, [])
+  }, [acquireWakeLock, releaseWakeLock, burnAfter, persistVault, sessionId])
 
   // Connect WebSocket signaling and setup WebRTC when session is active
   useEffect(() => {
@@ -494,23 +552,24 @@ export const SendPanel: React.FC<SendPanelProps> = ({
         setTransferSpeedMbps(stats.currentMbps)
       }
       if (state === 'CONNECTED' && preparedFilesRef.current.length > 0) {
-        streamViaWebRtc(preparedFilesRef.current)
+        void streamLiveToPeer(preparedFilesRef.current)
       }
     })
 
     rtc.onResendChunk((fileIndex, chunkIndex) => {
-      handleResendChunk(fileIndex, chunkIndex)
+      void handleResendChunk(fileIndex, chunkIndex)
     })
 
     rtc.onRequestChunks(() => {
       if (preparedFilesRef.current.length > 0) {
-        streamViaWebRtc(preparedFilesRef.current)
+        void streamLiveToPeer(preparedFilesRef.current)
       }
     })
 
     const wsUrl = getWebSocketUrl('/ws/signaling')
 
     const ws = new WebSocket(wsUrl)
+    ws.binaryType = 'arraybuffer'
     wsRef.current = ws
 
     rtc.setSignalingSender((signal) => {
@@ -524,16 +583,20 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     }
 
     ws.onmessage = (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        rtc.handleBinaryPacket(event.data)
+        return
+      }
       try {
         const signal = JSON.parse(event.data)
         handleSignalingEvent(
           signal,
           rtc,
           setPeerConnected,
-          handleResendChunk,
+          (fIdx, cIdx) => void handleResendChunk(fIdx, cIdx),
           () => {
             if (preparedFilesRef.current.length > 0) {
-              streamViaWebRtc(preparedFilesRef.current)
+              void streamLiveToPeer(preparedFilesRef.current)
             }
           }
         )
@@ -558,7 +621,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       }
       rtc.close()
     }
-  }, [sessionId, streamViaWebRtc, handleResendChunk])
+  }, [sessionId, streamLiveToPeer, handleResendChunk])
 
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -654,7 +717,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
           // Slices and encrypts chunk on the fly
           const chunkData = await getChunkSlice(prep, cIdx)
-          await sendSingleChunk(targetSessionId, fIdx, cIdx, totalChunks, chunkData, rtcManagerRef.current)
+          await sendSingleChunk(targetSessionId, fIdx, cIdx, totalChunks, chunkData, rtcManagerRef.current, wsRef.current)
 
           completedChunks++
           uploadedBytesTotal += chunkData.length
@@ -737,24 +800,35 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       // 3. Register batch offer
       await api.offerBatch(sessionRes.sessionId, batchMetadata)
 
-      // 4. Stream Chunks to Backend Relay or WebRTC
-      await streamPreparedFiles(sessionRes.sessionId, preparedFiles, 0)
-
-      // 5. Register in Audit Ledger (and persist to 7-day vault if enabled)
-      await recordSentAuditLog(preparedFiles, burnAfter, persistVault)
-
-      setProgressPercent(100)
-      setIsTransferring(false)
-      setTransferDone(true)
-      setStatusMessage('Payload uploaded. Waiting for receiver to claim with PIN.')
-      soundEngine.transferComplete()
+      if (persistVault) {
+        // 7-Day Server Vault Mode: Pre-upload encrypted chunks to server storage
+        setStatusMessage('Uploading encrypted payload to 7-Day Server Vault...')
+        await streamPreparedFiles(sessionRes.sessionId, preparedFiles, 0)
+        await recordSentAuditLog(preparedFiles, burnAfter, true)
+        setProgressPercent(100)
+        setIsTransferring(false)
+        setTransferDone(true)
+        setStatusMessage('Payload stored in 7-Day Vault. Ready for receiver to claim with PIN.')
+        soundEngine.transferComplete()
+      } else {
+        // Live Direct Mode: Zero server storage. Keep payload in local browser memory and stream live upon peer connection.
+        setIsTransferring(false)
+        setTransferDone(false)
+        setProgressPercent(0)
+        setStatusMessage('Live room ready. Share PIN with receiver. Waiting for peer to connect...')
+        if (peerConnected || rtcManagerRef.current?.isChannelOpen()) {
+          void streamLiveToPeer(preparedFiles)
+        }
+      }
     } catch (err: unknown) {
       console.error(err)
       setIsTransferring(false)
       setStatusMessage(`Transfer failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
       soundEngine.errorTone()
     } finally {
-      await releaseWakeLock()
+      if (!isStreamingRtcRef.current && !persistVault) {
+        await releaseWakeLock()
+      }
     }
   }
 
@@ -797,8 +871,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({
         wsRef.current.send(JSON.stringify({ type: 'BATCH_OFFER', payload: updatedBatch }))
       }
 
-      // Stream newly added chunks
-      await streamPreparedFiles(sessionId, newPrepared, baseFileIndex)
+      if (peerConnected || isDirectP2p || rtcManagerRef.current?.isChannelOpen()) {
+        // Stream newly added chunks live directly to connected peer
+        await streamLiveToPeer(newPrepared)
+      } else if (persistVault) {
+        await streamPreparedFiles(sessionId, newPrepared, baseFileIndex)
+      }
 
       // Record sent audit log for newly added files
       await recordSentAuditLog(newPrepared, burnAfter, persistVault)
@@ -1213,7 +1291,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
               className="w-full py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
             >
               <ShieldCheckIcon className="w-4 h-4" />
-              <span>Generate Encrypted Transfer Vault</span>
+              <span>{persistVault ? 'Generate 7-Day Encrypted Vault' : 'Start Live Direct Transfer (P2P)'}</span>
             </button>
           </div>
         </div>
@@ -1540,10 +1618,15 @@ export const SendPanel: React.FC<SendPanelProps> = ({
                 <CheckCircleIcon className="w-4 h-4" weight="bold" />
                 <span>Payload ready on local network. Receiver can claim PIN.</span>
               </div>
-            ) : (
+            ) : isTransferring ? (
               <div className="flex items-center gap-2 text-xs text-steel font-mono">
                 <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-[#7089ba]" />
-                <span>Encrypting & streaming payload...</span>
+                <span>Live streaming payload directly to peer...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-amber-300 font-mono">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                <span>Waiting for receiver to connect and claim PIN...</span>
               </div>
             )}
 

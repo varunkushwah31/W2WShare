@@ -49,6 +49,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
+        session.setTextMessageSizeLimit(1024 * 1024);
+        session.setBinaryMessageSizeLimit(1024 * 1024);
         lastHeartbeatMap.put(session.getId(), System.currentTimeMillis());
         log.info("[WEBSOCKET] Client connected: socket [{}] (remote: {})", session.getId(), session.getRemoteAddress());
     }
