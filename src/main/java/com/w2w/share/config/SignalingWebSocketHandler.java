@@ -90,7 +90,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
             case "BATCH_OFFER" -> handleBatchOffer(session, signal);
             case "FILE_ACCEPT", "BATCH_ACCEPT", "TRANSFER_TELEMETRY", "CHUNK_ACK", "CHUNK_UPLOADED",
                  "RESEND_CHUNK", "TRANSFER_PROGRESS", "TRANSFER_COMPLETE", "WEBRTC_OFFER", "WEBRTC_ANSWER",
-                 "WEBRTC_ICE_CANDIDATE", "REQUEST_WEBRTC_CHUNKS", "REQUEST_CHUNK", "STREAM_CHUNK" -> relayToPeer(session, signal);
+                 "WEBRTC_ICE_CANDIDATE", "REQUEST_WEBRTC_CHUNKS", "REQUEST_CHUNK", "STREAM_CHUNK",
+                 "SCREEN_SHARE_START", "SCREEN_SHARE_STOP" -> relayToPeer(session, signal);
             case "TRANSFER_CANCELLED" -> handleCancel(session, signal);
             case "TEXT_MESSAGE" -> handleTextMessageRelay(session, signal);
             case "CHAT_MESSAGE" -> handleChatMessage(session, signal);
@@ -437,6 +438,22 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
                 .filter(WebSocketSession::isOpen)
                 .filter(s -> ROLE_RECEIVER.equalsIgnoreCase(wsSessionToRole.get(s.getId())))
                 .count();
+    }
+
+    public void broadcastToSession(String transferSessionId, SignalMessage signal) {
+        if (transferSessionId == null || signal == null) return;
+        Set<WebSocketSession> sockets = sessionSockets.get(transferSessionId);
+        if (sockets != null) {
+            for (WebSocketSession s : sockets) {
+                if (s.isOpen()) {
+                    try {
+                        sendSignal(s, signal);
+                    } catch (IOException e) {
+                        log.debug("Failed to broadcast signal [{}] to socket [{}]: {}", signal.type(), s.getId(), e.getMessage());
+                    }
+                }
+            }
+        }
     }
 }
 

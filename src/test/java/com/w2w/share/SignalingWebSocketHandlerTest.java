@@ -3,6 +3,7 @@ package com.w2w.share;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.w2w.share.config.SignalingWebSocketHandler;
 import com.w2w.share.model.FileMetadata;
+import com.w2w.share.model.SignalMessage;
 import com.w2w.share.model.TransferSession;
 import com.w2w.share.service.ISessionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -296,5 +297,73 @@ class SignalingWebSocketHandlerTest {
         verify(deadSession).close(CloseStatus.SESSION_NOT_RELIABLE);
         verify(activeSession, never()).close(any());
         assertFalse(heartbeatMap.containsKey("ws-dead"));
+    }
+
+    @Test
+    void testBroadcastToSession() throws Exception {
+        WebSocketSession session1 = mock(WebSocketSession.class);
+        when(session1.getId()).thenReturn("ws-peer-1");
+        when(session1.isOpen()).thenReturn(true);
+
+        WebSocketSession session2 = mock(WebSocketSession.class);
+        when(session2.getId()).thenReturn("ws-peer-2");
+        when(session2.isOpen()).thenReturn(true);
+
+        handler.handleMessage(session1, new TextMessage(objectMapper.writeValueAsString(Map.of(
+                "type", "REGISTER_SENDER",
+                "payload", "session-broadcast"
+        ))));
+
+        java.lang.reflect.Field sessionSocketsField = SignalingWebSocketHandler.class.getDeclaredField("sessionSockets");
+        sessionSocketsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, java.util.Set<WebSocketSession>> socketsMap = (Map<String, java.util.Set<WebSocketSession>>) sessionSocketsField.get(handler);
+        socketsMap.get("session-broadcast").add(session2);
+
+        SignalMessage broadcastSignal = new SignalMessage("BATCH_OFFER", List.of(Map.of("fileName", "doc.pdf")));
+        handler.broadcastToSession("session-broadcast", broadcastSignal);
+
+        verify(session1, atLeastOnce()).sendMessage(any(TextMessage.class));
+        verify(session2, atLeastOnce()).sendMessage(any(TextMessage.class));
+    }
+
+    @Test
+    void testScreenShareSignalRelay() throws Exception {
+        WebSocketSession senderSession = mock(WebSocketSession.class);
+        when(senderSession.getId()).thenReturn("ws-sender-stream");
+        when(senderSession.isOpen()).thenReturn(true);
+
+        WebSocketSession receiverSession = mock(WebSocketSession.class);
+        when(receiverSession.getId()).thenReturn("ws-receiver-stream");
+        when(receiverSession.isOpen()).thenReturn(true);
+
+        handler.handleMessage(senderSession, new TextMessage(objectMapper.writeValueAsString(Map.of(
+                "type", "REGISTER_SENDER",
+                "payload", "session-screen"
+        ))));
+
+        java.lang.reflect.Field sessionSocketsField = SignalingWebSocketHandler.class.getDeclaredField("sessionSockets");
+        sessionSocketsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, java.util.Set<WebSocketSession>> socketsMap = (Map<String, java.util.Set<WebSocketSession>>) sessionSocketsField.get(handler);
+        socketsMap.get("session-screen").add(receiverSession);
+
+        handler.handleMessage(senderSession, new TextMessage(objectMapper.writeValueAsString(Map.of(
+                "type", "SCREEN_SHARE_START",
+                "payload", Map.of()
+        ))));
+
+        handler.handleMessage(senderSession, new TextMessage(objectMapper.writeValueAsString(Map.of(
+                "type", "SCREEN_SHARE_STOP",
+                "payload", Map.of()
+        ))));
+
+        ArgumentCaptor<TextMessage> captor = ArgumentCaptor.forClass(TextMessage.class);
+        verify(receiverSession, atLeast(2)).sendMessage(captor.capture());
+
+        boolean hasStart = captor.getAllValues().stream().anyMatch(m -> m.getPayload().contains("SCREEN_SHARE_START"));
+        boolean hasStop = captor.getAllValues().stream().anyMatch(m -> m.getPayload().contains("SCREEN_SHARE_STOP"));
+        assertTrue(hasStart);
+        assertTrue(hasStop);
     }
 }

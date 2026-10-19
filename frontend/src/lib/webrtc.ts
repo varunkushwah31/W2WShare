@@ -64,6 +64,12 @@ export class WebRtcPeerManager {
   private onChunkReceiveCallback: ChunkReceiveHandler | null = null
   private onResendChunkCallback: ((fileIndex: number, chunkIndex: number) => void) | null = null
   private onRequestChunksCallback: (() => void) | null = null
+  private onRemoteStreamCallback: ((stream: MediaStream | null) => void) | null = null
+  private onScreenShareStopCallback: (() => void) | null = null
+
+  // Live Screen Sharing MediaStream instances
+  private localStream: MediaStream | null = null
+  private remoteStream: MediaStream | null = null
 
   // Flow control watermarks (1MB high watermark, 256KB low watermark)
   private readonly HIGH_WATER_MARK = 1024 * 1024
@@ -105,6 +111,32 @@ export class WebRtcPeerManager {
 
   public onRequestChunks(cb: () => void) {
     this.onRequestChunksCallback = cb
+  }
+
+  public onRemoteStream(cb: (stream: MediaStream | null) => void) {
+    this.onRemoteStreamCallback = cb
+  }
+
+  public onScreenShareStopped(cb: () => void) {
+    this.onScreenShareStopCallback = cb
+  }
+
+  public getLocalStream(): MediaStream | null {
+    return this.localStream
+  }
+
+  public getRemoteStream(): MediaStream | null {
+    return this.remoteStream
+  }
+
+  public handleRemoteScreenShareStop(): void {
+    this.remoteStream = null
+    if (this.onRemoteStreamCallback) {
+      this.onRemoteStreamCallback(null)
+    }
+    if (this.onScreenShareStopCallback) {
+      this.onScreenShareStopCallback()
+    }
   }
 
   public getStats(): WebRtcStats {
@@ -156,6 +188,15 @@ export class WebRtcPeerManager {
           type: 'WEBRTC_ICE_CANDIDATE',
           payload: event.candidate.toJSON(),
         })
+      }
+    }
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        this.remoteStream = event.streams[0]
+        if (this.onRemoteStreamCallback) {
+          this.onRemoteStreamCallback(event.streams[0])
+        }
       }
     }
 
@@ -212,13 +253,15 @@ export class WebRtcPeerManager {
   public async handleRemoteOffer(offerSdp: RTCSessionDescriptionInit): Promise<void> {
     try {
       this.updateState('CONNECTING')
-      const pc = this.createPeerConnection()
+      const pc = this.pc || this.createPeerConnection()
 
-      pc.ondatachannel = (event) => {
-        const dc = event.channel
-        dc.binaryType = 'arraybuffer'
-        this.setupDataChannelEvents(dc)
-        this.dataChannel = dc
+      if (!this.dataChannel) {
+        pc.ondatachannel = (event) => {
+          const dc = event.channel
+          dc.binaryType = 'arraybuffer'
+          this.setupDataChannelEvents(dc)
+          this.dataChannel = dc
+        }
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offerSdp))
@@ -265,6 +308,99 @@ export class WebRtcPeerManager {
     }
   }
 
+  /**
+   * SENDER: Initiates Live P2P Screen Sharing stream
+   */
+  public async startScreenShare(): Promise<MediaStream | null> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
+      throw new Error('Screen sharing is not supported in this browser or context.')
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'monitor',
+          frameRate: { ideal: 30, max: 60 },
+        },
+        audio: false,
+      })
+
+      this.localStream = stream
+
+      const pc = this.pc || this.createPeerConnection()
+
+      for (const track of stream.getTracks()) {
+        pc.addTrack(track, stream)
+        track.onended = () => {
+          this.stopScreenShare()
+        }
+      }
+
+      // Renegotiate with peer
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+
+      if (this.wsSendCallback) {
+        this.wsSendCallback({
+          type: 'SCREEN_SHARE_START',
+          payload: {},
+        })
+        this.wsSendCallback({
+          type: 'WEBRTC_OFFER',
+          payload: {
+            type: offer.type,
+            sdp: offer.sdp,
+          },
+        })
+      }
+
+      return stream
+    } catch (err) {
+      console.warn('[WebRTC] Screen sharing initiation failed or was cancelled:', err)
+      return null
+    }
+  }
+
+  /**
+   * SENDER: Stops Live P2P Screen Sharing stream and notifies peer
+   */
+  public stopScreenShare(): void {
+    if (this.localStream) {
+      this.localStream.getTracks().forEach((track) => {
+        try {
+          track.stop()
+        } catch {
+          // Track already closed
+        }
+      })
+      this.localStream = null
+    }
+
+    if (this.pc) {
+      try {
+        const senders = this.pc.getSenders()
+        for (const sender of senders) {
+          if (sender.track && sender.track.kind === 'video') {
+            this.pc.removeTrack(sender)
+          }
+        }
+      } catch {
+        // Track removal non-fatal
+      }
+
+      if (this.wsSendCallback) {
+        this.wsSendCallback({
+          type: 'SCREEN_SHARE_STOP',
+          payload: {},
+        })
+      }
+    }
+
+    if (this.onScreenShareStopCallback) {
+      this.onScreenShareStopCallback()
+    }
+  }
+
   private handleStringMessage(data: string): void {
     try {
       const parsed = JSON.parse(data)
@@ -272,6 +408,8 @@ export class WebRtcPeerManager {
         this.onResendChunkCallback(parsed.fileIndex, parsed.chunkIndex)
       } else if (parsed.type === 'REQUEST_WEBRTC_CHUNKS' && this.onRequestChunksCallback) {
         this.onRequestChunksCallback()
+      } else if (parsed.type === 'SCREEN_SHARE_STOP') {
+        this.handleRemoteScreenShareStop()
       }
     } catch {
       // Non-JSON frame
@@ -517,6 +655,7 @@ export class WebRtcPeerManager {
   }
 
   public close() {
+    this.stopScreenShare()
     this.flushDrainResolvers()
     if (this.speedTimer) {
       clearInterval(this.speedTimer)

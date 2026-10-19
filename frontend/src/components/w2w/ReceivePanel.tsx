@@ -25,7 +25,9 @@ import {
   VideoCameraIcon,
   MusicNotesIcon,
   CodeIcon,
+  ChatCircleTextIcon,
 } from '@phosphor-icons/react'
+import { LiveScreenViewer } from './LiveScreenViewer'
 
 interface ReceivedFileItem {
   metadata: FileMetadata
@@ -244,6 +246,24 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
   const wsRef = useRef<WebSocket | null>(null)
   const webrtcChunksRef = useRef<Map<string, ArrayBuffer>>(new Map())
 
+  // Live Sharing state & refs
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null)
+  const [livePeerMessage, setLivePeerMessage] = useState<string | null>(null)
+  const [liveAlert, setLiveAlert] = useState<string | null>(null)
+  const [liveCopied, setLiveCopied] = useState(false)
+
+  const sessionIdRef = useRef<string | null>(null)
+  const activePinRef = useRef<string | null>(null)
+  const burnAfterReadingRef = useRef<boolean>(false)
+  const batchMetadataRef = useRef<FileMetadata[]>([])
+  const isDownloadingRef = useRef<boolean>(false)
+
+  sessionIdRef.current = sessionId
+  activePinRef.current = activePin
+  burnAfterReadingRef.current = burnAfterReading
+  batchMetadataRef.current = batchMetadata
+  isDownloadingRef.current = downloading
+
   // Screen WakeLock API to prevent mobile phone sleep while receiving large files
   const { acquireWakeLock, releaseWakeLock } = useWakeLock(downloading)
 
@@ -379,6 +399,137 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
       await releaseWakeLock()
     }
   }, [acquireWakeLock, releaseWakeLock])
+
+  const downloadNewlyAddedFiles = React.useCallback(async (
+    targetSessionId: string,
+    targetPin: string,
+    newFiles: FileMetadata[],
+    baseIndex: number
+  ) => {
+    if (!targetSessionId || !targetPin || newFiles.length === 0) return
+
+    setDownloading(true)
+    setErrorMsg(null)
+    setStatusText(`Receiving ${newFiles.length} newly added file(s)...`)
+    await acquireWakeLock()
+
+    if (rtcManagerRef.current?.isChannelOpen()) {
+      rtcManagerRef.current.sendRequestChunks()
+    } else if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'REQUEST_WEBRTC_CHUNKS' }))
+    }
+
+    const totalNewChunks = newFiles.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
+    setTotalChunksCount((prev) => prev + totalNewChunks)
+    let downloadedBytesTotal = 0
+    let priorCompletedChunks = 0
+    const startTime = Date.now()
+    const DOWNLOAD_CONCURRENCY = 6
+
+    const results: ReceivedFileItem[] = []
+
+    try {
+      for (let i = 0; i < newFiles.length; i++) {
+        const meta = newFiles[i]
+        const fIdx = baseIndex + i
+        setStatusText(`Downloading chunks for: ${meta.fileName}`)
+
+        const keyObj = await cryptoEngine.deriveKey(targetPin, meta.salt)
+        const totalChunks = meta.totalChunks || 1
+        const decryptedChunks: ArrayBuffer[] = new Array(totalChunks)
+
+        let nextChunkIdx = 0
+        let completedChunksForFile = 0
+
+        const downloadWorker = async () => {
+          while (true) {
+            const cIdx = nextChunkIdx++
+            if (cIdx >= totalChunks) break
+
+            const decryptedChunk = await downloadAndDecryptChunk(
+              targetSessionId,
+              fIdx,
+              cIdx,
+              keyObj,
+              meta,
+              webrtcChunksRef,
+              rtcManagerRef
+            )
+
+            decryptedChunks[cIdx] = decryptedChunk
+            completedChunksForFile++
+            downloadedBytesTotal += decryptedChunk.byteLength
+            setTransferredBytes((prev) => prev + decryptedChunk.byteLength)
+            setCurrentChunkIndex(completedChunksForFile)
+            setStatusText(`Downloading & authenticating chunks (${completedChunksForFile}/${totalChunks}) - ${meta.fileName}`)
+
+            const elapsedSec = (Date.now() - startTime) / 1000
+            if (elapsedSec > 0) {
+              const speed = downloadedBytesTotal / (1024 * 1024) / elapsedSec
+              setDownloadSpeedMbps(speed)
+              const totalPayloadBytes = newFiles.reduce((acc, m) => acc + (m.fileSize || 0), 0)
+              const remainingBytes = Math.max(0, totalPayloadBytes - downloadedBytesTotal)
+              if (speed > 0 && remainingBytes > 0) {
+                setDownloadEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+              }
+            }
+
+            const totalCompletedChunks = priorCompletedChunks + completedChunksForFile
+            const totalProgress = Math.round(
+              (totalCompletedChunks / totalNewChunks) * 100
+            )
+            setDownloadPercent(Math.min(99, totalProgress))
+          }
+        }
+
+        const workers = Array.from(
+          { length: Math.min(DOWNLOAD_CONCURRENCY, totalChunks) },
+          () => downloadWorker()
+        )
+        await Promise.all(workers)
+        priorCompletedChunks += totalChunks
+
+        setStatusText(`Assembling decrypted stream (${meta.fileName})...`)
+        const receivedItem = await assembleDecryptedFile(meta, decryptedChunks)
+        results.push(receivedItem)
+      }
+
+      setReceivedFiles((prev) => [...prev, ...results])
+      setDownloadPercent(100)
+      setDownloadEtaSeconds(0)
+      setDownloading(false)
+      setStatusText(`Live file(s) received & verified successfully! (${results.length} new)`)
+      soundEngine.transferComplete()
+
+      await recordReceivedAuditLog(results, burnAfterReadingRef.current)
+    } catch (err: unknown) {
+      console.error(err)
+      setDownloading(false)
+      setErrorMsg(`Live ingestion decryption failed: ${err instanceof Error ? err.message : 'Corrupted data or network drop'}`)
+      soundEngine.errorTone()
+    } finally {
+      await releaseWakeLock()
+    }
+  }, [acquireWakeLock, releaseWakeLock])
+
+  const handleIncomingBatchOffer = React.useCallback((incomingBatch: FileMetadata[]) => {
+    setBatchMetadata((prevBatch) => {
+      const existingKeys = new Set(prevBatch.map((m) => `${m.fileName}-${m.fileSize}`))
+      const brandNew = incomingBatch.filter((m) => !existingKeys.has(`${m.fileName}-${m.fileSize}`))
+      if (brandNew.length === 0) return prevBatch
+
+      const updatedBatch = [...prevBatch, ...brandNew]
+      soundEngine.peerConnect()
+      setLiveAlert(`Sender added ${brandNew.length} new file(s) to live room!`)
+      setTimeout(() => setLiveAlert(null), 5000)
+
+      if (sessionIdRef.current && activePinRef.current) {
+        void downloadNewlyAddedFiles(sessionIdRef.current, activePinRef.current, brandNew, prevBatch.length)
+      }
+
+      return updatedBatch
+    })
+  }, [downloadNewlyAddedFiles])
 
   const handleLookup = React.useCallback(async (lookupPin: string) => {
     const cleanPin = lookupPin.trim()
@@ -525,6 +676,17 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
       webrtcChunksRef.current.set(`${fileIndex}-${chunkIndex}`, buffer)
     })
 
+    rtc.onRemoteStream((stream) => {
+      setRemoteScreenStream(stream)
+      if (stream) {
+        soundEngine.peerConnect()
+      }
+    })
+
+    rtc.onScreenShareStopped(() => {
+      setRemoteScreenStream(null)
+    })
+
     const wsUrl = getWebSocketUrl('/ws/signaling')
 
     const ws = new WebSocket(wsUrl)
@@ -547,6 +709,16 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
           await rtc.handleRemoteOffer(signal.payload)
         } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
           await rtc.handleRemoteIceCandidate(signal.payload)
+        } else if (signal.type === 'BATCH_OFFER' && Array.isArray(signal.payload)) {
+          handleIncomingBatchOffer(signal.payload as FileMetadata[])
+        } else if (signal.type === 'FILE_OFFER' && signal.payload) {
+          handleIncomingBatchOffer([signal.payload as FileMetadata])
+        } else if (signal.type === 'SCREEN_SHARE_STOP') {
+          rtc.handleRemoteScreenShareStop()
+          setRemoteScreenStream(null)
+        } else if (signal.type === 'TEXT_MESSAGE' && signal.payload) {
+          setLivePeerMessage(String(signal.payload))
+          soundEngine.chatMsg()
         }
       } catch (err) {
         console.warn('Signaling error:', err)
@@ -757,6 +929,9 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
                 setActivePin(null)
                 setReceivedFiles([])
                 setBatchMetadata([])
+                setRemoteScreenStream(null)
+                setLivePeerMessage(null)
+                setLiveAlert(null)
                 setPinDigits(['', '', '', '', '', ''])
                 setPinInput('')
               }}
@@ -765,6 +940,70 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
               Disconnect
             </button>
           </div>
+
+          {/* Live Alert Banner */}
+          {liveAlert && (
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs font-mono text-emerald-400 shadow-sm animate-pulse">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="font-bold">{liveAlert}</span>
+              </div>
+              <span className="text-[10px] bg-emerald-400/20 px-2 py-0.5 rounded border border-emerald-400/30 uppercase font-bold">
+                AUTO-DOWNLOADING
+              </span>
+            </div>
+          )}
+
+          {/* Live Screen Viewer Stream */}
+          {remoteScreenStream && (
+            <LiveScreenViewer
+              stream={remoteScreenStream}
+              onClose={() => {
+                rtcManagerRef.current?.handleRemoteScreenShareStop()
+                setRemoteScreenStream(null)
+              }}
+            />
+          )}
+
+          {/* Live Peer Note Box */}
+          {livePeerMessage && (
+            <div className="p-3.5 rounded-xl bg-carbon/60 border border-[#7089ba]/40 flex items-center justify-between gap-3 text-xs font-mono">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <ChatCircleTextIcon className="w-4 h-4 text-[#7089ba] shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] text-steel font-bold uppercase tracking-wider">
+                    LIVE NOTE FROM SENDER
+                  </div>
+                  <div className="text-white break-words mt-0.5">{livePeerMessage}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard?.writeText(livePeerMessage)
+                    setLiveCopied(true)
+                    setTimeout(() => setLiveCopied(false), 2000)
+                  } catch {
+                    // Clipboard access fallback
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg bg-[#161616] hover:bg-[#222] border border-[#333] text-[11px] text-steel hover:text-white transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+              >
+                {liveCopied ? (
+                  <>
+                    <CheckIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Staged File List with Categories */}
           <div className="space-y-2">

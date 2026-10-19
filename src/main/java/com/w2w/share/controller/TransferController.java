@@ -6,6 +6,7 @@ import com.w2w.share.exception.InvalidPinException;
 import com.w2w.share.metrics.ITransferMetricsService;
 import com.w2w.share.model.ChatMessage;
 import com.w2w.share.model.FileMetadata;
+import com.w2w.share.model.SignalMessage;
 import com.w2w.share.model.TransferSession;
 import com.w2w.share.service.INetworkDiscoveryService;
 import com.w2w.share.service.IQrCodeService;
@@ -281,6 +282,9 @@ public class TransferController {
             throw new IllegalArgumentException("File metadata is required.");
         }
         sessionService.setFileOffer(sessionId, metadata);
+        if (signalingHandler != null) {
+            signalingHandler.broadcastToSession(sessionId, new SignalMessage("FILE_OFFER", metadata));
+        }
         log.info("[TRANSFER-OFFER] Registered single file offer for session [{}]: {} ({} bytes, {} total chunks)",
                 sessionId, metadata.fileName(), metadata.fileSize(), metadata.totalChunks());
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "OFFER_REGISTERED", "metadata", metadata));
@@ -295,6 +299,9 @@ public class TransferController {
             throw new IllegalArgumentException("File batch cannot be null or empty.");
         }
         sessionService.setFileBatchOffer(sessionId, batch);
+        if (signalingHandler != null) {
+            signalingHandler.broadcastToSession(sessionId, new SignalMessage("BATCH_OFFER", batch));
+        }
         long totalBytes = batch.stream().mapToLong(m -> m.fileSize() != null ? m.fileSize() : 0L).sum();
         int totalChunks = batch.stream().mapToInt(m -> m.totalChunks() != null ? m.totalChunks() : 1).sum();
         log.info("[TRANSFER-BATCH] Registered batch offer for session [{}]: {} file(s), {} total bytes ({} total chunks)",

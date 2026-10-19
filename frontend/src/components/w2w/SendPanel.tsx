@@ -27,6 +27,10 @@ import {
   LightningIcon,
   CameraIcon,
   ShareNetworkIcon,
+  TelevisionSimpleIcon,
+  PlusCircleIcon,
+  PaperPlaneRightIcon,
+  ChatCircleTextIcon,
 } from '@phosphor-icons/react'
 import { Slider } from '@/components/ui/slider'
 import { detectFileTypeCategory, type FileCategoryType, calculateOptimalChunkSize } from '@/lib/fileCategories'
@@ -419,9 +423,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   const [uploadedBytes, setUploadedBytes] = useState(0)
   const [originalTotalBytes, setOriginalTotalBytes] = useState(0)
   const preparedFilesRef = useRef<PreparedFile[]>([])
+  const sessionSaltRef = useRef<string | null>(null)
   const rtcManagerRef = useRef<WebRtcPeerManager | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const isStreamingRtcRef = useRef(false)
+
+  // Live Screen Sharing & Live Notes
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null)
+  const [liveNoteText, setLiveNoteText] = useState('')
+  const [liveNoteSent, setLiveNoteSent] = useState(false)
+  const liveFileInputRef = useRef<HTMLInputElement>(null)
+  const liveFolderInputRef = useRef<HTMLInputElement>(null)
 
   // Screen WakeLock to prevent mobile browsers from sleeping during transfer
   const { acquireWakeLock, releaseWakeLock } = useWakeLock(isTransferring)
@@ -613,19 +626,21 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
   const streamPreparedFiles = async (
     targetSessionId: string,
-    preparedFiles: PreparedFile[]
+    preparedFiles: PreparedFile[],
+    baseFileIndex = 0
   ) => {
     let uploadedBytesTotal = 0
     const totalBytesAllFiles = preparedFiles.reduce(
       (acc, p) => acc + p.metadata.fileSize,
       0
     )
-    setTotalEncryptedBytes(totalBytesAllFiles)
+    setTotalEncryptedBytes((prev) => (baseFileIndex > 0 ? prev + totalBytesAllFiles : totalBytesAllFiles))
     const startTime = Date.now()
     const UPLOAD_CONCURRENCY = 6
 
-    for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
-      const prep = preparedFiles[fIdx]
+    for (let i = 0; i < preparedFiles.length; i++) {
+      const prep = preparedFiles[i]
+      const fIdx = baseFileIndex + i
       setCurrentFileName(prep.metadata.fileName)
       const totalChunks = prep.metadata.totalChunks
 
@@ -705,6 +720,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       const batchMetadata: FileMetadata[] = []
       const preparedFiles: PreparedFile[] = []
       const sessionSalt = cryptoEngine.generateSalt(16)
+      sessionSaltRef.current = sessionSalt
 
       for (const item of files) {
         setCurrentFileName(item.relativePath)
@@ -722,7 +738,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       await api.offerBatch(sessionRes.sessionId, batchMetadata)
 
       // 4. Stream Chunks to Backend Relay or WebRTC
-      await streamPreparedFiles(sessionRes.sessionId, preparedFiles)
+      await streamPreparedFiles(sessionRes.sessionId, preparedFiles, 0)
 
       // 5. Register in Audit Ledger (and persist to 7-day vault if enabled)
       await recordSentAuditLog(preparedFiles, burnAfter, persistVault)
@@ -742,7 +758,123 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     }
   }
 
+  // Live File Ingestion: Appends new files directly into active session room
+  const handleLiveAddFiles = async (newRawFiles: File[]) => {
+    if (newRawFiles.length === 0 || !sessionId || !pin) return
+
+    const salt = sessionSaltRef.current || cryptoEngine.generateSalt(16)
+    sessionSaltRef.current = salt
+
+    const newSelectedItems = mapFilesToSelectedItems(newRawFiles)
+    setFiles((prev) => [...prev, ...newSelectedItems])
+
+    setIsTransferring(true)
+    setTransferDone(false)
+    setStatusMessage(`Encrypting ${newSelectedItems.length} new file(s) for live room...`)
+    await acquireWakeLock()
+
+    try {
+      const newPrepared: PreparedFile[] = []
+      for (const item of newSelectedItems) {
+        setCurrentFileName(item.relativePath)
+        setStatusMessage(`Hashing & preparing: ${item.relativePath}`)
+        const prep = await prepareSingleFile(item, pin, burnAfter, enableCompression, salt)
+        newPrepared.push(prep)
+      }
+
+      const baseFileIndex = preparedFilesRef.current.length
+      preparedFilesRef.current = [...preparedFilesRef.current, ...newPrepared]
+
+      const updatedBatch = preparedFilesRef.current.map((p) => p.metadata)
+      const updatedTotalBytes = preparedFilesRef.current.reduce((acc, p) => acc + p.metadata.fileSize, 0)
+      setTotalEncryptedBytes(updatedTotalBytes)
+
+      // Update session batch offer via REST API
+      await api.offerBatch(sessionId, updatedBatch)
+
+      // Broadcast BATCH_OFFER via WebSocket to notify connected peers immediately
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'BATCH_OFFER', payload: updatedBatch }))
+      }
+
+      // Stream newly added chunks
+      await streamPreparedFiles(sessionId, newPrepared, baseFileIndex)
+
+      // Record sent audit log for newly added files
+      await recordSentAuditLog(newPrepared, burnAfter, persistVault)
+
+      setProgressPercent(100)
+      setIsTransferring(false)
+      setTransferDone(true)
+      setStatusMessage(`Live room updated. ${preparedFilesRef.current.length} file(s) active in room.`)
+      soundEngine.transferComplete()
+    } catch (err: unknown) {
+      console.error('Failed to add files to live room:', err)
+      setIsTransferring(false)
+      setStatusMessage(`Failed to add files: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      soundEngine.errorTone()
+    } finally {
+      await releaseWakeLock()
+    }
+  }
+
+  const handleLiveFileDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const collected = await extractDroppedItems(e.dataTransfer.items)
+      if (collected.length > 0) {
+        const rawFiles = collected.map((c) => c.file)
+        void handleLiveAddFiles(rawFiles)
+        return
+      }
+    }
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void handleLiveAddFiles(Array.from(e.dataTransfer.files))
+    }
+  }
+
+  // Live Screen Sharing Toggle
+  const toggleScreenShare = async () => {
+    const rtc = rtcManagerRef.current
+    if (!rtc) return
+
+    if (isScreenSharing) {
+      rtc.stopScreenShare()
+      setIsScreenSharing(false)
+      setScreenStream(null)
+    } else {
+      try {
+        const stream = await rtc.startScreenShare()
+        if (stream) {
+          setIsScreenSharing(true)
+          setScreenStream(stream)
+          rtc.onScreenShareStopped(() => {
+            setIsScreenSharing(false)
+            setScreenStream(null)
+          })
+        }
+      } catch (err) {
+        console.warn('Failed to start screen share:', err)
+      }
+    }
+  }
+
+  // Instant Live Note / Clipboard relay
+  const handleSendLiveNote = () => {
+    if (!liveNoteText.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+    wsRef.current.send(JSON.stringify({ type: 'TEXT_MESSAGE', payload: liveNoteText.trim() }))
+    setLiveNoteSent(true)
+    setTimeout(() => setLiveNoteSent(false), 2000)
+    setLiveNoteText('')
+  }
+
   const cancelSession = async () => {
+    if (isScreenSharing && rtcManagerRef.current) {
+      rtcManagerRef.current.stopScreenShare()
+      setIsScreenSharing(false)
+      setScreenStream(null)
+    }
+    sessionSaltRef.current = null
     await releaseWakeLock()
     cryptoEngine.clearKeyCache()
     if (sessionId) {
@@ -1183,6 +1315,176 @@ export const SendPanel: React.FC<SendPanelProps> = ({
               <span className="text-[10px] px-2 py-0.5 rounded bg-black/60 border border-current font-mono">
                 {peerConnected ? 'TUNNEL_READY' : 'LISTENING_PORT_8888'}
               </span>
+            </div>
+          </div>
+
+          {/* Live Sharing Control Deck: Dynamic File Drops & Screen Sharing */}
+          <div className="p-4 rounded-xl bg-carbon/50 border border-[#282828] space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 dashed-divider-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-mono text-xs font-bold text-white tracking-wider">
+                  LIVE SHARING ROOM
+                </span>
+                <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase">
+                  DYNAMIC P2P INGESTION
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => liveFileInputRef.current?.click()}
+                  disabled={isTransferring}
+                  className="px-3 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <PlusCircleIcon className="w-3.5 h-3.5" />
+                  <span>Add Files Live</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => liveFolderInputRef.current?.click()}
+                  disabled={isTransferring}
+                  className="px-3 py-1.5 rounded-full border border-[#333] bg-carbon text-white font-semibold text-xs hover:bg-[#282828] disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FolderSimpleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                  <span>Add Folder</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleScreenShare}
+                  className={`px-3 py-1.5 rounded-full border text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isScreenSharing
+                      ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 animate-pulse'
+                      : 'border-[#333] bg-carbon text-steel hover:text-white hover:bg-[#282828]'
+                  }`}
+                  title="Share your screen directly with the connected peer via WebRTC"
+                >
+                  <TelevisionSimpleIcon className={`w-3.5 h-3.5 ${isScreenSharing ? 'text-purple-300' : 'text-[#7089ba]'}`} weight={isScreenSharing ? 'fill' : 'regular'} />
+                  <span>{isScreenSharing ? 'Stop Screen Cast' : 'Live Screen Share'}</span>
+                </button>
+
+                <input
+                  ref={liveFileInputRef}
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      void handleLiveAddFiles(Array.from(e.target.files))
+                    }
+                  }}
+                  className="hidden"
+                />
+                <input
+                  ref={liveFolderInputRef}
+                  type="file"
+                  // @ts-expect-error non-standard webkitdirectory attribute
+                  webkitdirectory=""
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      void handleLiveAddFiles(Array.from(e.target.files))
+                    }
+                  }}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {/* Live Drop Target Area */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleLiveFileDrop}
+              onClick={() => liveFileInputRef.current?.click()}
+              className="border border-dashed border-[#2e2e2e] hover:border-[#7089ba]/60 bg-[#121212] rounded-xl p-3 text-center cursor-pointer transition-colors"
+            >
+              <div className="flex items-center justify-center gap-2 text-xs font-mono text-steel">
+                <PlusCircleIcon className="w-4 h-4 text-[#7089ba]" />
+                <span>Drop files or folders here to dynamically stream to peer</span>
+              </div>
+            </div>
+
+            {/* Live Screen Casting Active Notice */}
+            {isScreenSharing && screenStream && (
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3 text-xs font-mono">
+                <div className="flex items-center gap-2 text-purple-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
+                  <span className="font-bold">LIVE SCREEN CAST ACTIVE</span>
+                  <span className="text-[10px] text-steel">· Streaming display to receiver via WebRTC</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleScreenShare}
+                  className="px-2.5 py-1 rounded-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 text-[11px] cursor-pointer"
+                >
+                  Stop Screen Cast
+                </button>
+              </div>
+            )}
+
+            {/* Live Room Files Manifest */}
+            {files.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-mono text-steel">
+                  <span>ROOM MANIFEST ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})</span>
+                  <span>{formatBytes(totalEncryptedBytes || totalBytes)}</span>
+                </div>
+                <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+                  {files.map((item, idx) => (
+                    <div
+                      key={`${item.relativePath}-${idx}`}
+                      className="flex items-center justify-between p-2 rounded-lg bg-[#141414] border border-[#222] text-xs font-mono"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 pr-2">
+                        <FileIcon className="w-3.5 h-3.5 text-[#7089ba] shrink-0" />
+                        <span className="truncate text-white">{item.relativePath}</span>
+                        <span className="text-[10px] text-steel shrink-0">· {formatBytes(item.size)}</span>
+                      </div>
+                      <span className="text-[9px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 px-1.5 py-0.5 rounded font-bold shrink-0">
+                        ACTIVE
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Instant Live Note Relay */}
+            <div className="p-3 rounded-xl bg-[#121212] border border-[#242424] space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono text-steel">
+                <span className="flex items-center gap-1.5">
+                  <ChatCircleTextIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                  <span>Instant Live Note Relay</span>
+                </span>
+                {liveNoteSent && (
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckIcon className="w-3 h-3" /> Relayed to Peer
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={liveNoteText}
+                  onChange={(e) => setLiveNoteText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSendLiveNote()
+                  }}
+                  placeholder="Type note or paste text to relay live to receiver..."
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-[#0a0a0a] border border-[#282828] text-xs font-mono text-white placeholder-steel/60 focus:outline-none focus:border-[#7089ba]/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendLiveNote}
+                  disabled={!liveNoteText.trim()}
+                  className="px-3 py-1.5 rounded-lg bg-[#7089ba]/20 hover:bg-[#7089ba]/30 border border-[#7089ba]/40 text-[#7089ba] text-xs font-mono font-semibold transition-colors disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                >
+                  <PaperPlaneRightIcon className="w-3.5 h-3.5" />
+                  <span>Send</span>
+                </button>
+              </div>
             </div>
           </div>
 
