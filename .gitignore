@@ -121,5 +121,8 @@ target/*!/target/
 !/target/
 !/temp-w2w-encrypted/
 /target/
-
-*.md
+# Documentation markdown files
+!README.md
+!DEPLOYMENT.md
+!USER_GUIDE.md
+!DESIGN.md
