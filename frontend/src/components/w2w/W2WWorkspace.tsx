@@ -100,7 +100,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
     <section id={id} className="w-full max-w-300 mx-auto px-3 sm:px-6 py-4 sm:py-8 scroll-mt-20 sm:scroll-mt-24">
       {/* Container with Dashed Containment & Cyber-Grid */}
       <div className="dashed-container rounded-2xl bg-void cyber-grid p-3.5 sm:p-10 space-y-6 sm:space-y-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-stipple-grid opacity-35 pointer-events-none" />
+        <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
         {/* Top Header: Title & Utility Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

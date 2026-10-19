@@ -11,7 +11,7 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
   return (
     <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       {/* Stippled dot grid matrix background */}
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
       <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -156,7 +156,7 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
 export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
     <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       <div className="absolute top-3 left-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         CIPHER_STREAM: ACTIVE · AES-256-GCM
@@ -253,7 +253,7 @@ export const CrtMonitorCadIllustration: React.FC<CadIllustrationProps> = ({ clas
 export const RocketLaunchCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
     <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity">
         THRUST: P2P_WEBRTC_STREAM
@@ -395,7 +395,7 @@ export const FastStreamSinkCadIllustration: React.FC<CadIllustrationProps> = ({ 
   return (
     <div className={`relative w-full aspect-4/3 max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       {/* Stippled dot grid background */}
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
       <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -524,7 +524,7 @@ export const EphemeralDestructCadIllustration: React.FC<CadIllustrationProps> = 
   return (
     <div className={`relative w-full aspect-4/3 max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       {/* Stippled dot grid background */}
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
       <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -627,7 +627,7 @@ export const SubnetRadarCadIllustration: React.FC<CadIllustrationProps> = ({ cla
   return (
     <div className={`relative w-full aspect-4/3 max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       {/* Stippled dot grid background */}
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
       <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -743,7 +743,7 @@ export const CryptographicLedgerCadIllustration: React.FC<CadIllustrationProps> 
   return (
     <div className={`relative w-full aspect-4/3 max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
       {/* Stippled dot grid background */}
-      <div className="absolute inset-0 bg-stipple-grid opacity-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
       {/* Hover technical blueprint dimension overlay */}
       <div className="absolute top-3 right-3 font-mono text-[9px] text-[#7089ba] bg-void/80 px-2 py-0.5 rounded border border-[#7089ba]/20 opacity-0 group-hover:opacity-100 transition-opacity z-20">

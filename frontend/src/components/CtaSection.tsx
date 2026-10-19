@@ -9,7 +9,7 @@ export const CtaSection: React.FC<CtaSectionProps> = ({ onOpenDemo }) => {
   return (
     <section className="relative w-full max-w-300 mx-auto px-6 py-28 dashed-container my-16 rounded-2xl bg-void overflow-hidden text-center">
       {/* Stippled dot grid matrix background */}
-      <div className="absolute inset-0 bg-stipple-dense opacity-50 pointer-events-none" />
+      <div className="absolute inset-0 bg-stipple-dense opacity-20 pointer-events-none" />
 
       {/* Central subtle periwinkle wash glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-75 bg-periwinkle/10 blur-[90px] rounded-full pointer-events-none" />

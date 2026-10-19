@@ -1030,7 +1030,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
           onDrop={handleFileDrop}
           className="dashed-container p-4 sm:p-12 rounded-2xl bg-carbon hover:bg-carbon-hover transition-colors text-center cursor-pointer relative group"
         >
-          <div className="absolute inset-0 bg-stipple-grid opacity-60 pointer-events-none rounded-2xl" />
+          <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 flex flex-col items-center space-y-4">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-surface-alt border border-carbon flex items-center justify-center text-periwinkle group-hover:scale-105 transition-transform">
@@ -1105,7 +1105,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       {/* Selected Files Staging List */}
       {files.length > 0 && !pin && (
         <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-carbon relative space-y-5">
-          <div className="absolute inset-0 bg-stipple-grid opacity-60 pointer-events-none rounded-2xl" />
+          <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
 
           <div className="relative z-10 space-y-5">
             {/* Header */}
