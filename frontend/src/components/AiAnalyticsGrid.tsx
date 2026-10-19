@@ -36,10 +36,10 @@ export const AiAnalyticsGrid: React.FC = () => {
       {/* Centered Heading */}
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-steel flex items-center justify-center gap-1.5">
-          <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
+          <ShieldCheckIcon className="w-4 h-4 text-periwinkle" />
           <span>SYSTEM ARCHITECTURE</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-paper tracking-tight leading-tight font-sans">
           100% offline, zero-cloud peer data transit.
         </h2>
       </div>
@@ -49,12 +49,12 @@ export const AiAnalyticsGrid: React.FC = () => {
         {cards.map((card) => (
           <div
             key={card.title}
-            className="flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-[#141414] border border-carbon hover:border-[#2a2a2a] transition-all group"
+            className="flex flex-col items-center text-center p-6 sm:p-8 rounded-2xl bg-carbon border border-carbon hover:border-steel/40 transition-all group"
           >
             <div className="w-full mb-6 flex justify-center group-hover:scale-[1.02] transition-transform duration-300">
               {card.illustration}
             </div>
-            <h3 className="text-lg sm:text-xl font-bold text-white mb-2 font-sans">
+            <h3 className="text-lg sm:text-xl font-bold text-paper mb-2 font-sans">
               {card.title}
             </h3>
             <p className="text-sm text-steel max-w-sm leading-relaxed">

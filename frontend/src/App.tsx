@@ -82,7 +82,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-[#7089ba]/30 selection:text-white relative">
+    <div className="min-h-screen bg-void text-paper selection:bg-[#7089ba]/30 selection:text-paper relative transition-colors duration-200">
       {/* Navigation */}
       <Navigation
         currentPage={currentPage}

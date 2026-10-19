@@ -179,12 +179,12 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm sm:max-w-md border border-carbon bg-[#141414] text-white p-4 sm:p-6 rounded-2xl">
+      <DialogContent className="max-w-sm sm:max-w-md border border-carbon bg-carbon text-paper p-4 sm:p-6 rounded-2xl">
         <DialogHeader className="text-center sm:text-center">
-          <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20 mb-2 font-bold">
+          <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/20 mb-2 font-bold">
             OPTICAL SCANNER & OFFLINE CONNECT
           </div>
-          <DialogTitle className="text-xl font-bold font-sans">
+          <DialogTitle className="text-xl font-bold font-sans text-paper">
             Direct Peer QR Scanner
           </DialogTitle>
           <DialogDescription className="text-xs text-steel">
@@ -193,14 +193,14 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         </DialogHeader>
 
         {/* Tab Switcher */}
-        <div className="flex items-center p-1 rounded-xl bg-[#0a0a0a] border border-[#222222] my-2">
+        <div className="flex items-center p-1 rounded-xl bg-carbon/80 border border-carbon my-2">
           <button
             type="button"
             onClick={() => setActiveTab('claim')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'claim'
-                ? 'bg-white text-black font-bold shadow'
-                : 'text-steel hover:text-white'
+                ? 'bg-paper text-void font-bold shadow'
+                : 'text-steel hover:text-paper'
             }`}
           >
             <QrIcon className="w-3.5 h-3.5" />
@@ -211,8 +211,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
             onClick={() => setActiveTab('wifi')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'wifi'
-                ? 'bg-white text-black font-semibold shadow'
-                : 'text-steel hover:text-white'
+                ? 'bg-paper text-void font-semibold shadow'
+                : 'text-steel hover:text-paper'
             }`}
           >
             <WifiHighIcon className="w-3.5 h-3.5" />
@@ -237,7 +237,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
           {/* White container for maximum optical contrast */}
-          <div className="p-3 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-47.5 min-h-47.5">
+          <div className="p-3 bg-white rounded-xl shadow-2xl relative z-10 flex items-center justify-center min-w-47.5 min-h-47.5" data-no-invert>
             <QRCodeDisplay
               value={activePayload}
               size={180}
@@ -248,7 +248,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           {/* Context Explanations */}
           {activeTab === 'claim' ? (
             <>
-              <div className="mt-3 text-[10px] font-mono text-[#7089ba] max-w-70 truncate text-center bg-[#141414] px-2.5 py-1 rounded-md border border-[#222]">
+              <div className="mt-3 text-[10px] font-mono text-periwinkle max-w-70 truncate text-center bg-carbon px-2.5 py-1 rounded-md border border-carbon">
                 {url}
               </div>
               <div className="mt-2.5 pt-2.5 border-t border-carbon w-full flex items-center justify-between text-xs">

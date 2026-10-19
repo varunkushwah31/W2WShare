@@ -113,13 +113,13 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md sm:max-w-lg border border-carbon bg-[#141414] text-white p-4 sm:p-6 rounded-2xl cyber-grid shadow-2xl">
+      <DialogContent className="max-w-md sm:max-w-lg border border-carbon bg-carbon text-paper p-4 sm:p-6 rounded-2xl cyber-grid shadow-2xl">
         <DialogHeader className="text-center sm:text-center">
-          <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-0.5 rounded-full border border-[#7089ba]/20 mb-2 font-bold inline-flex items-center gap-1.5">
-            <DeviceMobileIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+          <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-3 py-0.5 rounded-full border border-periwinkle/20 mb-2 font-bold inline-flex items-center gap-1.5">
+            <DeviceMobileIcon className="w-3.5 h-3.5 text-periwinkle" />
             <span>CROSS-PLATFORM MOBILE COMPANION</span>
           </div>
-          <DialogTitle className="text-2xl font-extrabold font-sans text-white">
+          <DialogTitle className="text-2xl font-extrabold font-sans text-paper">
             W2W Mobile Companion
           </DialogTitle>
           <DialogDescription className="text-xs text-steel">
@@ -128,14 +128,14 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
         </DialogHeader>
 
         {/* Tab Selection */}
-        <div className="flex items-center p-1 rounded-xl bg-[#181818] border border-[#282828] my-2">
+        <div className="flex items-center p-1 rounded-xl bg-carbon/80 border border-carbon my-2">
           <button
             type="button"
             onClick={() => setActiveTab('qr')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'qr'
-                ? 'bg-white text-black font-bold shadow-sm'
-                : 'text-steel hover:text-white'
+                ? 'bg-paper text-void font-bold shadow-sm'
+                : 'text-steel hover:text-paper'
             }`}
           >
             <QrCodeIcon className="w-3.5 h-3.5" />
@@ -146,8 +146,8 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
             onClick={() => setActiveTab('features')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'features'
-                ? 'bg-white text-black font-bold shadow-sm'
-                : 'text-steel hover:text-white'
+                ? 'bg-paper text-void font-bold shadow-sm'
+                : 'text-steel hover:text-paper'
             }`}
           >
             <LightningIcon className="w-3.5 h-3.5" />
@@ -158,8 +158,8 @@ export const MobileCompanionModal: React.FC<MobileCompanionModalProps> = ({
             onClick={() => setActiveTab('hotspot')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
               activeTab === 'hotspot'
-                ? 'bg-white text-black font-bold shadow-sm'
-                : 'text-steel hover:text-white'
+                ? 'bg-paper text-void font-bold shadow-sm'
+                : 'text-steel hover:text-paper'
             }`}
           >
             <WifiHighIcon className="w-3.5 h-3.5" />

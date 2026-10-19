@@ -801,15 +801,15 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[94vw] max-w-5xl max-h-[90vh] overflow-y-auto border border-carbon bg-[#121212] text-white p-6 sm:p-8 rounded-2xl shadow-2xl space-y-5">
+      <DialogContent className="w-[94vw] max-w-5xl max-h-[90vh] overflow-y-auto border border-carbon bg-carbon text-paper p-6 sm:p-8 rounded-2xl shadow-2xl space-y-5">
         <DialogHeader className="space-y-1.5">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20 font-bold">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/20 font-bold">
                 OFFLINE PROTOCOL SELECTOR
               </span>
-              <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono text-[10px] text-emerald-500 flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>100% Offline • Zero Internet Needed</span>
               </span>
             </div>
@@ -817,7 +817,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               AES-256-GCM Hardware Encrypted Mesh
             </span>
           </div>
-          <DialogTitle className="text-2xl sm:text-3xl font-extrabold font-sans text-white tracking-tight">
+          <DialogTitle className="text-2xl sm:text-3xl font-extrabold font-sans text-paper tracking-tight">
             Offline Sharing Methods
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-steel">
@@ -832,25 +832,25 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
             onClick={() => setMode('hotspot')}
             className={`relative flex items-center gap-3.5 p-4 rounded-xl text-left transition-all cursor-pointer border ${
               mode === 'hotspot'
-                ? 'bg-[#181c26] border-[#7089ba] shadow-[0_0_20px_rgba(112,137,186,0.15)] ring-1 ring-[#7089ba]/40'
-                : 'bg-[#0f0f0f] border-[#222222] text-steel hover:border-[#333333] hover:text-white hover:bg-[#151515]'
+                ? 'bg-periwinkle/10 border-periwinkle ring-1 ring-periwinkle/40 shadow-sm'
+                : 'bg-void border-carbon text-steel hover:border-steel hover:text-paper hover:bg-carbon-hover'
             }`}
           >
             <div
               className={`p-2.5 rounded-lg shrink-0 transition-colors ${
                 mode === 'hotspot'
-                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                  : 'bg-[#1a1a1a] text-steel border border-[#262626]'
+                  ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                  : 'bg-carbon text-steel border border-carbon'
               }`}
             >
               <LightningIcon className="w-5 h-5" weight={mode === 'hotspot' ? 'fill' : 'regular'} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className={`font-sans font-bold text-sm sm:text-base ${mode === 'hotspot' ? 'text-white' : 'text-ash'}`}>
+                <span className={`font-sans font-bold text-sm sm:text-base ${mode === 'hotspot' ? 'text-paper' : 'text-ash'}`}>
                   Method 1: Personal Hotspot
                 </span>
-                <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold tracking-wider">
+                <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 font-bold tracking-wider">
                   RECOMMENDED
                 </span>
               </div>
@@ -859,7 +859,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               </p>
             </div>
             {mode === 'hotspot' && (
-              <div className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-[#7089ba] shadow-[0_0_8px_#7089ba]" />
+              <div className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-periwinkle shadow-[0_0_8px_currentColor]" />
             )}
           </button>
 
@@ -868,22 +868,22 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
             onClick={() => setMode('router-lan')}
             className={`relative flex items-center gap-3.5 p-4 rounded-xl text-left transition-all cursor-pointer border ${
               mode === 'router-lan'
-                ? 'bg-[#181c26] border-[#7089ba] shadow-[0_0_20px_rgba(112,137,186,0.15)] ring-1 ring-[#7089ba]/40'
-                : 'bg-[#0f0f0f] border-[#222222] text-steel hover:border-[#333333] hover:text-white hover:bg-[#151515]'
+                ? 'bg-periwinkle/10 border-periwinkle ring-1 ring-periwinkle/40 shadow-sm'
+                : 'bg-void border-carbon text-steel hover:border-steel hover:text-paper hover:bg-carbon-hover'
             }`}
           >
             <div
               className={`p-2.5 rounded-lg shrink-0 transition-colors ${
                 mode === 'router-lan'
-                  ? 'bg-[#7089ba]/15 text-[#7089ba] border border-[#7089ba]/30'
-                  : 'bg-[#1a1a1a] text-steel border border-[#262626]'
+                  ? 'bg-periwinkle/15 text-periwinkle border border-periwinkle/30'
+                  : 'bg-carbon text-steel border border-carbon'
               }`}
             >
               <WifiHighIcon className="w-5 h-5" weight={mode === 'router-lan' ? 'fill' : 'regular'} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className={`font-sans font-bold text-sm sm:text-base ${mode === 'router-lan' ? 'text-white' : 'text-ash'}`}>
+                <span className={`font-sans font-bold text-sm sm:text-base ${mode === 'router-lan' ? 'text-paper' : 'text-ash'}`}>
                   Method 2: Wi-Fi Router / LAN
                 </span>
               </div>
@@ -892,7 +892,7 @@ export const OfflineNetworkModal: React.FC<OfflineNetworkModalProps> = ({
               </p>
             </div>
             {mode === 'router-lan' && (
-              <div className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-[#7089ba] shadow-[0_0_8px_#7089ba]" />
+              <div className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-periwinkle shadow-[0_0_8px_currentColor]" />
             )}
           </button>
         </div>

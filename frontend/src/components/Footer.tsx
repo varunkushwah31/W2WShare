@@ -16,16 +16,16 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
           <div className="md:col-span-5 space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="w-6 h-6 flex items-center justify-center relative">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-paper">
                   <path
                     d="M4 4h5v16H4V4zm11 0h5v16h-5V4z"
                     stroke="currentColor"
                     strokeWidth="2"
                   />
-                  <circle cx="12" cy="12" r="2.5" fill="#7089ba" />
+                  <circle cx="12" cy="12" r="2.5" fill="currentColor" className="text-periwinkle" />
                 </svg>
               </div>
-              <span className="font-bold text-lg tracking-tight text-white font-sans">
+              <span className="font-bold text-lg tracking-tight text-paper font-sans">
                 W2W Share
               </span>
             </div>
@@ -35,8 +35,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
             </p>
 
             {/* System Status */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#141414] border border-[#282828] text-[10px] font-mono text-steel">
-              <span className="w-2 h-2 rounded-full bg-[#7089ba] animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-carbon border border-carbon text-[10px] font-mono text-steel">
+              <span className="w-2 h-2 rounded-full bg-periwinkle animate-pulse" />
               <span>ALL SUBNET SERVICES OPERATIONAL · v1.0.0</span>
             </div>
           </div>
@@ -45,27 +45,27 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
           <div className="md:col-span-7 grid grid-cols-3 gap-6">
             {/* Product */}
             <div className="space-y-3">
-              <div className="font-mono text-xs uppercase tracking-wider text-white">
+              <div className="font-mono text-xs uppercase tracking-wider text-paper">
                 Product
               </div>
               <ul className="space-y-2 text-xs text-steel">
                 <li>
-                  <button onClick={() => onNavigate('home')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('home')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Transfer Studio
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('guide')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('guide')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     How to Use & Features
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('security')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('security')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Security White paper
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('changelog')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('changelog')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Changelog
                   </button>
                 </li>
@@ -74,22 +74,22 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
 
             {/* Engineering */}
             <div className="space-y-3">
-              <div className="font-mono text-xs uppercase tracking-wider text-white">
+              <div className="font-mono text-xs uppercase tracking-wider text-paper">
                 Engineering
               </div>
               <ul className="space-y-2 text-xs text-steel">
                 <li>
-                  <button onClick={() => onNavigate('blog')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('blog')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Engineering Blog
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('security')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('security')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Threat Model & Primitives
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onNavigate('changelog')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onNavigate('changelog')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Release Blueprints
                   </button>
                 </li>
@@ -98,27 +98,27 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
 
             {/* Legal & Compliance */}
             <div className="space-y-3">
-              <div className="font-mono text-xs uppercase tracking-wider text-white">
+              <div className="font-mono text-xs uppercase tracking-wider text-paper">
                 Legal
               </div>
               <ul className="space-y-2 text-xs text-steel">
                 <li>
-                  <button onClick={() => onOpenLegal('privacy')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onOpenLegal('privacy')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Privacy Policy
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onOpenLegal('terms')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onOpenLegal('terms')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Terms of Service
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onOpenLegal('security')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onOpenLegal('security')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Security Standards
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onOpenLegal('compliance')} className="hover:text-white transition-colors cursor-pointer text-left">
+                  <button onClick={() => onOpenLegal('compliance')} className="hover:text-paper transition-colors cursor-pointer text-left">
                     Compliance & SOC 2
                   </button>
                 </li>
@@ -132,7 +132,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenLegal }) => {
           <div>© 2026 W2W Share Inc. All rights reserved. 100% Offline & Open Architecture.</div>
           <div className="flex items-center gap-6">
             <span>SPEC: 1.0.0</span>
-            <span className="text-[#7089ba]">AES-256-GCM</span>
+            <span className="text-periwinkle">AES-256-GCM</span>
           </div>
         </div>
       </div>

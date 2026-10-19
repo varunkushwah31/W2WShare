@@ -38,7 +38,7 @@ export const FeatureSplitPanel: React.FC<FeatureSplitPanelProps> = ({
             </div>
           )}
 
-          <h3 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
+          <h3 className="text-3xl sm:text-4xl font-extrabold text-paper tracking-tight leading-tight font-sans">
             {heading}
           </h3>
 
@@ -46,11 +46,11 @@ export const FeatureSplitPanel: React.FC<FeatureSplitPanelProps> = ({
             {description}
           </p>
 
-          {/* Checklist with Periwinkle #7089ba checkmarks */}
+          {/* Checklist with Periwinkle checkmarks */}
           <ul className="space-y-3.5 pt-2">
             {items.map((item, index) => (
-              <li key={index} className="flex items-start gap-3 text-sm text-white">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[#7089ba]">
+              <li key={index} className="flex items-start gap-3 text-sm text-paper">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-periwinkle">
                   <CheckIcon className="w-4 h-4" weight="bold" />
                 </div>
                 <span className="leading-snug text-paper font-normal">{item}</span>

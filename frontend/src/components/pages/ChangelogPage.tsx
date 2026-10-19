@@ -79,26 +79,26 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-275 mx-auto space-y-12 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-void text-paper pt-28 pb-20 px-6 max-w-275 mx-auto space-y-12 animate-in fade-in duration-300">
       {/* Top Breadcrumb Header */}
       <div className="flex items-center justify-between border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-carbon bg-carbon text-xs font-mono text-paper hover:border-paper transition-all cursor-pointer"
         >
-          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-periwinkle" />
           <span>Return to Studio</span>
         </button>
 
-        <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20">
+        <div className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-3 py-1 rounded-full border border-periwinkle/20">
           SYSTEM_ARCHITECTURAL_CHANGELOG
         </div>
       </div>
 
       {/* Page Title */}
       <div className="space-y-3">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-paper tracking-tight font-sans">
           W2W Share System Updates
         </h1>
         <p className="text-sm text-steel max-w-2xl leading-relaxed">
@@ -112,17 +112,17 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
           <div key={rel.version} className="pt-10 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-xl font-bold text-white bg-[#141414] px-3.5 py-1 rounded-xl border border-[#282828]">
+                <span className="font-mono text-xl font-bold text-paper bg-carbon px-3.5 py-1 rounded-xl border border-carbon">
                   {rel.version}
                 </span>
-                <span className="font-mono text-[10px] text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20">
+                <span className="font-mono text-[10px] text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/20">
                   {rel.tag}
                 </span>
               </div>
               <span className="font-mono text-xs text-steel">{rel.date}</span>
             </div>
 
-            <h3 className="text-xl font-bold text-white font-sans">
+            <h3 className="text-xl font-bold text-paper font-sans">
               {rel.headline}
             </h3>
 
@@ -130,16 +130,16 @@ export const ChangelogPage: React.FC<ChangelogPageProps> = ({ onBack }) => {
               {rel.items.map((item) => (
                 <div
                   key={item.title}
-                  className="p-5 rounded-2xl bg-[#141414] border border-carbon space-y-2.5 hover:border-[#2a2a2a] transition-all"
+                  className="p-5 rounded-2xl bg-carbon border border-carbon space-y-2.5 hover:border-steel/40 transition-all"
                 >
-                  <div className="flex items-center gap-2 font-mono text-[10px] text-[#7089ba]">
+                  <div className="flex items-center gap-2 font-mono text-[10px] text-periwinkle">
                     {item.type === 'SECURITY' && <ShieldCheckIcon className="w-3.5 h-3.5" />}
                     {item.type === 'PERFORMANCE' && <CpuIcon className="w-3.5 h-3.5" />}
                     {item.type === 'UI/UX BLUEPRINT' && <SparkleIcon className="w-3.5 h-3.5" />}
                     {item.type === 'PROTOCOL' && <GitCommitIcon className="w-3.5 h-3.5" />}
                     <span>{item.type}</span>
                   </div>
-                  <h4 className="text-sm font-semibold text-white">{item.title}</h4>
+                  <h4 className="text-sm font-semibold text-paper">{item.title}</h4>
                   <p className="text-xs text-steel leading-relaxed">{item.desc}</p>
                 </div>
               ))}

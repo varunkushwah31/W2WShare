@@ -40,19 +40,19 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-262.5 mx-auto space-y-12 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-void text-paper pt-28 pb-20 px-6 max-w-262.5 mx-auto space-y-12 animate-in fade-in duration-300">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-carbon bg-carbon text-xs font-mono text-paper hover:border-paper transition-all cursor-pointer"
         >
-          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-periwinkle" />
           <span>Return to Studio</span>
         </button>
 
-        <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
+        <div className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-3 py-1 rounded-full border border-periwinkle/20 flex items-center gap-1.5">
           <BookOpenIcon className="w-3.5 h-3.5" />
           <span>ENGINEERING DISPATCHES</span>
         </div>
@@ -60,7 +60,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
 
       {/* Hero */}
       <div className="space-y-3 max-w-2xl">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-paper tracking-tight font-sans">
           W2W Dispatches
         </h1>
         <p className="text-sm text-steel leading-relaxed">
@@ -73,10 +73,10 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
         {articles.map((art) => (
           <article
             key={art.id}
-            className="p-7 rounded-2xl bg-[#141414] border border-carbon hover:border-[#2a2a2a] transition-all space-y-4 group cursor-default"
+            className="p-7 rounded-2xl bg-carbon border border-carbon hover:border-steel/40 transition-all space-y-4 group cursor-default"
           >
             <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-steel">
-              <span className="inline-flex items-center gap-1 text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20">
+              <span className="inline-flex items-center gap-1 text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/20">
                 <TagIcon className="w-3 h-3" />
                 {art.tag}
               </span>
@@ -89,7 +89,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
               </span>
             </div>
 
-            <h2 className="text-xl font-bold text-white font-sans group-hover:text-[#7089ba] transition-colors">
+            <h2 className="text-xl font-bold text-paper font-sans group-hover:text-periwinkle transition-colors">
               {art.title}
             </h2>
 
@@ -98,7 +98,7 @@ export const EngineeringBlogPage: React.FC<EngineeringBlogPageProps> = ({ onBack
             </p>
 
             <div className="pt-2 flex items-center gap-2 text-xs font-mono text-ash">
-              <UserIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+              <UserIcon className="w-3.5 h-3.5 text-periwinkle" />
               <span>{art.author}</span>
             </div>
           </article>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5'><path d='M7 4H4v16h3M17 4h3v16h-3M9 8h6M9 12h6M9 16h6'/></svg>" />
@@ -7,6 +7,22 @@
     <title>W2W Share - Enterprise Offline Encrypted Peer Sharing</title>
     <meta name="description" content="W2W Share: Blueprint Drafting Wireframe - 100% Offline, Zero Internet Required, Subnet Peer Radar, AES-256-GCM End-to-End Encryption, WebRTC Direct P2P." />
     
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('w2w_theme');
+          var isDark = saved ? saved === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Mobile PWA & Native App Meta Tags -->
     <meta name="theme-color" content="#000000" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -21,7 +37,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-black text-white antialiased selection:bg-[#7089ba]/30 selection:text-white">
+  <body class="bg-void text-paper antialiased selection:bg-[#7089ba]/30 selection:text-paper">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

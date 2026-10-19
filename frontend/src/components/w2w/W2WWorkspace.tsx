@@ -104,14 +104,14 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
+              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-2 py-0.5 rounded-full border border-periwinkle/20">
                 OFFLINE PEER STUDIO
               </span>
               <span className="font-mono text-[9px] sm:text-[10px] text-steel">
                 SPEC: 1.0.0 · AES-256-GCM
               </span>
             </div>
-            <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+            <h2 className="text-xl sm:text-3xl font-extrabold text-paper tracking-tight font-sans">
               Encrypted Peer Sharing Terminal
             </h2>
           </div>
@@ -121,26 +121,26 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
             <button
               type="button"
               onClick={() => setIsNetworkModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#7089ba]/50 text-[10px] sm:text-[11px] font-mono text-[#aaa] transition-all cursor-pointer shadow-sm truncate max-w-full"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-carbon hover:bg-carbon-hover border border-carbon hover:border-periwinkle/50 text-[10px] sm:text-[11px] font-mono text-steel transition-all cursor-pointer shadow-sm truncate max-w-full"
               title="Click to configure offline sharing: Method 1 (Smartphone Personal Hotspot) or Method 2 (Standard Wi-Fi Router / LAN)"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="text-white font-semibold truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="text-paper font-semibold truncate">
                 {getSharingHubLabel(selectedInterface)}
               </span>
-              <span className="text-[#7089ba] ml-0.5 shrink-0">Config</span>
+              <span className="text-periwinkle ml-0.5 shrink-0">Config</span>
             </button>
 
             {onOpenMobileApp && (
               <button
                 type="button"
                 onClick={onOpenMobileApp}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#7089ba]/10 hover:bg-[#7089ba]/20 border border-[#7089ba]/30 hover:border-[#7089ba]/60 text-[10px] sm:text-[11px] font-mono text-[#7089ba] transition-all cursor-pointer shadow-sm shrink-0"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-periwinkle/10 hover:bg-periwinkle/20 border border-periwinkle/30 hover:border-periwinkle/60 text-[10px] sm:text-[11px] font-mono text-periwinkle transition-all cursor-pointer shadow-sm shrink-0"
                 title="Open Mobile Companion QR & PWA Setup"
               >
-                <DeviceMobileIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+                <DeviceMobileIcon className="w-3.5 h-3.5 text-periwinkle" />
                 <span className="font-semibold">Mobile App</span>
-                <span className="text-[9px] bg-[#7089ba]/20 px-1.5 py-0.2 rounded text-[#7089ba] font-bold">PWA</span>
+                <span className="text-[9px] bg-periwinkle/20 px-1.5 py-0.2 rounded text-periwinkle font-bold">PWA</span>
               </button>
             )}
           </div>
@@ -148,7 +148,7 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
 
         {/* Dedicated Horizontal Tab Navigation Dock */}
         <div className="border-t border-b border-carbon/80 py-2 sm:py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center p-1 rounded-xl bg-[#141414] border border-[#242424] flex-nowrap overflow-x-auto no-scrollbar gap-1 max-w-full touch-pan-x">
+          <div className="flex items-center p-1 rounded-xl bg-carbon/60 border border-carbon flex-nowrap overflow-x-auto no-scrollbar gap-1 max-w-full touch-pan-x">
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -156,8 +156,8 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
                 onClick={() => setActiveTab(t.id)}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeTab === t.id
-                    ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-steel hover:text-white hover:bg-[#1a1a1a]'
+                    ? 'bg-paper text-void font-semibold shadow-sm'
+                    : 'text-steel hover:text-paper hover:bg-carbon-hover'
                 }`}
               >
                 {t.icon}
@@ -168,10 +168,10 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
 
           {/* Telemetry Status Readout */}
           <div className="hidden md:flex items-center gap-2 font-mono text-[11px] text-steel shrink-0 pr-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>RAM_DIRECT</span>
-            <span className="text-[#333]">·</span>
-            <span className="text-[#7089ba]">ZERO-CLOUD</span>
+            <span className="text-steel/50">·</span>
+            <span className="text-periwinkle">ZERO-CLOUD</span>
           </div>
         </div>
 

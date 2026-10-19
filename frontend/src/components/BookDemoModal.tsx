@@ -41,16 +41,16 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md border border-carbon bg-[#141414] text-white p-6 sm:p-8 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-md border border-carbon bg-carbon text-paper p-6 sm:p-8 rounded-2xl shadow-2xl">
         <DialogHeader className="space-y-2 mb-2 text-left">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/25 flex items-center gap-1 font-medium">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/25 flex items-center gap-1 font-medium">
               <ShieldCheckIcon className="w-3.5 h-3.5" />
               <span>INSTANT DECRYPT</span>
             </span>
           </div>
 
-          <DialogTitle className="text-2xl font-bold tracking-tight text-white font-sans">
+          <DialogTitle className="text-2xl font-bold tracking-tight text-paper font-sans">
             Claim Transfer by PIN
           </DialogTitle>
           <DialogDescription className="text-xs text-steel leading-relaxed">
@@ -64,7 +64,7 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
               6-Digit Claim PIN
             </label>
             <div className="relative flex items-center">
-              <KeyIcon className="w-5 h-5 text-[#7089ba] absolute left-3.5 pointer-events-none" />
+              <KeyIcon className="w-5 h-5 text-periwinkle absolute left-3.5 pointer-events-none" />
               <input
                 id="claim-pin-input"
                 type="text"
@@ -76,28 +76,28 @@ export const BookDemoModal: React.FC<BookDemoModalProps> = ({
                 placeholder="e.g. 849201"
                 value={pinValue}
                 onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
-                className="w-full py-3 pl-11 pr-4 bg-void border border-[#2a2a2a] focus:outline-none rounded-xl text-base font-mono tracking-[0.2em] text-white transition-all"
+                className="w-full py-3 pl-11 pr-4 bg-void border border-carbon focus:outline-none focus:border-periwinkle rounded-xl text-base font-mono tracking-[0.2em] text-paper transition-all"
               />
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-void border border-[#202020] text-xs font-mono text-steel flex items-center justify-between">
+          <div className="p-3.5 rounded-xl bg-void border border-carbon text-xs font-mono text-steel flex items-center justify-between">
             <span>CRYPTO CIPHER:</span>
-            <span className="text-white font-medium">AES-256-GCM / PBKDF2</span>
+            <span className="text-paper font-medium">AES-256-GCM / PBKDF2</span>
           </div>
 
           {/* Submit Action Pill Button */}
           <button
             type="submit"
             disabled={pinValue.trim().length !== 6}
-            className="w-full py-3 px-4 mt-2 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all group shadow-md"
+            className="w-full py-3 px-4 mt-2 rounded-full bg-paper text-void font-semibold text-xs hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all group shadow-md cursor-pointer"
           >
             <span>Claim & Decrypt Files</span>
             <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </button>
 
           <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-steel pt-1">
-            <LockKeyIcon className="w-3 h-3 text-[#7089ba]" />
+            <LockKeyIcon className="w-3 h-3 text-periwinkle" />
             <span>100% OFFLINE · ZERO INTERNET REQUIRED</span>
           </div>
         </form>

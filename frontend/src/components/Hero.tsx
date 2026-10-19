@@ -55,21 +55,21 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(750px circle at var(--mouse-x) var(--mouse-y), rgba(112, 137, 186, 0.22) 0%, rgba(35, 48, 75, 0.12) 35%, rgba(18, 18, 18, 0.6) 60%, rgba(0, 0, 0, 0.95) 85%)`,
+          background: 'var(--hero-mouse-spotlight)',
         }}
       />
       {/* Concentrated periwinkle desk lamp core glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(280px circle at var(--mouse-x) var(--mouse-y), rgba(112, 137, 186, 0.25) 0%, rgba(112, 137, 186, 0.08) 50%, transparent 80%)`,
+          background: 'var(--hero-mouse-glow)',
         }}
       />
 
       {/* Floating drafting coordinate watermark */}
       <div className="hidden lg:block absolute bottom-6 left-8 font-mono text-[10px] text-graphite select-none pointer-events-none z-20">
-        <div>DRAFTING TABLE: NEGATIVE_SPACE</div>
-        <div className="text-[#7089ba]">
+        <div>DRAFTING TABLE: ARCHITECTURAL_SPACE</div>
+        <div className="text-periwinkle">
           POS_X: {coords.x}mm · POS_Y: {coords.y}mm · SCALE: 1.00
         </div>
       </div>
@@ -77,41 +77,41 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
       {/* Main Hero Content Stack (Vertically centered in available viewport space) */}
       <div className="relative z-10 w-full max-w-210 mx-auto px-4 sm:px-6 text-center my-auto flex flex-col items-center animate-in fade-in duration-700 py-2 sm:py-6">
         {/* Eyebrow Chip with live beacon */}
-        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-0.5 sm:py-1 rounded-full border border-white/20 bg-carbon/80 backdrop-blur-md mb-3 sm:mb-6 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#7089ba] animate-ping" />
-          <span className="font-mono text-[8.5px] sm:text-[9px] uppercase tracking-[0.04em] text-white font-medium">
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-0.5 sm:py-1 rounded-full border border-carbon bg-carbon/80 backdrop-blur-md mb-3 sm:mb-6 hover:border-steel transition-all cursor-pointer group shadow-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-periwinkle animate-ping" />
+          <span className="font-mono text-[8.5px] sm:text-[9px] uppercase tracking-[0.04em] text-paper font-medium">
             W2W SHARE 1.0 · 100% OFFLINE E2EE
           </span>
-          <div className="w-3.5 h-3.5 rounded-full bg-white text-black flex items-center justify-center group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+          <div className="w-3.5 h-3.5 rounded-full bg-paper text-void flex items-center justify-center group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
             <ArrowUpRightIcon className="w-2.5 h-2.5" weight="bold" />
           </div>
         </div>
 
         {/* Display Headline (Raveo 1000 architectural weight) */}
-        <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-[68px] font-extrabold text-white tracking-[-0.04em] leading-[1.08] mb-3 sm:mb-5 select-none font-sans">
+        <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-[68px] font-extrabold text-paper tracking-[-0.04em] leading-[1.08] mb-3 sm:mb-5 select-none font-sans">
           Encrypted file sharing made easy.
         </h1>
 
-        {/* Subtitle in Steel #808080 */}
+        {/* Subtitle in Steel */}
         <p className="text-xs sm:text-base md:text-lg text-steel max-w-145 mx-auto leading-relaxed mb-4 sm:mb-7 px-2 sm:px-0">
           Zero-trust, P2P file transfers. Browser-native E2EE, subnet peer discovery, and direct WebRTC streaming with absolutely no cloud required.
         </p>
 
-        {/* Outlined / White Pill Action Buttons */}
+        {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
           <a
             href="#workspace"
-            className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-none cursor-pointer border border-white flex items-center gap-1.5"
+            className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-paper text-void text-xs sm:text-sm font-semibold hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-none cursor-pointer border border-paper flex items-center gap-1.5"
           >
-            <LightningIcon className="w-4 h-4 text-black" weight="fill" />
+            <LightningIcon className="w-4 h-4" weight="fill" />
             <span>Start Sharing</span>
           </a>
           <button
             type="button"
             onClick={onOpenDemo}
-            className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full border border-[#282828] bg-carbon/90 text-white text-xs sm:text-sm font-medium hover:border-white hover:bg-[#242424] transition-all cursor-pointer flex items-center gap-1.5"
+            className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full border border-carbon bg-carbon text-paper text-xs sm:text-sm font-medium hover:border-paper hover:bg-carbon-hover transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
+            <ShieldCheckIcon className="w-4 h-4 text-periwinkle" />
             <span>Claim by PIN</span>
           </button>
         </div>
@@ -127,23 +127,23 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
 
         {/* Logo / Node Band */}
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:gap-10 md:gap-14 opacity-75 hover:opacity-100 transition-opacity font-mono text-[10px] sm:text-xs text-steel">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#7089ba]" />
+          <div className="flex items-center gap-1.5 sm:gap-2 text-paper font-medium hover:text-periwinkle transition-colors cursor-default">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-periwinkle" />
             <span>DEFENSE LABS</span>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
-            <span className="text-[#7089ba]">❖</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-paper font-medium hover:text-periwinkle transition-colors cursor-default">
+            <span className="text-periwinkle">❖</span>
             <span>SYNTHETIC CORE</span>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
-            <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border border-[#7089ba] flex items-center justify-center text-[8px] sm:text-[9px] text-[#7089ba]">⬡</div>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-paper font-medium hover:text-periwinkle transition-colors cursor-default">
+            <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border border-periwinkle flex items-center justify-center text-[8px] sm:text-[9px] text-periwinkle">⬡</div>
             <span>AIR GAP APPLIANCE</span>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400" />
+          <div className="flex items-center gap-1.5 sm:gap-2 text-paper font-medium hover:text-periwinkle transition-colors cursor-default">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500" />
             <span>CAMPUS SUBNET</span>
           </div>
         </div>

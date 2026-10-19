@@ -38,19 +38,19 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-275 mx-auto space-y-12 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-void text-paper pt-28 pb-20 px-6 max-w-275 mx-auto space-y-12 animate-in fade-in duration-300">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-carbon bg-carbon text-xs font-mono text-paper hover:border-paper transition-all cursor-pointer"
         >
-          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-periwinkle" />
           <span>Return to Studio</span>
         </button>
 
-        <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5">
+        <div className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-3 py-1 rounded-full border border-periwinkle/20 flex items-center gap-1.5">
           <ShieldCheckIcon className="w-3.5 h-3.5" />
           <span>CRYPTOGRAPHIC WHITE PAPER · SPEC 1.0</span>
         </div>
@@ -58,7 +58,7 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
 
       {/* Hero Section */}
       <div className="space-y-4 max-w-3xl">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-paper tracking-tight font-sans">
           Security Architecture & Threat Model
         </h1>
         <p className="text-base text-steel leading-relaxed">
@@ -71,53 +71,53 @@ export const SecurityWhitepaperPage: React.FC<SecurityWhitepaperPageProps> = ({ 
         {securitySections.map((sec) => (
           <div
             key={sec.title}
-            className="p-7 rounded-2xl bg-[#141414] border border-carbon space-y-4 hover:border-[#2a2a2a] transition-all"
+            className="p-7 rounded-2xl bg-carbon border border-carbon space-y-4 hover:border-steel/40 transition-all"
           >
             <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-full bg-carbon border border-[#282828] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-carbon border border-carbon flex items-center justify-center">
                 {sec.icon}
               </div>
-              <span className="font-mono text-[10px] text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/20">
+              <span className="font-mono text-[10px] text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/20">
                 {sec.badge}
               </span>
             </div>
 
-            <h3 className="text-lg font-bold text-white font-sans">{sec.title}</h3>
+            <h3 className="text-lg font-bold text-paper font-sans">{sec.title}</h3>
             <p className="text-xs text-steel leading-relaxed font-mono">{sec.description}</p>
           </div>
         ))}
       </div>
 
       {/* Cryptographic Pipeline Flow */}
-      <div className="p-8 rounded-2xl bg-[#141414] border border-carbon space-y-6">
+      <div className="p-8 rounded-2xl bg-carbon border border-carbon space-y-6">
         <div className="space-y-1">
-          <span className="font-mono text-[10px] text-[#7089ba] uppercase tracking-wider">
+          <span className="font-mono text-[10px] text-periwinkle uppercase tracking-wider">
             DATA PIPELINE SCHEMA
           </span>
-          <h3 className="text-xl font-bold text-white font-sans">
+          <h3 className="text-xl font-bold text-paper font-sans">
             End-to-End Encryption Flow Diagram
           </h3>
         </div>
 
-        <div className="p-6 rounded-xl bg-void border border-[#242424] font-mono text-xs text-steel space-y-4 overflow-x-auto leading-relaxed">
-          <div className="flex items-center gap-3 text-white">
-            <span className="text-[#7089ba]">[1] SENDER:</span>
+        <div className="p-6 rounded-xl bg-void border border-carbon font-mono text-xs text-steel space-y-4 overflow-x-auto leading-relaxed">
+          <div className="flex items-center gap-3 text-paper">
+            <span className="text-periwinkle">[1] SENDER:</span>
             <span>Raw File / Folder ➔ Gzip Pre-Compression ➔ SHA-256 Digest</span>
           </div>
-          <div className="flex items-center gap-3 text-white">
-            <span className="text-[#7089ba]">[2] KEYGEN:</span>
+          <div className="flex items-center gap-3 text-paper">
+            <span className="text-periwinkle">[2] KEYGEN:</span>
             <span>6-Digit PIN + Salt(16B) ➔ PBKDF2-HMAC-SHA256 (100k) ➔ AES-256 Key</span>
           </div>
-          <div className="flex items-center gap-3 text-white">
-            <span className="text-[#7089ba]">[3] CIPHER:</span>
+          <div className="flex items-center gap-3 text-paper">
+            <span className="text-periwinkle">[3] CIPHER:</span>
             <span>2MB Chunks + IV(12B) ➔ WebCrypto AES-GCM-256 ➔ Encrypted Binary Stream</span>
           </div>
-          <div className="flex items-center gap-3 text-white">
-            <span className="text-[#7089ba]">[4] TRANSIT:</span>
+          <div className="flex items-center gap-3 text-paper">
+            <span className="text-periwinkle">[4] TRANSIT:</span>
             <span>Local Subnet Streaming (Port 8080 / 8888) ➔ Zero Disk Persistence</span>
           </div>
-          <div className="flex items-center gap-3 text-white">
-            <span className="text-[#7089ba]">[5] RECEIVER:</span>
+          <div className="flex items-center gap-3 text-paper">
+            <span className="text-periwinkle">[5] RECEIVER:</span>
             <span>Decryption ➔ Decompression ➔ SHA-256 Verification ➔ Ephemeral Burn</span>
           </div>
         </div>

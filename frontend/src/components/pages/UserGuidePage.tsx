@@ -25,19 +25,19 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<GuideTab>('instructions')
 
   return (
-    <div className="min-h-screen bg-black text-white pt-28 pb-20 px-6 max-w-275 mx-auto space-y-10 animate-in fade-in duration-300">
+    <div className="min-h-screen bg-void text-paper pt-28 pb-20 px-6 max-w-275 mx-auto space-y-10 animate-in fade-in duration-300">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-carbon pb-6">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#282828] bg-[#141414] text-xs font-mono text-white hover:border-white transition-all cursor-pointer w-fit"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-carbon bg-carbon text-xs font-mono text-paper hover:border-paper transition-all cursor-pointer w-fit"
         >
-          <ArrowLeftIcon className="w-4 h-4 text-[#7089ba]" />
+          <ArrowLeftIcon className="w-4 h-4 text-periwinkle" />
           <span>Return to Studio</span>
         </button>
 
-        <div className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-3 py-1 rounded-full border border-[#7089ba]/20 flex items-center gap-1.5 w-fit font-bold">
+        <div className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-3 py-1 rounded-full border border-periwinkle/20 flex items-center gap-1.5 w-fit font-bold">
           <BookOpenIcon className="w-3.5 h-3.5" />
           <span>OFFICIAL USER MANUAL & FEATURE REFERENCE</span>
         </div>
@@ -45,7 +45,7 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
 
       {/* Hero Intro */}
       <div className="space-y-3 max-w-3xl">
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight font-sans">
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-paper tracking-tight font-sans">
           How to Use W2W Share
         </h1>
         <p className="text-sm sm:text-base text-steel leading-relaxed">
@@ -55,14 +55,14 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
       </div>
 
       {/* Guide Navigation Switcher */}
-      <div className="flex flex-wrap items-center p-1 rounded-xl bg-[#141414] border border-[#242424] gap-1">
+      <div className="flex flex-wrap items-center p-1 rounded-xl bg-carbon/60 border border-carbon gap-1">
         <button
           type="button"
           onClick={() => setActiveTab('instructions')}
           className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'instructions'
-              ? 'bg-white text-black font-semibold shadow-sm'
-              : 'text-steel hover:text-white'
+              ? 'bg-paper text-void font-semibold shadow-sm'
+              : 'text-steel hover:text-paper'
           }`}
         >
           <UploadSimpleIcon className="w-4 h-4" />
@@ -73,8 +73,8 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
           onClick={() => setActiveTab('mobile-hotspot')}
           className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'mobile-hotspot'
-              ? 'bg-white text-black font-semibold shadow-sm'
-              : 'text-steel hover:text-white'
+              ? 'bg-paper text-void font-semibold shadow-sm'
+              : 'text-steel hover:text-paper'
           }`}
         >
           <DeviceMobileIcon className="w-4 h-4" />
@@ -85,8 +85,8 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
           onClick={() => setActiveTab('features')}
           className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'features'
-              ? 'bg-white text-black font-semibold shadow-sm'
-              : 'text-steel hover:text-white'
+              ? 'bg-paper text-void font-semibold shadow-sm'
+              : 'text-steel hover:text-paper'
           }`}
         >
           <LightningIcon className="w-4 h-4" />
@@ -97,8 +97,8 @@ export const UserGuidePage: React.FC<UserGuidePageProps> = ({ onBack }) => {
           onClick={() => setActiveTab('network')}
           className={`flex-1 min-w-32.5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
             activeTab === 'network'
-              ? 'bg-white text-black font-semibold shadow-sm'
-              : 'text-steel hover:text-white'
+              ? 'bg-paper text-void font-semibold shadow-sm'
+              : 'text-steel hover:text-paper'
           }`}
         >
           <WifiHighIcon className="w-4 h-4" />

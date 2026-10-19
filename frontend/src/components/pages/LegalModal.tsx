@@ -98,16 +98,16 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
 
   return (
     <Dialog open={!!type} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl border border-carbon bg-[#141414] text-white p-7 rounded-2xl">
+      <DialogContent className="max-w-2xl border border-carbon bg-carbon text-paper p-7 rounded-2xl">
         <DialogHeader className="space-y-2 mb-4">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded border border-[#7089ba]/20 flex items-center gap-1">
+            <span className="font-mono text-[9px] text-periwinkle bg-periwinkle/10 px-2 py-0.5 rounded border border-periwinkle/20 flex items-center gap-1">
               <LockKeyIcon className="w-3 h-3" />
               <span>{doc.tag}</span>
             </span>
           </div>
-          <DialogTitle className="text-xl font-bold font-sans flex items-center gap-2">
-            <ShieldCheckIcon className="w-5 h-5 text-[#7089ba]" />
+          <DialogTitle className="text-xl font-bold font-sans flex items-center gap-2 text-paper">
+            <ShieldCheckIcon className="w-5 h-5 text-periwinkle" />
             <span>{doc.title}</span>
           </DialogTitle>
         </DialogHeader>
@@ -115,7 +115,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
         <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-2 text-xs font-mono">
           {doc.content.map((sec) => (
             <div key={sec.h} className="p-4 rounded-xl bg-void border border-carbon space-y-1.5">
-              <h4 className="text-white font-semibold text-sm">{sec.h}</h4>
+              <h4 className="text-paper font-semibold text-sm">{sec.h}</h4>
               <p className="text-steel leading-relaxed font-sans text-xs">{sec.p}</p>
             </div>
           ))}
@@ -125,7 +125,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 transition-all"
+            className="px-5 py-2 rounded-full bg-paper text-void font-semibold text-xs hover:opacity-90 transition-all cursor-pointer"
           >
             Acknowledge & Close
           </button>

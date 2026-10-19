@@ -64,13 +64,13 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ onNavigate }) => {
         {/* Left Column: Heading & Context */}
         <div className="lg:col-span-5 space-y-5">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba] bg-[#7089ba]/10 px-2.5 py-0.5 rounded-full border border-[#7089ba]/25 flex items-center gap-1.5 font-medium">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/25 flex items-center gap-1.5 font-medium">
               <QuestionIcon className="w-3.5 h-3.5" />
               <span>QUESTIONS & ANSWERS</span>
             </span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-paper tracking-tight leading-tight font-sans">
             Frequently <br className="hidden sm:inline" />asked questions.
           </h2>
 
@@ -79,8 +79,8 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ onNavigate }) => {
           </p>
 
           {/* Quick Info Box */}
-          <div className="p-4 rounded-xl bg-carbon/60 border border-[#262626] space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-mono text-[#7089ba]">
+          <div className="p-4 rounded-xl bg-carbon/60 border border-carbon space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-mono text-periwinkle">
               <ShieldCheckIcon className="w-4 h-4" />
               <span>100% Zero-Cloud Guarantee</span>
             </div>
@@ -91,7 +91,7 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ onNavigate }) => {
               <button
                 type="button"
                 onClick={() => onNavigate('guide')}
-                className="inline-flex items-center gap-1 text-[11px] font-mono text-[#7089ba] hover:underline pt-1 cursor-pointer"
+                className="inline-flex items-center gap-1 text-[11px] font-mono text-periwinkle hover:underline pt-1 cursor-pointer"
               >
                 <span>Read in-depth technical documentation</span>
                 <SparkleIcon className="w-3 h-3" />
@@ -105,12 +105,12 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ onNavigate }) => {
           <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
             {faqs.map((faq) => (
               <AccordionItem key={faq.id} value={faq.id} className="border-carbon">
-                <AccordionTrigger className="text-white hover:text-white/90 font-medium text-base sm:text-lg">
+                <AccordionTrigger className="text-paper hover:text-paper/90 font-medium text-base sm:text-lg">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 text-left">
-                    <span className="font-mono text-[9px] text-[#7089ba] tracking-wider uppercase bg-[#7089ba]/10 border border-[#7089ba]/20 px-2 py-0.5 rounded-md w-fit shrink-0 font-medium">
+                    <span className="font-mono text-[9px] text-periwinkle tracking-wider uppercase bg-periwinkle/10 border border-periwinkle/20 px-2 py-0.5 rounded-md w-fit shrink-0 font-medium">
                       {faq.tag}
                     </span>
-                    <span className="text-white font-medium text-sm sm:text-base tracking-tight leading-snug">
+                    <span className="text-paper font-medium text-sm sm:text-base tracking-tight leading-snug">
                       {faq.question}
                     </span>
                   </div>

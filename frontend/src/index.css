@@ -7,14 +7,16 @@
 
 @theme {
   /* Colors */
-  --color-void: #000000;
-  --color-carbon: #1c1c1c;
-  --color-graphite: #4d4d4d;
-  --color-steel: #808080;
-  --color-ash: #ababab;
-  --color-paper: #ffffff;
-  --color-periwinkle: #7089ba;
-  --color-periwinkle-annotation: #7089ba;
+  --color-void: var(--w2w-void);
+  --color-carbon: var(--w2w-carbon);
+  --color-carbon-hover: var(--w2w-carbon-hover);
+  --color-surface-alt: var(--w2w-surface-alt);
+  --color-graphite: var(--w2w-graphite);
+  --color-steel: var(--w2w-steel);
+  --color-ash: var(--w2w-ash);
+  --color-paper: var(--w2w-paper);
+  --color-periwinkle: var(--w2w-periwinkle);
+  --color-periwinkle-annotation: var(--w2w-periwinkle-annotation);
 
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -31,47 +33,90 @@
 }
 
 :root {
-  /* Blueprint Theme Tokens */
-  --color-void: #000000;
-  --color-carbon: #1c1c1c;
-  --color-graphite: #4d4d4d;
-  --color-steel: #808080;
-  --color-ash: #ababab;
-  --color-paper: #ffffff;
-  --color-periwinkle-annotation: #7089ba;
+  /* Blueprint Theme Tokens - Light Mode (Architectural Drafting Vellum) */
+  --w2w-void: #f6f8fb;
+  --w2w-carbon: #ffffff;
+  --w2w-carbon-hover: #f0f3f8;
+  --w2w-surface-alt: #eef2f7;
+  --w2w-graphite: #8895a7;
+  --w2w-steel: #505d73;
+  --w2w-ash: #334155;
+  --w2w-paper: #090d16;
+  --w2w-periwinkle: #2563eb;
+  --w2w-periwinkle-annotation: #1d4ed8;
+
+  --w2w-border: #dbe2ee;
+  --w2w-border-subtle: #e8edf5;
+  --grid-line: rgba(37, 99, 235, 0.08);
+  --grid-line-dense: rgba(37, 99, 235, 0.05);
+  --stipple-dot: rgba(15, 23, 42, 0.16);
+  --stipple-dot-faint: rgba(15, 23, 42, 0.08);
+  --stipple-dot-dense: rgba(37, 99, 235, 0.22);
+  --cad-line: rgba(37, 99, 235, 0.12);
+
+  --hero-spotlight-base: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.95) 0%, rgba(224, 235, 255, 0.75) 40%, rgba(246, 248, 251, 0.98) 75%);
+  --hero-radial-glow-base: radial-gradient(ellipse 65% 50% at 50% 25%, rgba(37, 99, 235, 0.12) 0%, rgba(230, 238, 250, 0.5) 45%, transparent 75%);
+  --hero-mouse-spotlight: radial-gradient(750px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(37, 99, 235, 0.12) 0%, rgba(147, 197, 253, 0.07) 35%, rgba(240, 244, 252, 0.5) 60%, rgba(246, 248, 251, 0.95) 85%);
+  --hero-mouse-glow: radial-gradient(280px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(37, 99, 235, 0.18) 0%, rgba(37, 99, 235, 0.06) 50%, transparent 80%);
 
   /* Fonts */
   --font-raveo-variable: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-geist-mono: 'Geist Mono', 'JetBrains Mono Variable', monospace;
 
   /* Shad-cn / Radix variables mapped to Index Blueprint theme */
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #1c1c1c;
-  --card-foreground: #ffffff;
-  --popover: #1c1c1c;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
-  --secondary: #1c1c1c;
-  --secondary-foreground: #ffffff;
-  --muted: #1c1c1c;
-  --muted-foreground: #808080;
-  --accent: #7089ba;
+  --background: #f6f8fb;
+  --foreground: #090d16;
+  --card: #ffffff;
+  --card-foreground: #090d16;
+  --popover: #ffffff;
+  --popover-foreground: #090d16;
+  --primary: #090d16;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f3f8;
+  --secondary-foreground: #090d16;
+  --muted: #f0f3f8;
+  --muted-foreground: #505d73;
+  --accent: #2563eb;
   --accent-foreground: #ffffff;
-  --destructive: #eb5757;
-  --border: #1c1c1c;
-  --input: #1c1c1c;
-  --ring: #7089ba;
+  --destructive: #dc2626;
+  --border: #dbe2ee;
+  --input: #dbe2ee;
+  --ring: #2563eb;
   --radius: 6px;
 }
 
 .dark {
+  /* Blueprint Theme Tokens - Dark Mode (Negative Space Blueprint Table) */
+  --w2w-void: #000000;
+  --w2w-carbon: #141414;
+  --w2w-carbon-hover: #1c1c1c;
+  --w2w-surface-alt: #181818;
+  --w2w-graphite: #4d4d4d;
+  --w2w-steel: #808080;
+  --w2w-ash: #ababab;
+  --w2w-paper: #ffffff;
+  --w2w-periwinkle: #7089ba;
+  --w2w-periwinkle-annotation: #7089ba;
+
+  --w2w-border: #242424;
+  --w2w-border-subtle: #1c1c1c;
+  --grid-line: rgba(112, 137, 186, 0.05);
+  --grid-line-dense: rgba(112, 137, 186, 0.04);
+  --stipple-dot: rgba(255, 255, 255, 0.25);
+  --stipple-dot-faint: rgba(255, 255, 255, 0.12);
+  --stipple-dot-dense: rgba(112, 137, 186, 0.3);
+  --cad-line: rgba(112, 137, 186, 0.1);
+
+  --hero-spotlight-base: radial-gradient(circle at 50% 30%, rgba(28, 28, 28, 0.95) 0%, rgba(16, 22, 38, 0.6) 35%, rgba(0, 0, 0, 0.98) 75%);
+  --hero-radial-glow-base: radial-gradient(ellipse 65% 50% at 50% 25%, rgba(112, 137, 186, 0.18) 0%, rgba(28, 28, 28, 0.4) 45%, transparent 75%);
+  --hero-mouse-spotlight: radial-gradient(750px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(112, 137, 186, 0.22) 0%, rgba(35, 48, 75, 0.12) 35%, rgba(18, 18, 18, 0.6) 60%, rgba(0, 0, 0, 0.95) 85%);
+  --hero-mouse-glow: radial-gradient(280px circle at var(--mouse-x, 50%) var(--mouse-y, 38%), rgba(112, 137, 186, 0.25) 0%, rgba(112, 137, 186, 0.08) 50%, transparent 80%);
+
   --background: #000000;
   --foreground: #ffffff;
-  --card: #1c1c1c;
+  --card: #141414;
   --card-foreground: #ffffff;
-  --popover: #1c1c1c;
+  --popover: #141414;
   --popover-foreground: #ffffff;
   --primary: #ffffff;
   --primary-foreground: #000000;
@@ -82,8 +127,8 @@
   --accent: #7089ba;
   --accent-foreground: #ffffff;
   --destructive: #eb5757;
-  --border: #1c1c1c;
-  --input: #1c1c1c;
+  --border: #242424;
+  --input: #242424;
   --ring: #7089ba;
 }
 
@@ -120,51 +165,51 @@
 
 /* Blueprint Drafting Grid and Dashed Containment Utilities */
 .dashed-container {
-  border: 1px dashed #1c1c1c;
+  border: 1px dashed var(--w2w-border);
 }
 
 .dashed-container-subtle {
-  border: 1px dashed #262626;
+  border: 1px dashed var(--w2w-border-subtle);
 }
 
 .dashed-divider-b {
-  border-bottom: 1px dashed #1c1c1c;
+  border-bottom: 1px dashed var(--w2w-border);
 }
 
 .dashed-divider-t {
-  border-top: 1px dashed #1c1c1c;
+  border-top: 1px dashed var(--w2w-border);
 }
 
 /* Drafting Lamp Hero Radial Wash */
 .hero-spotlight {
-  background: radial-gradient(circle at 50% 30%, rgba(28, 28, 28, 0.95) 0%, rgba(16, 22, 38, 0.6) 35%, rgba(0, 0, 0, 0.98) 75%);
+  background: var(--hero-spotlight-base);
 }
 
 .hero-radial-glow {
-  background: radial-gradient(ellipse 65% 50% at 50% 25%, rgba(112, 137, 186, 0.18) 0%, rgba(28, 28, 28, 0.4) 45%, transparent 75%);
+  background: var(--hero-radial-glow-base);
 }
 
 /* Stippled Particle Grid Pattern */
 .bg-stipple-grid {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-image: radial-gradient(var(--stipple-dot) 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
 .bg-stipple-dense {
-  background-image: radial-gradient(rgba(112, 137, 186, 0.3) 1px, transparent 1px);
+  background-image: radial-gradient(var(--stipple-dot-dense) 1px, transparent 1px);
   background-size: 12px 12px;
 }
 
 .bg-stipple-faint {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(var(--stipple-dot-faint) 1px, transparent 1px);
   background-size: 14px 14px;
 }
 
 /* CAD Isometric Drafting Lines */
 .cad-grid-plane {
   background-image: 
-    linear-gradient(to right, rgba(112, 137, 186, 0.1) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(112, 137, 186, 0.1) 1px, transparent 1px);
+    linear-gradient(to right, var(--cad-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--cad-line) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
@@ -256,19 +301,19 @@
   transform-origin: center;
 }
 
-/* Cyber-Grid & Neon aesthetics inspired by MangoShare */
+/* Cyber-Grid & Neon aesthetics */
 .cyber-grid {
   background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(112, 137, 186, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(112, 137, 186, 0.05) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
 
 .cyber-grid-dense {
   background-size: 16px 16px;
   background-image: 
-    linear-gradient(to right, rgba(112, 137, 186, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(112, 137, 186, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line-dense) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line-dense) 1px, transparent 1px);
 }
 
 @keyframes pulseNeon {
@@ -318,4 +363,173 @@
 html {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* Light Mode Architectural Drafting Vellum Overrides */
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html:not(.dark) body {
+  background-color: var(--w2w-void);
+  color: var(--w2w-paper);
+}
+
+/* Map hardcoded dark panels to crisp architectural drafting card surfaces */
+html:not(.dark) .bg-\[\#0a0a0a\],
+html:not(.dark) .bg-\[\#0c0c0c\],
+html:not(.dark) .bg-\[\#0d0d0d\],
+html:not(.dark) .bg-\[\#0e0e0e\],
+html:not(.dark) .bg-\[\#111\],
+html:not(.dark) .bg-\[\#121212\],
+html:not(.dark) .bg-\[\#141414\],
+html:not(.dark) .bg-\[\#151515\],
+html:not(.dark) .bg-\[\#161616\],
+html:not(.dark) .bg-\[\#181818\],
+html:not(.dark) .bg-\[\#1a1a1a\],
+html:not(.dark) .bg-\[\#1c1c1c\],
+html:not(.dark) .bg-\[\#1e1e1e\],
+html:not(.dark) .bg-\[\#1f1f1f\],
+html:not(.dark) .bg-carbon {
+  background-color: var(--w2w-carbon);
+}
+
+/* Secondary darker inset backgrounds to light subtle inset vellum */
+html:not(.dark) .bg-\[\#222\],
+html:not(.dark) .bg-\[\#242424\],
+html:not(.dark) .bg-\[\#282828\] {
+  background-color: var(--w2w-surface-alt);
+}
+
+/* Map dark hover backgrounds to light hover states */
+html:not(.dark) .hover\:bg-\[\#181818\]:hover,
+html:not(.dark) .hover\:bg-\[\#1a1a1a\]:hover,
+html:not(.dark) .hover\:bg-\[\#202020\]:hover,
+html:not(.dark) .hover\:bg-\[\#222\]:hover,
+html:not(.dark) .hover\:bg-\[\#222222\]:hover,
+html:not(.dark) .hover\:bg-\[\#242424\]:hover,
+html:not(.dark) .hover\:bg-\[\#262626\]:hover,
+html:not(.dark) .hover\:bg-\[\#282828\]:hover,
+html:not(.dark) .hover\:bg-\[\#2a2a2a\]:hover,
+html:not(.dark) .hover\:bg-\[\#333\]:hover {
+  background-color: var(--w2w-carbon-hover);
+}
+
+/* Map all technical dark borders to light architectural drafting borders */
+html:not(.dark) .border-\[\#141414\],
+html:not(.dark) .border-\[\#1a1a1a\],
+html:not(.dark) .border-\[\#1c1c1c\],
+html:not(.dark) .border-\[\#1f1f1f\],
+html:not(.dark) .border-\[\#202020\],
+html:not(.dark) .border-\[\#222\],
+html:not(.dark) .border-\[\#222222\],
+html:not(.dark) .border-\[\#242424\],
+html:not(.dark) .border-\[\#262626\],
+html:not(.dark) .border-\[\#282828\],
+html:not(.dark) .border-\[\#2a2a2a\],
+html:not(.dark) .border-\[\#2c2c2c\],
+html:not(.dark) .border-\[\#2e2e2e\],
+html:not(.dark) .border-\[\#303030\],
+html:not(.dark) .border-\[\#333\],
+html:not(.dark) .border-\[\#333333\],
+html:not(.dark) .border-\[\#3a3a3a\],
+html:not(.dark) .border-carbon {
+  border-color: var(--w2w-border);
+}
+
+/* Header blur backdrop in light mode */
+html:not(.dark) header.bg-black\/90,
+html:not(.dark) header.bg-void\/90 {
+  background-color: rgba(246, 248, 251, 0.92);
+  border-color: var(--w2w-border);
+}
+
+html:not(.dark) .bg-black\/95,
+html:not(.dark) .bg-void\/95 {
+  background-color: rgba(246, 248, 251, 0.97);
+  border-color: var(--w2w-border);
+}
+
+/* High contrast primary action pills in light mode */
+html:not(.dark) .bg-white.text-black:not([data-no-invert]) {
+  background-color: #090d16;
+  color: #f6f8fb;
+  border-color: #090d16;
+}
+
+html:not(.dark) .bg-white.text-black:not([data-no-invert]) svg {
+  color: #f6f8fb;
+}
+
+html:not(.dark) .bg-white.text-black:not([data-no-invert]):hover {
+  background-color: #1a2438;
+}
+
+/* Headings in light mode */
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) h5,
+html:not(.dark) h6 {
+  color: var(--w2w-paper);
+}
+
+/* Inputs and textareas in light mode */
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
+html:not(.dark) textarea {
+  color: var(--w2w-paper);
+}
+
+/* General text-white on light surfaces becomes dark carbon ink */
+html:not(.dark) .text-white:not(
+  .bg-black *,
+  .bg-\[\#090d16\] *,
+  .bg-\[\#000000\] *,
+  .bg-white.text-black *,
+  [class*="bg-emerald"] *,
+  [class*="bg-red"] *,
+  [class*="bg-blue"] *
+) {
+  color: var(--w2w-paper);
+}
+
+/* Periwinkle blueprint accents in light mode */
+html:not(.dark) .text-\[\#7089ba\] {
+  color: var(--w2w-periwinkle);
+}
+
+html:not(.dark) [class*="bg-\[\#7089ba\]\/10"] {
+  background-color: rgba(37, 99, 235, 0.08);
+}
+
+html:not(.dark) [class*="bg-\[\#7089ba\]\/20"] {
+  background-color: rgba(37, 99, 235, 0.14);
+}
+
+html:not(.dark) [class*="border-\[\#7089ba\]\/20"],
+html:not(.dark) [class*="border-\[\#7089ba\]\/25"],
+html:not(.dark) [class*="border-\[\#7089ba\]\/30"] {
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+/* Architectural paper card elevation in light mode */
+html:not(.dark) .dashed-container {
+  box-shadow: 0 1px 4px 0 rgba(15, 23, 42, 0.04);
+}
+
+/* Technical Drafting Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--w2w-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--w2w-graphite);
 }

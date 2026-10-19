@@ -8,21 +8,21 @@ export const HowItWorks: React.FC = () => {
       title: 'Stage & Encrypt',
       description:
         'Drag & drop files or folders. Compresses via Gzip and applies client-side AES-256-GCM encryption with PBKDF2.',
-      icon: <LockKeyIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <LockKeyIcon className="w-5 h-5 text-periwinkle" weight="duotone" />,
     },
     {
       step: 'STEP 02',
       title: 'Share 6-Digit PIN',
       description:
         'Auto-broadcasts to nearby devices on local Wi-Fi port 8888, or share the generated 6-digit numeric claim PIN or wireframe QR code.',
-      icon: <BroadcastIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <BroadcastIcon className="w-5 h-5 text-periwinkle" weight="duotone" />,
     },
     {
       step: 'STEP 03',
       title: 'Stream & Download',
       description:
         'Decrypts with the shared PIN and verifies mathematical hash integrity in real time, with optional single-claim burn-after-reading destruction.',
-      icon: <DownloadSimpleIcon className="w-5 h-5 text-[#7089ba]" weight="duotone" />,
+      icon: <DownloadSimpleIcon className="w-5 h-5 text-periwinkle" weight="duotone" />,
     },
   ]
 
@@ -31,10 +31,10 @@ export const HowItWorks: React.FC = () => {
       {/* Centered Heading */}
       <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
         <div className="font-mono text-xs uppercase tracking-[0.08em] text-steel flex items-center justify-center gap-1.5">
-          <ShieldCheckIcon className="w-4 h-4 text-[#7089ba]" />
+          <ShieldCheckIcon className="w-4 h-4 text-periwinkle" />
           <span>3 EASY STEPS</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight font-sans">
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-paper tracking-tight leading-tight font-sans">
           Stream files offline in 3 simple steps.
         </h2>
       </div>
@@ -45,16 +45,16 @@ export const HowItWorks: React.FC = () => {
           <div key={item.step} className="flex flex-col items-start space-y-4 p-4">
             {/* Step Icon & Counter */}
             <div className="flex items-center justify-between w-full">
-              <div className="w-10 h-10 rounded-full bg-carbon border border-[#282828] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-carbon border border-carbon flex items-center justify-center">
                 {item.icon}
               </div>
-              <span className="font-mono text-[10px] text-[#7089ba] tracking-wider bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20">
+              <span className="font-mono text-[10px] text-periwinkle tracking-wider bg-periwinkle/10 px-2 py-0.5 rounded-full border border-periwinkle/20">
                 {item.step}
               </span>
             </div>
 
             {/* Title */}
-            <h3 className="text-lg font-bold text-white font-sans">
+            <h3 className="text-lg font-bold text-paper font-sans">
               {item.title}
             </h3>
 
