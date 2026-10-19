@@ -11,7 +11,7 @@ on:
       backend_url:
         description: 'Backend (Render) URL to ping (leave blank to use Repo Variable/Secret/Default)'
         required: false
-        default: ''
+        default: 'https://w2wshare.onrender.com'
         type: string
       frontend_url:
         description: 'Frontend (Vercel) URL to ping (optional)'
@@ -36,7 +36,7 @@ jobs:
           ENV_BACKEND: ${{ vars.RENDER_APP_URL || secrets.RENDER_APP_URL || vars.RENDER_URL || secrets.RENDER_URL || vars.BACKEND_URL || secrets.BACKEND_URL || '' }}
           ENV_FRONTEND: ${{ vars.VERCEL_APP_URL || secrets.VERCEL_APP_URL || vars.VERCEL_URL || secrets.VERCEL_URL || vars.FRONTEND_URL || secrets.FRONTEND_URL || '' }}
         run: |
-          BACKEND_URL="${INPUT_BACKEND:-${ENV_BACKEND:-https://w2w-share-backend.onrender.com}}"
+          BACKEND_URL="${INPUT_BACKEND:-${ENV_BACKEND:-https://w2wshare.onrender.com}}"
           BACKEND_URL="${BACKEND_URL%/}"
 
           FRONTEND_URL="${INPUT_FRONTEND:-${ENV_FRONTEND}}"

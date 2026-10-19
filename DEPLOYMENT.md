@@ -36,13 +36,13 @@ Complete production deployment guide for running **W2W-Share** with:
 4. Select your `W2WShare` repository.
 5. Render will automatically read `render.yaml` and configure the Web Service with Docker.
 6. Click **Apply**.
-7. Once deployed, note your service URL (e.g. `https://w2w-share-backend.onrender.com`).
+7. Once deployed, note your service URL (e.g. `https://w2wshare.onrender.com`).
 
 ### Option B: Manual Web Service Setup on Render
-1. In Render Dashboard, click **New +** → **Web Service**.
+1. In Render Dashboard, click **New +** -> **Web Service**.
 2. Connect your repository.
 3. Configure the following settings:
-   - **Name**: `w2w-share-backend` (or your choice)
+   - **Name**: `w2wshare` (or your choice)
    - **Language / Runtime**: `Docker`
    - **Branch**: `main`
    - **Dockerfile Path**: `./Dockerfile`
@@ -56,7 +56,7 @@ Complete production deployment guide for running **W2W-Share** with:
    | `JAVA_OPTS` | `-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 -Dspring.threads.virtual.enabled=true` | Dynamic container RAM scaling |
 5. Click **Create Web Service**.
 6. Wait for the Docker build to complete. Copy your backend URL:
-   `https://w2w-share-backend.onrender.com`
+   `https://w2wshare.onrender.com`
 
 > [!NOTE]
 > **Render Free Tier Spin-Down**: Free-tier web services on Render spin down after 15 minutes of inactivity. When a new transfer session is initialized after inactivity, Render will take ~30–50 seconds to boot the container (cold start). Once warm, responses are instantaneous.
@@ -66,7 +66,7 @@ Complete production deployment guide for running **W2W-Share** with:
 ## Part 2: Deploy Frontend to Vercel
 
 1. Log in to your [Vercel Dashboard](https://vercel.com).
-2. Click **Add New...** → **Project**.
+2. Click **Add New...** -> **Project**.
 3. Import your `W2WShare` repository.
 4. In the project configuration screen:
    - Click **Edit** next to **Root Directory** and select `frontend` (this is required because frontend code lives in the `frontend/` directory).
@@ -74,9 +74,9 @@ Complete production deployment guide for running **W2W-Share** with:
 5. Under **Environment Variables**, add:
    | Key | Value | Example |
    |-----|-------|---------|
-   | `VITE_API_URL` | `https://<YOUR_RENDER_BACKEND>.onrender.com/api` | `https://w2w-share-backend.onrender.com/api` |
-   | `VITE_BACKEND_URL` | `https://<YOUR_RENDER_BACKEND>.onrender.com` | `https://w2w-share-backend.onrender.com` |
-   | `VITE_WS_URL` | `wss://<YOUR_RENDER_BACKEND>.onrender.com/ws/signaling` | `wss://w2w-share-backend.onrender.com/ws/signaling` |
+   | `VITE_API_URL` | `https://<YOUR_RENDER_BACKEND>.onrender.com/api` | `https://w2wshare.onrender.com/api` |
+   | `VITE_BACKEND_URL` | `https://<YOUR_RENDER_BACKEND>.onrender.com` | `https://w2wshare.onrender.com` |
+   | `VITE_WS_URL` | `wss://<YOUR_RENDER_BACKEND>.onrender.com/ws/signaling` | `wss://w2wshare.onrender.com/ws/signaling` |
    *(Use your actual Render backend URL from Part 1)*
 6. Click **Deploy**.
 7. Copy your deployed frontend URL:
@@ -147,11 +147,11 @@ Render's free tier spins down web services after **15 minutes of inactivity**, c
 
 ### 1. Configure Your Backend URL in GitHub
 
-1. In your GitHub repository, navigate to **Settings** → **Secrets and variables** → **Actions**.
+1. In your GitHub repository, navigate to **Settings** -> **Secrets and variables** -> **Actions**.
 2. Under the **Variables** tab (or **Secrets** tab), click **New repository variable**.
 3. Add your backend URL:
    - **Name**: `RENDER_APP_URL`
-   - **Value**: `https://your-service-name.onrender.com` (your actual Render URL)
+   - **Value**: `https://w2wshare.onrender.com`
 4. (Optional) Add your frontend URL:
    - **Name**: `VERCEL_APP_URL`
    - **Value**: `https://your-app.vercel.app`
@@ -160,7 +160,7 @@ Render's free tier spins down web services after **15 minutes of inactivity**, c
 
 - **Schedule**: Triggers automatically every **10 minutes** (`cron: '*/10 * * * *'`). This ensures traffic arrives before Render's 15-minute idle timeout, even if GitHub Actions experiences minor queue jitter.
 - **Health Checks**: Sends a lightweight heartbeat to `/actuator/health` (and fallback to `/`), keeping the JVM container hot and ready for instantaneous WebSockets and WebRTC handshakes.
-- **Manual Ping**: You can trigger the heartbeat manually at any time under the **Actions** tab → **Keep Render & Services Alive** → **Run workflow** (with optional custom URL input).
+- **Manual Ping**: You can trigger the heartbeat manually at any time under the **Actions** tab -> **Keep Render & Services Alive** -> **Run workflow** (with optional custom URL input).
 
 ### 3. External Free Cron Job Setup (Recommended Backup)
 
@@ -172,7 +172,7 @@ GitHub Actions suspends scheduled cron workflows if a repository has no commit a
 2. Go to the **Cronjobs** tab and click **Create Cronjob**.
 3. Configure the job:
    - **Title**: `W2W-Share Backend Keep-Alive`
-   - **URL**: `https://<YOUR-RENDER-SERVICE-NAME>.onrender.com/actuator/health`
+   - **URL**: `https://w2wshare.onrender.com/actuator/health`
    - **Execution Schedule**: Select **Every 10 minutes** (or custom cron `*/10 * * * *`).
    - **Request Method**: `GET`
    - **Failure Notifications**: Check the box to receive email alerts if your service goes down.
@@ -185,7 +185,7 @@ GitHub Actions suspends scheduled cron workflows if a repository has no commit a
 3. Configure the monitor:
    - **Monitor Type**: `HTTP(s)`
    - **Friendly Name**: `W2W-Share Backend`
-   - **URL (or IP)**: `https://<YOUR-RENDER-SERVICE-NAME>.onrender.com/actuator/health`
+   - **URL (or IP)**: `https://w2wshare.onrender.com/actuator/health`
    - **Monitoring Interval**: `5 minutes`
    - **Monitor Timeout**: `30 seconds`
 4. Select your email under **Alert Contacts to Notify** and click **Create Monitor**.
