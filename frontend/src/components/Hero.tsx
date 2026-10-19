@@ -43,7 +43,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
   return (
     <section
       ref={containerRef}
-      className="relative pt-28 pb-10 flex flex-col items-center overflow-hidden dashed-divider-b bg-void cursor-default"
+      className="relative min-h-screen min-h-[100dvh] w-full pt-20 sm:pt-24 md:pt-28 pb-6 sm:pb-8 md:pb-10 flex flex-col justify-between items-center overflow-hidden dashed-divider-b bg-void cursor-default"
       style={
         {
           '--mouse-x': '50%',
@@ -74,10 +74,10 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         </div>
       </div>
 
-      {/* Main Hero Content Stack (Tight, Balanced Spacing) */}
-      <div className="relative z-10 max-w-210 mx-auto px-6 text-center flex flex-col items-center animate-in fade-in duration-700">
+      {/* Main Hero Content Stack (Vertically centered in available viewport space) */}
+      <div className="relative z-10 w-full max-w-210 mx-auto px-6 text-center my-auto flex flex-col items-center animate-in fade-in duration-700 py-4 sm:py-6">
         {/* Eyebrow Chip with live beacon */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-carbon/80 backdrop-blur-md mb-6 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-carbon/80 backdrop-blur-md mb-4 sm:mb-6 hover:border-white/40 transition-all cursor-pointer group shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-[#7089ba] animate-ping" />
           <span className="font-mono text-[9px] uppercase tracking-[0.04em] text-white font-medium">
             W2W SHARE 1.0 · 100% OFFLINE E2EE
@@ -88,17 +88,17 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         </div>
 
         {/* Display Headline (Raveo 1000 architectural weight) */}
-        <h1 className="text-4xl sm:text-6xl md:text-[68px] font-extrabold text-white tracking-[-0.04em] leading-[1.08] mb-5 select-none font-sans">
+        <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-[68px] font-extrabold text-white tracking-[-0.04em] leading-[1.08] mb-4 sm:mb-5 select-none font-sans">
           Encrypted file sharing made easy.
         </h1>
 
         {/* Subtitle in Steel #808080 */}
-        <p className="text-base sm:text-lg text-steel max-w-145 mx-auto leading-relaxed mb-7">
+        <p className="text-sm sm:text-base md:text-lg text-steel max-w-145 mx-auto leading-relaxed mb-6 sm:mb-7">
           Zero-trust, P2P file transfers. Browser-native E2EE, subnet peer discovery, and direct WebRTC streaming with absolutely no cloud required.
         </p>
 
         {/* Outlined / White Pill Action Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-3.5 mb-8">
+        <div className="flex flex-wrap items-center justify-center gap-3.5">
           <a
             href="#workspace"
             className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-none cursor-pointer border border-white flex items-center gap-1.5"
@@ -117,16 +117,16 @@ export const Hero: React.FC<HeroProps> = ({ onOpenDemo }) => {
         </div>
       </div>
 
-      {/* Bottom Radial Drafting Wash & Trusted By Badges */}
-      <div className="relative z-10 w-full max-w-300 mx-auto px-6 pt-2 flex flex-col items-center">
-        <HeroLightBeamStipple className="mb-3" />
+      {/* Bottom Radial Drafting Wash & Trusted By Badges (Pinned to dynamic bottom of screen) */}
+      <div className="relative z-10 w-full max-w-300 mx-auto px-6 mt-auto flex flex-col items-center shrink-0">
+        <HeroLightBeamStipple className="mb-2 sm:mb-3" />
 
-        <p className="text-xs text-steel tracking-wide mb-4">
+        <p className="text-[11px] sm:text-xs text-steel tracking-wide mb-3 sm:mb-4 text-center">
           Trusted across security teams, research labs, and air-gapped facilities
         </p>
 
         {/* Logo / Node Band */}
-        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 opacity-75 hover:opacity-100 transition-opacity font-mono text-xs text-steel">
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 md:gap-14 opacity-75 hover:opacity-100 transition-opacity font-mono text-[11px] sm:text-xs text-steel">
           <div className="flex items-center gap-2 text-white font-medium hover:text-[#7089ba] transition-colors cursor-default">
             <span className="w-2 h-2 rounded-full bg-[#7089ba]" />
             <span>DEFENSE LABS</span>
