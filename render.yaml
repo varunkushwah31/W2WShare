@@ -17,4 +17,4 @@ services:
       - key: FRONTEND_URL
         sync: false
       - key: JAVA_OPTS
-        value: "-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 -Dspring.threads.virtual.enabled=true"
+        value: "-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 -XX:+UseStringDeduplication -Dspring.threads.virtual.enabled=true"

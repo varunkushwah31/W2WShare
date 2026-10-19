@@ -10,6 +10,8 @@ public interface IStorageService {
 
     void saveChunk(String sessionId, int fileIndex, int chunkIndex, byte[] data);
 
+    long saveChunkStream(String sessionId, int fileIndex, int chunkIndex, java.io.InputStream inputStream, long contentLength);
+
     byte[] getChunk(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException;
 
     Path getChunkPath(String sessionId, int fileIndex, int chunkIndex) throws NoSuchFileException;

@@ -307,32 +307,28 @@ public class TransferController {
             @PathVariable String sessionId,
             @PathVariable int fileIndex,
             @PathVariable int chunkIndex,
-            @RequestBody byte[] data) {
+            HttpServletRequest request) throws IOException {
 
-        if (data == null || data.length == 0) {
+        long contentLength = request.getContentLengthLong();
+        if (contentLength == 0) {
             throw new InvalidChunkException("Chunk payload cannot be empty or null.");
         }
-        if (data.length > MAX_CHUNK_PAYLOAD_BYTES) {
+        if (contentLength > MAX_CHUNK_PAYLOAD_BYTES) {
             throw new InvalidChunkException("Chunk payload exceeds maximum size limit (" + MAX_CHUNK_PAYLOAD_BYTES + " bytes).");
         }
 
         TransferSession session = sessionService.getRequiredSession(sessionId);
-        boolean existing = storageService.hasChunk(sessionId, fileIndex, chunkIndex);
-        if (existing) {
-            log.debug("[TRANSFER-CHUNK] Chunk [{}] for file [{}] already exists in session [{}], overwriting",
-                    chunkIndex, fileIndex, sessionId);
-        }
-        storageService.saveChunk(sessionId, fileIndex, chunkIndex, data);
+        long bytesReceived = storageService.saveChunkStream(sessionId, fileIndex, chunkIndex, request.getInputStream(), contentLength);
         int count = session.incrementUploadedChunks();
 
-        metricsService.recordChunkUpload(data.length);
-        log.info("[TRANSFER-CHUNK] Stored binary chunk [{}] ({} bytes) for file [{}] in session [{}] (total uploaded: {})",
-                chunkIndex, data.length, fileIndex, sessionId, count);
+        metricsService.recordChunkUpload(bytesReceived);
+        log.debug("[TRANSFER-CHUNK] Stored binary chunk [{}] ({} bytes) for file [{}] in session [{}] (total uploaded: {})",
+                chunkIndex, bytesReceived, fileIndex, sessionId, count);
 
         return ResponseEntity.ok(Map.of(
                 "fileIndex", fileIndex,
                 "chunkIndex", chunkIndex,
-                "bytesReceived", data.length,
+                "bytesReceived", bytesReceived,
                 "totalUploadedChunks", count,
                 PARAM_STATUS, STATUS_SAVED
         ));
@@ -362,7 +358,7 @@ public class TransferController {
         int count = session.incrementUploadedChunks();
 
         metricsService.recordChunkUpload(bytes.length);
-        log.info("[TRANSFER-CHUNK] Stored multipart chunk [{}] ({} bytes) in session [{}] (total uploaded: {})",
+        log.debug("[TRANSFER-CHUNK] Stored multipart chunk [{}] ({} bytes) in session [{}] (total uploaded: {})",
                 chunkIndex, bytes.length, sessionId, count);
 
         return ResponseEntity.ok(Map.of(
@@ -377,9 +373,9 @@ public class TransferController {
     public ResponseEntity<Map<String, Object>> uploadChunkBinary(
             @PathVariable String sessionId,
             @PathVariable int chunkIndex,
-            @RequestBody byte[] data) {
+            HttpServletRequest request) throws IOException {
 
-        return uploadFileChunkBinary(sessionId, 0, chunkIndex, data);
+        return uploadFileChunkBinary(sessionId, 0, chunkIndex, request);
     }
 
     @GetMapping(value = "/session/{sessionId}/file/{fileIndex}/chunk/{chunkIndex}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
@@ -394,12 +390,14 @@ public class TransferController {
         session.incrementDownloadedChunks();
 
         metricsService.recordChunkDownload(fileSize);
-        log.info("[TRANSFER-CHUNK] Serving chunk [{}] ({} bytes) for file [{}] in session [{}]",
+        log.debug("[TRANSFER-CHUNK] Serving chunk [{}] ({} bytes) for file [{}] in session [{}]",
                 chunkIndex, fileSize, fileIndex, sessionId);
 
         org.springframework.core.io.FileSystemResource resource = new org.springframework.core.io.FileSystemResource(chunkPath);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"chunk_" + chunkIndex + ".bin\"")
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-transform, max-age=3600")
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .contentLength(fileSize)
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);

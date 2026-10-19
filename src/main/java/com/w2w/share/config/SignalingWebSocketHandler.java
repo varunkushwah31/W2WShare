@@ -331,7 +331,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     private void registerSocketToSession(WebSocketSession session, String transferSessionId, String role) {
         WebSocketSession concurrentSession = (session instanceof ConcurrentWebSocketSessionDecorator)
                 ? session
-                : new ConcurrentWebSocketSessionDecorator(session, 5000, 1024 * 1024);
+                : new ConcurrentWebSocketSessionDecorator(session, 10000, 8 * 1024 * 1024);
 
         wsSessionToTransferSession.put(session.getId(), transferSessionId);
         wsSessionToRole.put(session.getId(), role != null ? role : "peer");

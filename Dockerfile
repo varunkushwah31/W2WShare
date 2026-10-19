@@ -48,7 +48,7 @@ EXPOSE 53535/udp
 
 # Configure production JVM flags for Java 25 Virtual Threads, G1GC, and dynamic container RAM scaling
 ENV PORT=8080
-ENV JAVA_OPTS="-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=25.0 -Dspring.threads.virtual.enabled=true"
+ENV JAVA_OPTS="-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=25.0 -XX:+UseStringDeduplication -Dspring.threads.virtual.enabled=true"
 
 # Define container health check with dynamic port resolution
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

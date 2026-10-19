@@ -38,7 +38,6 @@ public class StorageService implements IStorageService {
 
     private Path rootStoragePath;
     private final AtomicLong usedStorageBytes = new AtomicLong(0);
-    private final Map<String, Set<String>> sessionFiles = new ConcurrentHashMap<>();
     private final Set<Path> createdDirectories = ConcurrentHashMap.newKeySet();
 
     public StorageService() {
@@ -135,6 +134,26 @@ public class StorageService implements IStorageService {
         }
     }
 
+    private Path getOrCreateFileDirectory(String sessionId, int fileIndex) {
+        validateSessionId(sessionId);
+        Path sessionDir = rootStoragePath.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(rootStoragePath)) {
+            throw new StorageException("Path traversal attempt detected for session: " + sessionId);
+        }
+
+        Path fileDir = sessionDir.resolve(FILE_PREFIX + fileIndex).normalize();
+        if (!createdDirectories.contains(fileDir)) {
+            try {
+                Files.createDirectories(fileDir);
+                createdDirectories.add(fileDir);
+            } catch (IOException e) {
+                log.error("Failed to create file directory for session {} file {}", sessionId, fileIndex, e);
+                throw new StorageException("Failed to initialize directory for file " + fileIndex, e);
+            }
+        }
+        return fileDir;
+    }
+
     @Override
     public void saveChunk(String sessionId, int fileIndex, int chunkIndex, byte[] data) {
         validateSessionId(sessionId);
@@ -150,33 +169,109 @@ public class StorageService implements IStorageService {
             throw new InvalidChunkException("Chunk payload (" + data.length + " bytes) exceeds maximum allowed chunk size (" + MAX_CHUNK_SIZE_BYTES + " bytes).");
         }
 
-        if (usedStorageBytes.get() + data.length > maxQuotaBytes) {
+        Path fileDir = getOrCreateFileDirectory(sessionId, fileIndex);
+        Path finalChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
+
+        long existingSize = 0;
+        try {
+            if (Files.exists(finalChunkPath)) {
+                existingSize = Files.size(finalChunkPath);
+            }
+        } catch (IOException _) {
+            // Best-effort size inspection
+        }
+
+        long delta = data.length - existingSize;
+        if (delta > 0 && usedStorageBytes.get() + delta > maxQuotaBytes) {
             throw new StorageException("Storage quota of " + (maxQuotaBytes / (1024 * 1024 * 1024)) + " GB exceeded.");
         }
 
-        Path sessionDir = rootStoragePath.resolve(sessionId).normalize();
-        if (!sessionDir.startsWith(rootStoragePath)) {
-            throw new StorageException("Path traversal attempt detected for session: " + sessionId);
-        }
+        try (java.nio.channels.FileChannel channel = java.nio.channels.FileChannel.open(
+                finalChunkPath,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING)) {
 
-        Path fileDir = sessionDir.resolve(FILE_PREFIX + fileIndex).normalize();
-        try {
-            if (!createdDirectories.contains(fileDir)) {
-                Files.createDirectories(fileDir);
-                createdDirectories.add(fileDir);
+            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(data);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
             }
-            Path finalChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
 
-            Files.write(finalChunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-
-            usedStorageBytes.addAndGet(data.length);
-            syncMetrics();
-
-            sessionFiles.computeIfAbsent(sessionId, _ -> ConcurrentHashMap.newKeySet())
-                    .add(finalChunkPath.toString());
-
+            if (delta != 0) {
+                usedStorageBytes.addAndGet(delta);
+                syncMetrics();
+            }
         } catch (IOException e) {
             log.error("Failed to write chunk {} for file {} in session {}", chunkIndex, fileIndex, sessionId, e);
+            throw new StorageException("Failed to save chunk " + chunkIndex + " for file " + fileIndex, e);
+        }
+    }
+
+    @Override
+    public long saveChunkStream(String sessionId, int fileIndex, int chunkIndex, java.io.InputStream inputStream, long contentLength) {
+        validateSessionId(sessionId);
+        if (fileIndex < 0 || chunkIndex < 0) {
+            throw new InvalidChunkException("File index (" + fileIndex + ") and chunk index (" + chunkIndex + ") must be non-negative.");
+        }
+        if (inputStream == null) {
+            throw new InvalidChunkException("Chunk payload cannot be empty or null.");
+        }
+        if (contentLength > MAX_CHUNK_SIZE_BYTES) {
+            throw new InvalidChunkException("Chunk payload (" + contentLength + " bytes) exceeds maximum allowed chunk size (" + MAX_CHUNK_SIZE_BYTES + " bytes).");
+        }
+
+        Path fileDir = getOrCreateFileDirectory(sessionId, fileIndex);
+        Path finalChunkPath = fileDir.resolve(CHUNK_PREFIX + chunkIndex + BIN_EXT);
+
+        long existingSize = 0;
+        try {
+            if (Files.exists(finalChunkPath)) {
+                existingSize = Files.size(finalChunkPath);
+            }
+        } catch (IOException _) {
+            // Best-effort size inspection
+        }
+
+        if (contentLength > 0) {
+            long delta = contentLength - existingSize;
+            if (delta > 0 && usedStorageBytes.get() + delta > maxQuotaBytes) {
+                throw new StorageException("Storage quota of " + (maxQuotaBytes / (1024 * 1024 * 1024)) + " GB exceeded.");
+            }
+        }
+
+        long writtenBytes = 0;
+        try (java.nio.channels.FileChannel fileChannel = java.nio.channels.FileChannel.open(
+                finalChunkPath,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING);
+             java.nio.channels.ReadableByteChannel inChannel = java.nio.channels.Channels.newChannel(inputStream)) {
+
+            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocateDirect(64 * 1024);
+            while (inChannel.read(buffer) != -1) {
+                buffer.flip();
+                writtenBytes += buffer.remaining();
+                if (writtenBytes > MAX_CHUNK_SIZE_BYTES) {
+                    throw new InvalidChunkException("Chunk payload exceeds maximum allowed chunk size (" + MAX_CHUNK_SIZE_BYTES + " bytes).");
+                }
+                while (buffer.hasRemaining()) {
+                    fileChannel.write(buffer);
+                }
+                buffer.clear();
+            }
+
+            if (writtenBytes == 0) {
+                throw new InvalidChunkException("Chunk payload cannot be empty or null.");
+            }
+
+            long delta = writtenBytes - existingSize;
+            if (delta != 0) {
+                usedStorageBytes.addAndGet(delta);
+                syncMetrics();
+            }
+            return writtenBytes;
+        } catch (IOException e) {
+            log.error("Failed to stream chunk {} for file {} in session {}", chunkIndex, fileIndex, sessionId, e);
             throw new StorageException("Failed to save chunk " + chunkIndex + " for file " + fileIndex, e);
         }
     }
@@ -252,13 +347,21 @@ public class StorageService implements IStorageService {
                 return Collections.emptySet();
             }
 
+            Set<Integer> result = new HashSet<>();
             try (Stream<Path> stream = Files.list(fileDir)) {
-                return stream.map(p -> p.getFileName().toString())
-                        .filter(name -> name.matches("^chunk_\\d+\\.bin$"))
-                        .map(name -> name.substring(CHUNK_PREFIX.length(), name.length() - BIN_EXT.length()))
-                        .map(Integer::parseInt)
-                        .collect(Collectors.toSet());
+                for (Path p : stream.toList()) {
+                    String name = p.getFileName().toString();
+                    if (name.startsWith(CHUNK_PREFIX) && name.endsWith(BIN_EXT)) {
+                        try {
+                            int idx = Integer.parseInt(name.substring(CHUNK_PREFIX.length(), name.length() - BIN_EXT.length()));
+                            result.add(idx);
+                        } catch (NumberFormatException _) {
+                            // Non-numeric chunk name
+                        }
+                    }
+                }
             }
+            return result;
         } catch (Exception e) {
             log.debug("Failed to read chunks in directory for session {}: {}", sessionId, e.getMessage());
             return Collections.emptySet();
@@ -291,7 +394,6 @@ public class StorageService implements IStorageService {
                             log.trace("Failed to delete session path: {}", e.getMessage());
                         }
                     });
-            sessionFiles.remove(sessionId);
             createdDirectories.removeIf(p -> p.startsWith(sessionDir));
             syncMetrics();
             log.info("Purged ephemeral storage for session [{}]", sessionId);
