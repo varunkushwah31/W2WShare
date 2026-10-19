@@ -16,6 +16,7 @@ export interface EncryptedTextPayload {
 
 export class W2WCrypto {
   private readonly hasNativeWebCrypto: boolean
+  private readonly keyCache: Map<string, DerivedKeyObj> = new Map()
 
   constructor() {
     this.hasNativeWebCrypto =
@@ -126,10 +127,19 @@ export class W2WCrypto {
 
   /**
    * Derive 256-bit AES-GCM CryptoKey from PIN and Salt using PBKDF2 (100,000 iterations)
+   * Results are cached by PIN + Salt to prevent multi-second UI freezing across file batches.
    */
   async deriveKey(pin: string, saltHex: string): Promise<DerivedKeyObj> {
-    const pinBytes = this.stringToBytes(pin.trim())
-    const saltBytes = this.hexToBytes(saltHex)
+    const cleanPin = pin.trim()
+    const cleanSalt = saltHex.trim()
+    const cacheKey = `${cleanPin}:${cleanSalt}`
+    const cached = this.keyCache.get(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    const pinBytes = this.stringToBytes(cleanPin)
+    const saltBytes = this.hexToBytes(cleanSalt)
 
     if (this.hasNativeWebCrypto) {
       try {
@@ -154,7 +164,9 @@ export class W2WCrypto {
           ['encrypt', 'decrypt']
         )
 
-        return { isNative: true, key }
+        const result: DerivedKeyObj = { isNative: true, key }
+        this.keyCache.set(cacheKey, result)
+        return result
       } catch (e) {
         console.warn('[W2WCrypto] WebCrypto PBKDF2 fallback:', e)
       }
@@ -166,7 +178,16 @@ export class W2WCrypto {
       100000,
       32
     )
-    return { isNative: false, key: rawKeyBytes }
+    const fallbackResult: DerivedKeyObj = { isNative: false, key: rawKeyBytes }
+    this.keyCache.set(cacheKey, fallbackResult)
+    return fallbackResult
+  }
+
+  /**
+   * Clear in-memory derived key cache on session termination
+   */
+  clearKeyCache(): void {
+    this.keyCache.clear()
   }
 
   /**

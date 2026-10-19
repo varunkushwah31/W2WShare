@@ -113,7 +113,8 @@ const prepareSingleFile = async (
   item: SelectedFileItem,
   pin: string,
   burnAfter: boolean,
-  enableCompression: boolean
+  enableCompression: boolean,
+  sessionSalt?: string
 ): Promise<PreparedFile> => {
   let isCompressed = false
   let compressedBlob: Blob | undefined
@@ -134,7 +135,7 @@ const prepareSingleFile = async (
     }
   }
 
-  const salt = cryptoEngine.generateSalt(16)
+  const salt = sessionSalt || cryptoEngine.generateSalt(16)
   const iv = cryptoEngine.generateIv(12)
   const keyObj = await cryptoEngine.deriveKey(pin, salt)
 
@@ -204,7 +205,21 @@ async function sendSingleChunk(
     sentViaRtc = await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData)
   }
   if (!sentViaRtc) {
-    await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
+    let attempt = 0
+    let lastErr: unknown
+    while (attempt < 3) {
+      try {
+        await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
+        return
+      } catch (err) {
+        lastErr = err
+        attempt++
+        if (attempt < 3) {
+          await new Promise((res) => setTimeout(res, attempt * 150))
+        }
+      }
+    }
+    throw lastErr
   }
 }
 
@@ -607,7 +622,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     )
     setTotalEncryptedBytes(totalBytesAllFiles)
     const startTime = Date.now()
-    const UPLOAD_CONCURRENCY = 4
+    const UPLOAD_CONCURRENCY = 6
 
     for (let fIdx = 0; fIdx < preparedFiles.length; fIdx++) {
       const prep = preparedFiles[fIdx]
@@ -686,14 +701,15 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       soundEngine.peerConnect()
       setStatusMessage('Deriving AES-256 keys & processing batch...')
 
-      // 2. Encrypt File Batch (Metadata & key derivation only; zero RAM buffer bloat)
+      // 2. Encrypt File Batch with shared session salt (derives master key once, instant for 100+ files)
       const batchMetadata: FileMetadata[] = []
       const preparedFiles: PreparedFile[] = []
+      const sessionSalt = cryptoEngine.generateSalt(16)
 
       for (const item of files) {
         setCurrentFileName(item.relativePath)
         setStatusMessage(`Hashing & preparing: ${item.relativePath}`)
-        const prepared = await prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression)
+        const prepared = await prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression, sessionSalt)
         batchMetadata.push(prepared.metadata)
         preparedFiles.push(prepared)
       }
@@ -728,6 +744,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
   const cancelSession = async () => {
     await releaseWakeLock()
+    cryptoEngine.clearKeyCache()
     if (sessionId) {
       await api.cancelSession(sessionId)
       setSessionId(null)

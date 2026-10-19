@@ -62,7 +62,24 @@ async function downloadAndDecryptChunk(
     // Release encrypted WebRTC chunk buffer immediately to prevent double memory storage
     webrtcChunksRef.current.delete(chunkKey)
   } else {
-    chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+    // Network retry up to 3 times on transient drops
+    let attempt = 0
+    let lastErr: unknown
+    while (attempt < 3) {
+      try {
+        chunkData = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+        break
+      } catch (err) {
+        lastErr = err
+        attempt++
+        if (attempt < 3) {
+          await new Promise((res) => setTimeout(res, attempt * 150))
+        }
+      }
+    }
+    if (!chunkData) {
+      throw lastErr
+    }
   }
 
   try {
@@ -83,8 +100,25 @@ async function downloadAndDecryptChunk(
     }
   }
 
-  // Fallback download from backend HTTP relay
-  const relayChunk = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+  // Fallback download from backend HTTP relay with retry
+  let attempt = 0
+  let relayChunk: ArrayBuffer | null = null
+  let relayErr: unknown
+  while (attempt < 3) {
+    try {
+      relayChunk = await api.downloadFileChunk(sessionId, fIdx, cIdx)
+      break
+    } catch (err) {
+      relayErr = err
+      attempt++
+      if (attempt < 3) {
+        await new Promise((res) => setTimeout(res, attempt * 150))
+      }
+    }
+  }
+  if (!relayChunk) {
+    throw relayErr
+  }
   const dec = await cryptoEngine.decryptChunk(relayChunk, keyObj, cIdx, meta.iv)
   return dec.buffer as ArrayBuffer
 }
@@ -213,6 +247,139 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
   // Screen WakeLock API to prevent mobile phone sleep while receiving large files
   const { acquireWakeLock, releaseWakeLock } = useWakeLock(downloading)
 
+  // Revoke Blob URLs when component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      receivedFiles.forEach((item) => {
+        try {
+          URL.revokeObjectURL(item.blobUrl)
+        } catch {
+          // Ignored
+        }
+      })
+      cryptoEngine.clearKeyCache()
+    }
+  }, [receivedFiles])
+
+  const triggerDownloadAndDecrypt = React.useCallback(async (
+    targetSessionId: string,
+    targetPin: string,
+    targetBatch: FileMetadata[],
+    targetBurnAfterReading: boolean
+  ) => {
+    if (!targetSessionId || !targetPin || targetBatch.length === 0) return
+
+    setDownloading(true)
+    setDownloadPercent(0)
+    setErrorMsg(null)
+    setStatusText('Deriving cryptographic keys...')
+    await acquireWakeLock()
+
+    // Request direct WebRTC streaming if channel is active
+    if (rtcManagerRef.current?.isChannelOpen()) {
+      rtcManagerRef.current.sendRequestChunks()
+    } else if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'REQUEST_WEBRTC_CHUNKS' }))
+    }
+
+    const totalChunksAllFiles = targetBatch.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
+    setTotalChunksCount(totalChunksAllFiles)
+    let downloadedBytesTotal = 0
+    let priorCompletedChunks = 0
+    const startTime = Date.now()
+    const DOWNLOAD_CONCURRENCY = 6
+
+    const results: ReceivedFileItem[] = []
+
+    try {
+      for (let fIdx = 0; fIdx < targetBatch.length; fIdx++) {
+        const meta = targetBatch[fIdx]
+        setStatusText(`Downloading chunks for: ${meta.fileName}`)
+
+        const keyObj = await cryptoEngine.deriveKey(targetPin, meta.salt)
+        const totalChunks = meta.totalChunks || 1
+        const decryptedChunks: ArrayBuffer[] = new Array(totalChunks)
+
+        let nextChunkIdx = 0
+        let completedChunksForFile = 0
+
+        const downloadWorker = async () => {
+          while (true) {
+            const cIdx = nextChunkIdx++
+            if (cIdx >= totalChunks) break
+
+            const decryptedChunk = await downloadAndDecryptChunk(
+              targetSessionId,
+              fIdx,
+              cIdx,
+              keyObj,
+              meta,
+              webrtcChunksRef,
+              rtcManagerRef
+            )
+
+            decryptedChunks[cIdx] = decryptedChunk
+            completedChunksForFile++
+            downloadedBytesTotal += decryptedChunk.byteLength
+            setTransferredBytes(downloadedBytesTotal)
+            setCurrentChunkIndex(completedChunksForFile)
+            setStatusText(`Downloading & authenticating chunks (${completedChunksForFile}/${totalChunks}) - ${meta.fileName}`)
+
+            const elapsedSec = (Date.now() - startTime) / 1000
+            if (elapsedSec > 0) {
+              const speed = downloadedBytesTotal / (1024 * 1024) / elapsedSec
+              setDownloadSpeedMbps(speed)
+              const totalPayloadBytes = targetBatch.reduce((acc, m) => acc + (m.fileSize || 0), 0)
+              const remainingBytes = Math.max(0, totalPayloadBytes - downloadedBytesTotal)
+              if (speed > 0 && remainingBytes > 0) {
+                setDownloadEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
+              }
+            }
+
+            const totalCompletedChunks = priorCompletedChunks + completedChunksForFile
+            const totalProgress = Math.round(
+              (totalCompletedChunks / totalChunksAllFiles) * 100
+            )
+            setDownloadPercent(Math.min(99, totalProgress))
+          }
+        }
+
+        const workers = Array.from(
+          { length: Math.min(DOWNLOAD_CONCURRENCY, totalChunks) },
+          () => downloadWorker()
+        )
+        await Promise.all(workers)
+        priorCompletedChunks += totalChunks
+
+        setStatusText(`Assembling decrypted stream (${meta.fileName})...`)
+        const receivedItem = await assembleDecryptedFile(meta, decryptedChunks)
+        results.push(receivedItem)
+      }
+
+      setReceivedFiles(results)
+      setDownloadPercent(100)
+      setDownloadEtaSeconds(0)
+      setDownloading(false)
+      setStatusText('All files downloaded, decrypted & verified successfully!')
+      soundEngine.transferComplete()
+
+      await recordReceivedAuditLog(results, targetBurnAfterReading)
+
+      // Notify completion & auto-burn
+      const completeRes = await api.markTransferComplete(targetSessionId)
+      if (completeRes.burned || targetBurnAfterReading) {
+        setBurnedNotice(true)
+      }
+    } catch (err: unknown) {
+      console.error(err)
+      setDownloading(false)
+      setErrorMsg(`Decryption failed: ${err instanceof Error ? err.message : 'Corrupted data or wrong PIN'}`)
+      soundEngine.errorTone()
+    } finally {
+      await releaseWakeLock()
+    }
+  }, [acquireWakeLock, releaseWakeLock])
+
   const handleLookup = React.useCallback(async (lookupPin: string) => {
     const cleanPin = lookupPin.trim()
     if (cleanPin.length !== 6) {
@@ -228,15 +395,16 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
       const session = await api.getSessionByPin(cleanPin)
       setSessionId(session.sessionId)
       setActivePin(cleanPin)
-      setBurnAfterReading(!!session.burnAfterReading)
+      const burn = !!session.burnAfterReading
+      setBurnAfterReading(burn)
 
+      let batch: FileMetadata[] = []
       if (session.fileBatch && session.fileBatch.length > 0) {
-        setBatchMetadata(session.fileBatch)
+        batch = session.fileBatch
       } else if (session.fileMetadata?.fileName) {
-        setBatchMetadata([session.fileMetadata])
-      } else {
-        setBatchMetadata([])
+        batch = [session.fileMetadata]
       }
+      setBatchMetadata(batch)
 
       // Join the session
       await api.joinSession(session.sessionId, cleanPin)
@@ -244,13 +412,18 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
       if (onSessionJoined) {
         onSessionJoined(session.sessionId, cleanPin)
       }
+
+      // Auto-start download & decrypt pipeline immediately
+      if (batch.length > 0) {
+        void triggerDownloadAndDecrypt(session.sessionId, cleanPin, batch, burn)
+      }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Session not found or expired.')
       soundEngine.errorTone()
     } finally {
       setLoading(false)
     }
-  }, [onSessionJoined])
+  }, [onSessionJoined, triggerDownloadAndDecrypt])
 
   // Auto-fill and lookup if URL contains pin or code
   useEffect(() => {
@@ -421,117 +594,9 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     }
   }
 
-  const handleDownloadAndDecrypt = async () => {
-    if (!sessionId || !activePin || batchMetadata.length === 0) return
-
-    setDownloading(true)
-    setDownloadPercent(0)
-    setErrorMsg(null)
-    setStatusText('Deriving cryptographic keys...')
-    await acquireWakeLock()
-
-    // Request direct WebRTC streaming if channel is active
-    if (rtcManagerRef.current?.isChannelOpen()) {
-      rtcManagerRef.current.sendRequestChunks()
-    } else if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'REQUEST_WEBRTC_CHUNKS' }))
-    }
-
-    const totalChunksAllFiles = batchMetadata.reduce((acc, m) => acc + (m.totalChunks || 1), 0)
-    setTotalChunksCount(totalChunksAllFiles)
-    let downloadedBytesTotal = 0
-    let priorCompletedChunks = 0
-    const startTime = Date.now()
-    const DOWNLOAD_CONCURRENCY = 4
-
-    const results: ReceivedFileItem[] = []
-
-    try {
-      for (let fIdx = 0; fIdx < batchMetadata.length; fIdx++) {
-        const meta = batchMetadata[fIdx]
-        setStatusText(`Downloading chunks for: ${meta.fileName}`)
-
-        const keyObj = await cryptoEngine.deriveKey(activePin, meta.salt)
-        const totalChunks = meta.totalChunks || 1
-        const decryptedChunks: ArrayBuffer[] = new Array(totalChunks)
-
-        let nextChunkIdx = 0
-        let completedChunksForFile = 0
-
-        const downloadWorker = async () => {
-          while (true) {
-            const cIdx = nextChunkIdx++
-            if (cIdx >= totalChunks) break
-
-            const decryptedChunk = await downloadAndDecryptChunk(
-              sessionId,
-              fIdx,
-              cIdx,
-              keyObj,
-              meta,
-              webrtcChunksRef,
-              rtcManagerRef
-            )
-
-            decryptedChunks[cIdx] = decryptedChunk
-            completedChunksForFile++
-            downloadedBytesTotal += decryptedChunk.byteLength
-            setTransferredBytes(downloadedBytesTotal)
-            setCurrentChunkIndex(completedChunksForFile)
-            setStatusText(`Downloading & authenticating chunks (${completedChunksForFile}/${totalChunks}) - ${meta.fileName}`)
-
-            const elapsedSec = (Date.now() - startTime) / 1000
-            if (elapsedSec > 0) {
-              const speed = downloadedBytesTotal / (1024 * 1024) / elapsedSec
-              setDownloadSpeedMbps(speed)
-              const totalPayloadBytes = batchMetadata.reduce((acc, m) => acc + (m.fileSize || 0), 0)
-              const remainingBytes = Math.max(0, totalPayloadBytes - downloadedBytesTotal)
-              if (speed > 0 && remainingBytes > 0) {
-                setDownloadEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
-              }
-            }
-
-            const totalCompletedChunks = priorCompletedChunks + completedChunksForFile
-            const totalProgress = Math.round(
-              (totalCompletedChunks / totalChunksAllFiles) * 100
-            )
-            setDownloadPercent(Math.min(99, totalProgress))
-          }
-        }
-
-        const workers = Array.from(
-          { length: Math.min(DOWNLOAD_CONCURRENCY, totalChunks) },
-          () => downloadWorker()
-        )
-        await Promise.all(workers)
-        priorCompletedChunks += totalChunks
-
-        setStatusText(`Assembling decrypted stream (${meta.fileName})...`)
-        const receivedItem = await assembleDecryptedFile(meta, decryptedChunks)
-        results.push(receivedItem)
-      }
-
-      setReceivedFiles(results)
-      setDownloadPercent(100)
-      setDownloadEtaSeconds(0)
-      setDownloading(false)
-      setStatusText('All files downloaded, decrypted & verified successfully!')
-      soundEngine.transferComplete()
-
-      await recordReceivedAuditLog(results, burnAfterReading)
-
-      // Notify completion & auto-burn
-      const completeRes = await api.markTransferComplete(sessionId)
-      if (completeRes.burned || burnAfterReading) {
-        setBurnedNotice(true)
-      }
-    } catch (err: unknown) {
-      console.error(err)
-      setDownloading(false)
-      setErrorMsg(`Decryption failed: ${err instanceof Error ? err.message : 'Corrupted data or wrong PIN'}`)
-      soundEngine.errorTone()
-    } finally {
-      await releaseWakeLock()
+  const handleDownloadAndDecrypt = () => {
+    if (sessionId && activePin && batchMetadata.length > 0) {
+      void triggerDownloadAndDecrypt(sessionId, activePin, batchMetadata, burnAfterReading)
     }
   }
 
@@ -680,6 +745,14 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
 
             <button
               onClick={() => {
+                receivedFiles.forEach((item) => {
+                  try {
+                    URL.revokeObjectURL(item.blobUrl)
+                  } catch {
+                    // Ignored
+                  }
+                })
+                cryptoEngine.clearKeyCache()
                 setSessionId(null)
                 setActivePin(null)
                 setReceivedFiles([])

@@ -49,6 +49,7 @@ interface InFlightChunkAssembly {
   receivedPackets: number
   totalBytes: number
   packets: (Uint8Array | undefined)[]
+  createdAt: number
 }
 
 export class WebRtcPeerManager {
@@ -63,6 +64,12 @@ export class WebRtcPeerManager {
   private onChunkReceiveCallback: ChunkReceiveHandler | null = null
   private onResendChunkCallback: ((fileIndex: number, chunkIndex: number) => void) | null = null
   private onRequestChunksCallback: (() => void) | null = null
+
+  // Flow control watermarks (1MB high watermark, 256KB low watermark)
+  private readonly HIGH_WATER_MARK = 1024 * 1024
+  private readonly LOW_WATER_MARK = 256 * 1024
+  private drainResolvers: (() => void)[] = []
+  private drainTimer: number | null = null
 
   // Telemetry
   private totalBytesTransferred = 0
@@ -286,11 +293,22 @@ export class WebRtcPeerManager {
     const chunkKey = `${fileIndex}-${chunkIndex}`
     let assembly = this.inFlightChunks.get(chunkKey)
     if (!assembly) {
+      // Periodic cleanup of stale chunks older than 30s
+      if (this.inFlightChunks.size > 20) {
+        const now = Date.now()
+        for (const [key, item] of this.inFlightChunks) {
+          if (now - item.createdAt > 30000) {
+            this.inFlightChunks.delete(key)
+          }
+        }
+      }
+
       assembly = {
         totalPackets,
         receivedPackets: 0,
         totalBytes: 0,
         packets: new Array(totalPackets),
+        createdAt: Date.now(),
       }
       this.inFlightChunks.set(chunkKey, assembly)
     }
@@ -323,6 +341,9 @@ export class WebRtcPeerManager {
         offset += pkt.byteLength
       }
     }
+    // Release packet references immediately to allow garbage collection
+    assembly.packets.length = 0
+
     if (this.onChunkReceiveCallback) {
       this.onChunkReceiveCallback(fileIndex, chunkIndex, fullChunk.buffer)
     }
@@ -372,29 +393,43 @@ export class WebRtcPeerManager {
   }
 
   /**
-   * Flow control backpressure: waits until the SCTP buffer drains below 128KB
+   * Flow control backpressure: event-driven drainage with multi-worker resolution queue.
+   * Eliminates concurrency races and avoids unnecessary timeout penalties.
    */
   private waitForBufferDrain(): Promise<void> {
+    if (!this.dataChannel || this.dataChannel.bufferedAmount <= this.LOW_WATER_MARK) {
+      return Promise.resolve()
+    }
+
     return new Promise<void>((resolve) => {
-      if (!this.dataChannel || this.dataChannel.bufferedAmount <= 128 * 1024) {
-        resolve()
-        return
-      }
-      this.dataChannel.bufferedAmountLowThreshold = 128 * 1024
-      const onLow = () => {
-        if (this.dataChannel) {
-          this.dataChannel.onbufferedamountlow = null
+      this.drainResolvers.push(resolve)
+
+      if (this.drainResolvers.length === 1 && this.dataChannel) {
+        this.dataChannel.bufferedAmountLowThreshold = this.LOW_WATER_MARK
+        this.dataChannel.onbufferedamountlow = () => {
+          this.flushDrainResolvers()
         }
-        resolve()
+
+        // Safety timeout in case browser event drops
+        this.drainTimer = window.setTimeout(() => {
+          this.flushDrainResolvers()
+        }, 300)
       }
-      this.dataChannel.onbufferedamountlow = onLow
-      setTimeout(() => {
-        if (this.dataChannel?.onbufferedamountlow === onLow) {
-          this.dataChannel.onbufferedamountlow = null
-        }
-        resolve()
-      }, 250)
     })
+  }
+
+  private flushDrainResolvers(): void {
+    if (this.drainTimer) {
+      clearTimeout(this.drainTimer)
+      this.drainTimer = null
+    }
+    if (this.dataChannel) {
+      this.dataChannel.onbufferedamountlow = null
+    }
+    const waiting = this.drainResolvers.splice(0)
+    for (const resolve of waiting) {
+      resolve()
+    }
   }
 
   /**
@@ -432,8 +467,8 @@ export class WebRtcPeerManager {
         // Copy slice payload into packet
         packet.set(chunkData.subarray(start, end), PACKET_HEADER_SIZE)
 
-        // Flow control backpressure: do not overwhelm the browser's SCTP buffer
-        if (this.dataChannel.bufferedAmount > 512 * 1024) {
+        // Flow control backpressure: maintain pipe saturation without overflowing SCTP buffer
+        if (this.dataChannel.bufferedAmount > this.HIGH_WATER_MARK) {
           await this.waitForBufferDrain()
         }
 
@@ -482,6 +517,7 @@ export class WebRtcPeerManager {
   }
 
   public close() {
+    this.flushDrainResolvers()
     if (this.speedTimer) {
       clearInterval(this.speedTimer)
       this.speedTimer = null
