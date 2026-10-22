@@ -1,14 +1,11 @@
 # syntax=docker/dockerfile:1.7
 # ============================================================================
-# Stage 1: Build Backend with Maven .m2 dependency caching
+# Stage 1: Build Backend with Maven & Eclipse Temurin Java 25
 # ============================================================================
-FROM eclipse-temurin:25-jdk-noble AS backend-builder
+FROM maven:3-eclipse-temurin-25 AS backend-builder
 WORKDIR /build
 
-# Install Maven (cached once)
-RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
-
-# Copy ONLY pom.xml first to maximize layer caching on code edits
+# Copy pom.xml first to maximize dependency caching
 COPY pom.xml .
 
 # Pre-download dependencies and plugins into persistent BuildKit .m2 cache mount
@@ -18,19 +15,18 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Copy backend source code (Java, properties, resources)
 COPY src ./src
 
-# Build production executable JAR using cached .m2 repository (pure backend API, no static UI)
+# Build production executable JAR using cached .m2 repository
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn package -DskipTests -B \
+    mvn clean package -DskipTests -B \
     && cp target/w2w-share-*.jar app.jar
 
-
 # ============================================================================
-# Stage 3: Minimal Production JRE Runtime Container
+# Stage 2: Minimal Production JRE Runtime Container
 # ============================================================================
 FROM eclipse-temurin:25-jre-noble AS runner
 WORKDIR /app
 
-# Install curl for container health check and create unprivileged system user for maximum security
+# Install curl for container health check and create unprivileged system user for security
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r w2wgroup && useradd -r -g w2wgroup -m w2wuser \
@@ -42,9 +38,9 @@ COPY --from=backend-builder --chown=w2wuser:w2wgroup /build/app.jar app.jar
 # Switch to unprivileged user
 USER w2wuser
 
-# Expose HTTP & WebSocket port (8080) and UDP Subnet Peer Discovery port (53535)
+# Expose HTTP & WebSocket port (8080) and UDP Subnet Peer Discovery port (8888)
 EXPOSE 8080/tcp
-EXPOSE 53535/udp
+EXPOSE 8888/udp
 
 # Configure production JVM flags for Java 25 Virtual Threads, G1GC, and dynamic container RAM scaling
 ENV PORT=8080

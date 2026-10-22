@@ -1,25 +1,55 @@
-version: '3.8'
-
 services:
-  w2w-share:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: w2w-share:latest
-    container_name: w2w-share
+    image: w2w-backend:latest
+    container_name: w2w-backend
+    hostname: backend
     restart: unless-stopped
     ports:
-      - "8080:8080"
-      - "53535:53535/udp"
+      - "${BACKEND_PORT:-8083}:8080"
+      - "${DISCOVERY_PORT:-8888}:8888/udp"
     environment:
       - SERVER_PORT=8080
       - SPRING_THREADS_VIRTUAL_ENABLED=true
       - W2W_STORAGE_MAX_QUOTA_BYTES=53687091200
       - W2W_SESSION_TIMEOUT_SECONDS=600
       - W2W_STORAGE_TEMP_DIR=/app/temp-w2w-encrypted
-      - JAVA_OPTS=-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -Xms256m -Xmx2g
+      - JAVA_OPTS=-XX:+UseG1GC -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0
     volumes:
       - w2w_temp_data:/app/temp-w2w-encrypted
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      w2w-network:
+        aliases:
+          - backend
+          - w2w-share
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: w2w-frontend:latest
+    container_name: w2w-frontend
+    hostname: frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8084}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - w2w-network
 
@@ -39,7 +69,7 @@ services:
     networks:
       - w2w-network
     depends_on:
-      - w2w-share
+      - backend
 
   grafana:
     image: grafana/grafana:10.4.0
