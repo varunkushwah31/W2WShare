@@ -16,7 +16,6 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -350,21 +349,24 @@ public class StorageService implements IStorageService {
             Set<Integer> result = new HashSet<>();
             try (Stream<Path> stream = Files.list(fileDir)) {
                 for (Path p : stream.toList()) {
-                    String name = p.getFileName().toString();
-                    if (name.startsWith(CHUNK_PREFIX) && name.endsWith(BIN_EXT)) {
-                        try {
-                            int idx = Integer.parseInt(name.substring(CHUNK_PREFIX.length(), name.length() - BIN_EXT.length()));
-                            result.add(idx);
-                        } catch (NumberFormatException _) {
-                            // Non-numeric chunk name
-                        }
-                    }
+                    parseChunkIndex(p.getFileName().toString()).ifPresent(result::add);
                 }
             }
             return result;
         } catch (Exception e) {
             log.debug("Failed to read chunks in directory for session {}: {}", sessionId, e.getMessage());
             return Collections.emptySet();
+        }
+    }
+
+    private Optional<Integer> parseChunkIndex(String name) {
+        if (!name.startsWith(CHUNK_PREFIX) || !name.endsWith(BIN_EXT)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Integer.parseInt(name.substring(CHUNK_PREFIX.length(), name.length() - BIN_EXT.length())));
+        } catch (NumberFormatException _) {
+            return Optional.empty();
         }
     }
 

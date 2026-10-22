@@ -301,6 +301,17 @@ export function getLocalDeviceInfo(): { deviceId: string; deviceName: string; os
   return { deviceId, deviceName, os }
 }
 
+export interface AirDropPendingRequest {
+  sessionId: string
+  pin: string
+  senderDeviceId: string
+  senderDeviceName: string
+  targetDeviceId?: string
+  files: { fileName: string; fileSize: number; mimeType?: string }[]
+  totalBytes: number
+  status?: string
+}
+
 export const api = {
   // Network
   async getNetworkInfo(): Promise<NetworkInfoResponse> {
@@ -648,6 +659,59 @@ export const api = {
       // Ignore
     }
     localStorage.removeItem('w2w_audit_ledger')
+  },
+
+  // AirDrop API
+  async requestAirDrop(payload: {
+    sessionId: string
+    pin: string
+    senderDeviceId: string
+    senderDeviceName: string
+    targetDeviceId?: string
+    files: { fileName: string; fileSize: number; mimeType?: string }[]
+    totalBytes: number
+  }): Promise<{ status: string; sessionId: string }> {
+    const res = await fetch(`${getApiBase()}/transfer/airdrop/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to send AirDrop request'))
+    return await res.json()
+  },
+
+  async getPendingAirDropRequests(deviceId: string): Promise<AirDropPendingRequest[]> {
+    try {
+      const res = await fetch(`${getApiBase()}/transfer/airdrop/pending?deviceId=${encodeURIComponent(deviceId)}`)
+      if (res.ok) return (await res.json()) as AirDropPendingRequest[]
+    } catch {
+      // Non-blocking poll
+    }
+    return []
+  },
+
+  async respondAirDrop(payload: {
+    sessionId: string
+    targetDeviceId: string
+    accepted: boolean
+  }): Promise<{ status: string; accepted: boolean }> {
+    const res = await fetch(`${getApiBase()}/transfer/airdrop/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw new Error(await extractErrorMessage(res, 'Failed to respond to AirDrop'))
+    return await res.json()
+  },
+
+  async getAirDropStatus(sessionId: string): Promise<{ status: string }> {
+    try {
+      const res = await fetch(`${getApiBase()}/transfer/airdrop/status/${sessionId}`)
+      if (res.ok) return await res.json()
+    } catch {
+      // Non-blocking
+    }
+    return { status: 'UNKNOWN' }
   },
 }
 

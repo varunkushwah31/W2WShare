@@ -30,6 +30,9 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     private static final String KEY_CONNECTED_PEER_COUNT = "connectedPeerCount";
     private static final String KEY_SENDER_ONLINE = "senderOnline";
     private static final String KEY_RECEIVER_COUNT = "receiverCount";
+    private static final String KEY_SESSION_ID = "sessionId";
+    private static final String KEY_DEVICE_ID = "deviceId";
+    private static final String KEY_TARGET_DEVICE_ID = "targetDeviceId";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ISessionService sessionService;
@@ -42,6 +45,10 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     private final Map<String, Set<WebSocketSession>> sessionSockets = new ConcurrentHashMap<>();
     // WebSocket session ID -> Last activity epoch timestamp
     private final Map<String, Long> lastHeartbeatMap = new ConcurrentHashMap<>();
+    // Device ID -> WebSocket session (for AirDrop routing)
+    private final Map<String, WebSocketSession> deviceSockets = new ConcurrentHashMap<>();
+    // WebSocket session ID -> Device ID
+    private final Map<String, String> socketToDeviceId = new ConcurrentHashMap<>();
 
     public SignalingWebSocketHandler(ISessionService sessionService) {
         this.sessionService = sessionService;
@@ -49,8 +56,8 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
-        session.setTextMessageSizeLimit(1024 * 1024);
-        session.setBinaryMessageSizeLimit(1024 * 1024);
+        session.setTextMessageSizeLimit(4 * 1024 * 1024);
+        session.setBinaryMessageSizeLimit(4 * 1024 * 1024);
         lastHeartbeatMap.put(session.getId(), System.currentTimeMillis());
         log.info("[WEBSOCKET] Client connected: socket [{}] (remote: {})", session.getId(), session.getRemoteAddress());
     }
@@ -84,6 +91,10 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
 
     private void dispatchSignal(WebSocketSession session, SignalMessage signal) throws IOException {
         switch (signal.type()) {
+            case "REGISTER_DEVICE" -> handleRegisterDevice(session, signal);
+            case "AIRDROP_REQUEST" -> handleAirDropRequest(session, signal);
+            case "AIRDROP_RESPONSE" -> handleAirDropResponse(session, signal);
+            case "AIRDROP_CANCEL" -> handleAirDropCancel(session, signal);
             case "REGISTER_SENDER" -> handleRegisterSender(session, signal);
             case "JOIN_BY_PIN" -> handleJoinByPin(session, signal);
             case "PING" -> handlePing(session, signal);
@@ -134,7 +145,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         log.warn("WebSocket transport error on {}: {}", session.getId(), exception.getMessage());
-        if (session != null && session.isOpen()) {
+        if (session.isOpen()) {
             try {
                 session.close(CloseStatus.SERVER_ERROR);
             } catch (IOException e) {
@@ -160,7 +171,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         String transferSessionId = wsSessionToTransferSession.get(session.getId());
         if (transferSessionId != null) {
             sendSignal(session, new SignalMessage("ROOM_STATUS", Map.of(
-                    "sessionId", transferSessionId,
+                    KEY_SESSION_ID, transferSessionId,
                     KEY_CONNECTED_PEER_COUNT, getConnectedPeerCount(transferSessionId),
                     KEY_SENDER_ONLINE, isSenderOnline(transferSessionId),
                     KEY_RECEIVER_COUNT, getReceiverCount(transferSessionId),
@@ -168,6 +179,132 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
             )));
         } else {
             sendSignal(session, new SignalMessage(SIGNAL_ERROR, "Socket is not connected to any transfer session"));
+        }
+    }
+
+    private void handleRegisterDevice(WebSocketSession session, SignalMessage signal) throws IOException {
+        String deviceId = null;
+        if (signal.payload() instanceof Map<?, ?> map && map.get(KEY_DEVICE_ID) != null) {
+            deviceId = String.valueOf(map.get(KEY_DEVICE_ID)).trim();
+        } else if (signal.payload() != null) {
+            deviceId = String.valueOf(signal.payload()).trim();
+        }
+        if (deviceId != null && !deviceId.isBlank()) {
+            WebSocketSession concurrentSession = (session instanceof ConcurrentWebSocketSessionDecorator)
+                    ? session
+                    : new ConcurrentWebSocketSessionDecorator(session, 30000, 64 * 1024 * 1024);
+            deviceSockets.put(deviceId, concurrentSession);
+            socketToDeviceId.put(session.getId(), deviceId);
+            log.info("[AIRDROP] Registered device [{}] to socket [{}]", deviceId, session.getId());
+            sendSignal(session, new SignalMessage("DEVICE_REGISTERED", Map.of(KEY_DEVICE_ID, deviceId)));
+        }
+    }
+
+    private void handleAirDropRequest(WebSocketSession session, SignalMessage signal) throws IOException {
+        log.info("[AIRDROP] Processing AirDrop request from socket [{}]", session.getId());
+        if (signal.payload() instanceof Map<?, ?> map) {
+            String targetDeviceId = map.get(KEY_TARGET_DEVICE_ID) != null ? String.valueOf(map.get(KEY_TARGET_DEVICE_ID)).trim() : null;
+            if (targetDeviceId != null && !targetDeviceId.isBlank()) {
+                WebSocketSession targetSocket = deviceSockets.get(targetDeviceId);
+                if (targetSocket != null && targetSocket.isOpen()) {
+                    sendSignal(targetSocket, signal);
+                    log.info("[AIRDROP] Direct routed AirDrop request to target device [{}]", targetDeviceId);
+                    return;
+                }
+            }
+        }
+        // Broadcast to all other registered device sockets
+        for (Map.Entry<String, WebSocketSession> entry : deviceSockets.entrySet()) {
+            WebSocketSession s = entry.getValue();
+            if (s.isOpen() && !s.getId().equals(session.getId())) {
+                try {
+                    sendSignal(s, signal);
+                } catch (IOException e) {
+                    log.debug("Failed to relay AirDrop request to device socket {}: {}", s.getId(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void handleAirDropResponse(WebSocketSession session, SignalMessage signal) throws IOException {
+        log.info("[AIRDROP] Processing AirDrop response from socket [{}]", session.getId());
+        if (signal.payload() instanceof Map<?, ?> map) {
+            String senderDeviceId = map.get("senderDeviceId") != null ? String.valueOf(map.get("senderDeviceId")).trim() : null;
+            if (senderDeviceId != null && !senderDeviceId.isBlank()) {
+                WebSocketSession senderSocket = deviceSockets.get(senderDeviceId);
+                if (senderSocket != null && senderSocket.isOpen()) {
+                    sendSignal(senderSocket, signal);
+                    log.info("[AIRDROP] Routed AirDrop response to sender device [{}]", senderDeviceId);
+                    return;
+                }
+            }
+            String sessionId = map.get(KEY_SESSION_ID) != null ? String.valueOf(map.get(KEY_SESSION_ID)).trim() : null;
+            if (sessionId != null && !sessionId.isBlank()) {
+                relayToOtherPeers(session, sessionId, signal);
+                return;
+            }
+        }
+        for (Map.Entry<String, WebSocketSession> entry : deviceSockets.entrySet()) {
+            WebSocketSession s = entry.getValue();
+            if (s.isOpen() && !s.getId().equals(session.getId())) {
+                try {
+                    sendSignal(s, signal);
+                } catch (IOException e) {
+                    log.debug("Failed to relay AirDrop response to device socket {}: {}", s.getId(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void handleAirDropCancel(WebSocketSession session, SignalMessage signal) {
+        log.info("[AIRDROP] AirDrop cancelled from socket [{}]", session.getId());
+        for (Map.Entry<String, WebSocketSession> entry : deviceSockets.entrySet()) {
+            WebSocketSession s = entry.getValue();
+            if (s.isOpen() && !s.getId().equals(session.getId())) {
+                try {
+                    sendSignal(s, signal);
+                } catch (IOException e) {
+                    log.debug("Failed to relay AirDrop cancel: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    public void relayAirDropRequestFromRest(Object payload) {
+        SignalMessage signal = new SignalMessage("AIRDROP_REQUEST", payload);
+        if (payload instanceof Map<?, ?> map && map.get(KEY_TARGET_DEVICE_ID) != null) {
+            String targetDeviceId = String.valueOf(map.get(KEY_TARGET_DEVICE_ID)).trim();
+            WebSocketSession targetSocket = deviceSockets.get(targetDeviceId);
+            if (targetSocket != null && targetSocket.isOpen()) {
+                try {
+                    sendSignal(targetSocket, signal);
+                    return;
+                } catch (IOException e) {
+                    log.warn("Failed to send AirDrop REST signal to target: {}", e.getMessage());
+                }
+            }
+        }
+        for (WebSocketSession s : deviceSockets.values()) {
+            if (s.isOpen()) {
+                try {
+                    sendSignal(s, signal);
+                } catch (IOException e) {
+                    log.debug("Failed to broadcast AirDrop REST signal: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    public void relayAirDropResponseFromRest(Object payload) {
+        SignalMessage signal = new SignalMessage("AIRDROP_RESPONSE", payload);
+        for (WebSocketSession s : deviceSockets.values()) {
+            if (s.isOpen()) {
+                try {
+                    sendSignal(s, signal);
+                } catch (IOException e) {
+                    log.debug("Failed to broadcast AirDrop response REST signal: {}", e.getMessage());
+                }
+            }
         }
     }
 
@@ -212,7 +349,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
                     session.getId(), transferSession.getSessionId(), pin, clientIp);
 
             sendSignal(session, new SignalMessage("JOINED", Map.of(
-                    "sessionId", transferSession.getSessionId(),
+                    KEY_SESSION_ID, transferSession.getSessionId(),
                     "pin", transferSession.getPin(),
                     "fileMetadata", transferSession.getFileMetadata() != null ? transferSession.getFileMetadata() : Map.of(),
                     "fileBatch", transferSession.getFileBatch()
@@ -334,7 +471,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
     private void registerSocketToSession(WebSocketSession session, String transferSessionId, String role) {
         WebSocketSession concurrentSession = (session instanceof ConcurrentWebSocketSessionDecorator)
                 ? session
-                : new ConcurrentWebSocketSessionDecorator(session, 10000, 8 * 1024 * 1024);
+                : new ConcurrentWebSocketSessionDecorator(session, 30000, 64 * 1024 * 1024);
 
         wsSessionToTransferSession.put(session.getId(), transferSessionId);
         wsSessionToRole.put(session.getId(), role != null ? role : "peer");
@@ -346,11 +483,16 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         String transferSessionId = wsSessionToTransferSession.remove(session.getId());
         String role = wsSessionToRole.remove(session.getId());
         lastHeartbeatMap.remove(session.getId());
+        String deviceId = socketToDeviceId.remove(session.getId());
+        if (deviceId != null) {
+            deviceSockets.remove(deviceId);
+        }
         if (transferSessionId != null) {
             notifyPeersOnDisconnect(session, transferSessionId, role);
         }
-        log.info("[WEBSOCKET] Client disconnected: socket [{}] (role: {}, session: {}, status: {})",
-                session.getId(), role != null ? role : "unregistered", transferSessionId != null ? transferSessionId : "none", status);
+        log.info("[WEBSOCKET] Client disconnected: socket [{}] (role: {}, session: {}, device: {}, status: {})",
+                session.getId(), role != null ? role : "unregistered", transferSessionId != null ? transferSessionId : "none",
+                deviceId != null ? deviceId : "none", status);
     }
 
     private void notifyPeersOnDisconnect(WebSocketSession session, String transferSessionId, String role) {
@@ -420,7 +562,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         if (sessionId == null) return 0;
         Set<WebSocketSession> sockets = sessionSockets.get(sessionId);
         if (sockets == null) return 0;
-        return (int) sockets.stream().filter(WebSocketSession::isOpen).count();
+        return (int) sockets.stream().filter(s -> s != null && s.isOpen()).count();
     }
 
     public boolean isSenderOnline(String sessionId) {
@@ -428,7 +570,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         Set<WebSocketSession> sockets = sessionSockets.get(sessionId);
         if (sockets == null) return false;
         return sockets.stream()
-                .filter(WebSocketSession::isOpen)
+                .filter(s -> s != null && s.isOpen())
                 .anyMatch(s -> ROLE_SENDER.equalsIgnoreCase(wsSessionToRole.get(s.getId())));
     }
 
@@ -437,7 +579,7 @@ public class SignalingWebSocketHandler extends AbstractWebSocketHandler {
         Set<WebSocketSession> sockets = sessionSockets.get(sessionId);
         if (sockets == null) return 0;
         return (int) sockets.stream()
-                .filter(WebSocketSession::isOpen)
+                .filter(s -> s != null && s.isOpen())
                 .filter(s -> ROLE_RECEIVER.equalsIgnoreCase(wsSessionToRole.get(s.getId())))
                 .count();
     }

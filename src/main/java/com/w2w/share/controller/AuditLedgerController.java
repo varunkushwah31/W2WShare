@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/audit")
+@RequestMapping("/api/audit/ledger")
 public class AuditLedgerController {
 
     private final IAuditLedgerService auditLedgerService;
@@ -26,7 +26,7 @@ public class AuditLedgerController {
         this.auditLedgerService = auditLedgerService;
     }
 
-    @GetMapping("/ledger")
+    @GetMapping
     public ResponseEntity<List<AuditRecordDto>> getLedger(@RequestParam(required = false) String userId) {
         if (userId != null && !userId.isBlank()) {
             return ResponseEntity.ok(auditLedgerService.getRecordsForUser(userId));
@@ -34,7 +34,7 @@ public class AuditLedgerController {
         return ResponseEntity.ok(auditLedgerService.getAllRecords());
     }
 
-    @PostMapping("/ledger")
+    @PostMapping
     public ResponseEntity<AuditRecordDto> recordTransaction(@RequestBody AuditRecordDto auditRecordDto) {
         if (auditRecordDto == null) {
             throw new IllegalArgumentException("Audit record payload cannot be null");
@@ -43,7 +43,7 @@ public class AuditLedgerController {
         return ResponseEntity.ok(saved);
     }
 
-    @PostMapping(value = "/ledger/persist", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/persist", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AuditRecordDto> persistFileMultipart(
             @RequestParam("transactionId") String transactionId,
             @RequestParam(value = "userId", required = false) String userId,
@@ -62,7 +62,7 @@ public class AuditLedgerController {
         return ResponseEntity.ok(saved);
     }
 
-    @PostMapping(value = "/ledger/{transactionId}/persist", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    @PostMapping(value = "/{transactionId}/persist", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ResponseEntity<AuditRecordDto> persistFileBinary(
             @PathVariable String transactionId,
             @RequestParam(value = "userId", required = false) String userId,
@@ -76,7 +76,7 @@ public class AuditLedgerController {
         return ResponseEntity.ok(saved);
     }
 
-    @GetMapping("/ledger/{transactionId}/download")
+    @GetMapping("/{transactionId}/download")
     public ResponseEntity<byte[]> downloadPersistedFile(@PathVariable String transactionId) {
         Optional<AuditRecordEntity> entityOpt = auditLedgerService.getRecordEntity(transactionId);
         if (entityOpt.isEmpty()) {
@@ -125,7 +125,7 @@ public class AuditLedgerController {
                 .body(fileBytes);
     }
 
-    @GetMapping(value = "/ledger/{transactionId}/receipt", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{transactionId}/receipt", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<AuditReceiptDto> getReceipt(@PathVariable String transactionId) {
         return auditLedgerService.getReceipt(transactionId)
                 .map(receipt -> ResponseEntity.ok()
@@ -134,13 +134,13 @@ public class AuditLedgerController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/ledger/{transactionId}")
+    @DeleteMapping("/{transactionId}")
     public ResponseEntity<Map<String, String>> deleteRecord(@PathVariable String transactionId) {
         auditLedgerService.deleteRecord(transactionId);
         return ResponseEntity.ok(Map.of("status", "RECORD_DELETED", "transactionId", transactionId));
     }
 
-    @DeleteMapping("/ledger")
+    @DeleteMapping
     public ResponseEntity<Map<String, String>> clearLedger() {
         auditLedgerService.clearLedger();
         return ResponseEntity.ok(Map.of("status", "LEDGER_CLEARED"));

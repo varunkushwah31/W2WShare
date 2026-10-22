@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { api, getWebSocketUrl, type FileMetadata } from '@/lib/api'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { api, getWebSocketUrl, getLocalDeviceInfo, type FileMetadata, type DiscoveredPeer } from '@/lib/api'
 import { cryptoEngine } from '@/lib/crypto'
 import { compressor } from '@/lib/compress'
 import { soundEngine } from '@/lib/sound'
@@ -30,7 +30,9 @@ import {
   TelevisionSimpleIcon,
   PlusCircleIcon,
   PaperPlaneRightIcon,
-  ChatCircleTextIcon,
+  DesktopIcon,
+  DeviceMobileIcon,
+  BroadcastIcon,
 } from '@phosphor-icons/react'
 import { Slider } from '@/components/ui/slider'
 import { detectFileTypeCategory, type FileCategoryType, calculateOptimalChunkSize } from '@/lib/fileCategories'
@@ -89,6 +91,21 @@ const resolveJoinUrl = (
     return `${window.location.origin}/?pin=${pin}&code=${pin}&mode=receiver`
   }
   return sessionJoinUrl ? `${sessionJoinUrl}&code=${pin}&mode=receiver` : `${window.location.origin}/?pin=${pin}&code=${pin}&mode=receiver`
+}
+
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
+}
+
+const formatEta = (seconds: number): string => {
+  if (seconds < 60) return `~${seconds}s`
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `~${mins}m ${secs}s`
 }
 
 /**
@@ -181,50 +198,30 @@ const prepareSingleFile = async (
 
 async function readDirectoryEntries(dirEntry: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
   const dirReader = dirEntry.createReader()
-  const all: FileSystemEntry[] = []
-  let hasMore = true
-  while (hasMore) {
+  const readBatch = async (): Promise<FileSystemEntry[]> => {
     const batch: FileSystemEntry[] = await new Promise((resolve) =>
       dirReader.readEntries(resolve, () => resolve([]))
     )
-    if (batch.length > 0) {
-      all.push(...batch)
-    } else {
-      hasMore = false
-    }
+    if (batch.length === 0) return []
+    const next = await readBatch()
+    return batch.concat(next)
   }
-  return all
+  return readBatch()
 }
 
 async function sendSingleChunk(
   targetSessionId: string,
   fIdx: number,
   cIdx: number,
-  totalChunks: number,
   chunkData: Uint8Array,
-  rtc: WebRtcPeerManager | null,
-  ws?: WebSocket | null
+  attempt = 0
 ): Promise<void> {
-  let sentViaRtc = false
-  if (rtc?.isChannelOpen() || (ws && ws.readyState === WebSocket.OPEN)) {
-    sentViaRtc = await (rtc ? rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData, ws) : false)
-  }
-  if (!sentViaRtc) {
-    let attempt = 0
-    let lastErr: unknown
-    while (attempt < 3) {
-      try {
-        await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
-        return
-      } catch (err) {
-        lastErr = err
-        attempt++
-        if (attempt < 3) {
-          await new Promise((res) => setTimeout(res, attempt * 150))
-        }
-      }
-    }
-    throw lastErr
+  try {
+    await api.uploadFileChunk(targetSessionId, fIdx, cIdx, chunkData)
+  } catch (err) {
+    if (attempt >= 2) throw err
+    await new Promise((res) => setTimeout(res, (attempt + 1) * 150))
+    return sendSingleChunk(targetSessionId, fIdx, cIdx, chunkData, attempt + 1)
   }
 }
 
@@ -233,34 +230,36 @@ async function recordSentAuditLog(
   burnAfter: boolean,
   persistVault = false
 ): Promise<void> {
-  for (const prep of preparedFiles) {
-    const txId = cryptoEngine.generateSecureTxId()
-    try {
-      await api.recordAuditTransaction({
-        id: txId,
-        timestamp: Date.now(),
-        direction: 'SENT',
-        fileName: prep.metadata.fileName,
-        fileSize: prep.metadata.fileSize,
-        totalChunks: prep.metadata.totalChunks,
-        sha256: prep.metadata.sha256,
-        cipher: 'AES-256-GCM / PBKDF2 (100k)',
-        burned: burnAfter,
-        isCompressed: !!prep.metadata.isCompressed,
-      })
+  await Promise.all(
+    preparedFiles.map(async (prep) => {
+      const txId = cryptoEngine.generateSecureTxId()
+      try {
+        await api.recordAuditTransaction({
+          id: txId,
+          timestamp: Date.now(),
+          direction: 'SENT',
+          fileName: prep.metadata.fileName,
+          fileSize: prep.metadata.fileSize,
+          totalChunks: prep.metadata.totalChunks,
+          sha256: prep.metadata.sha256,
+          cipher: 'AES-256-GCM / PBKDF2 (100k)',
+          burned: burnAfter,
+          isCompressed: !!prep.metadata.isCompressed,
+        })
 
-      // Wire up 7-day database vault persistence for non-burned items
-      if (persistVault && !burnAfter && prep.item.file.size <= 50 * 1024 * 1024) {
-        try {
-          await api.persistAuditFile(txId, prep.item.file, prep.metadata.mimeType)
-        } catch {
-          // Non-blocking vault persistence
+        // Wire up 7-day database vault persistence for non-burned items
+        if (persistVault && !burnAfter && prep.item.file.size <= 50 * 1024 * 1024) {
+          try {
+            await api.persistAuditFile(txId, prep.item.file, prep.metadata.mimeType)
+          } catch {
+            // Non-blocking vault persistence
+          }
         }
+      } catch {
+        // Non-blocking audit persistence fallback
       }
-    } catch {
-      // Non-blocking audit persistence fallback
-    }
-  }
+    })
+  )
 }
 
 async function traverseFileSystemEntry(
@@ -292,40 +291,39 @@ async function traverseFileSystemEntry(
   if (entry.isDirectory) {
     const dirEntry = entry as FileSystemDirectoryEntry
     const children = await readDirectoryEntries(dirEntry)
-    const results: SelectedFileItem[] = []
-    for (const child of children) {
-      const subItems = await traverseFileSystemEntry(child, `${path}${entry.name}/`)
-      results.push(...subItems)
-    }
-    return results
+    const subItemsList = await Promise.all(
+      children.map((child) => traverseFileSystemEntry(child, `${path}${entry.name}/`))
+    )
+    return subItemsList.flat()
   }
   return []
 }
 
 async function extractDroppedItems(items: DataTransferItemList): Promise<SelectedFileItem[]> {
-  const collected: SelectedFileItem[] = []
-  for (const element of items) {
-    const item = element
-    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null
-    if (entry) {
-      const res = await traverseFileSystemEntry(entry)
-      collected.push(...res)
-    } else {
+  const itemLists = await Promise.all(
+    Array.from(items).map(async (item) => {
+      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null
+      if (entry) {
+        return traverseFileSystemEntry(entry)
+      }
       const file = item.getAsFile()
       if (file) {
         const typeCategory = detectFileTypeCategory(file.name, file.type)
         const previewUrl = typeCategory === 'image' ? URL.createObjectURL(file) : undefined
-        collected.push({
-          file,
-          relativePath: file.name,
-          size: file.size,
-          previewUrl,
-          typeCategory,
-        })
+        return [
+          {
+            file,
+            relativePath: file.name,
+            size: file.size,
+            previewUrl,
+            typeCategory,
+          },
+        ]
       }
-    }
-  }
-  return collected
+      return []
+    })
+  )
+  return itemLists.flat()
 }
 
 function mapFilesToSelectedItems(fileList: FileList | File[]): SelectedFileItem[] {
@@ -352,7 +350,8 @@ function handleSignalingEvent(
   rtc: WebRtcPeerManager,
   setPeerConnected: (v: boolean) => void,
   handleResendChunk: (fIdx: number, cIdx: number) => void,
-  onStreamingNeeded: () => void
+  onStreamingNeeded: () => void,
+  onAirDropStatusChange?: (accepted: boolean) => void
 ) {
   switch (signal.type) {
     case 'PEER_CONNECTED':
@@ -370,6 +369,16 @@ function handleSignalingEvent(
     case 'WEBRTC_ICE_CANDIDATE':
       if (signal.payload) void rtc.handleRemoteIceCandidate(signal.payload as RTCIceCandidateInit)
       break
+    case 'AIRDROP_RESPONSE': {
+      const payload = signal.payload as { accepted?: boolean } | undefined
+      if (payload && typeof payload.accepted === 'boolean') {
+        onAirDropStatusChange?.(payload.accepted)
+        if (payload.accepted) {
+          onStreamingNeeded()
+        }
+      }
+      break
+    }
     case 'RESEND_CHUNK': {
       const payload = signal.payload as { fileIndex?: unknown; chunkIndex?: unknown } | undefined
       if (typeof payload?.fileIndex === 'number' && typeof payload?.chunkIndex === 'number') {
@@ -383,13 +392,856 @@ function handleSignalingEvent(
   }
 }
 
+interface NearbyPeerCardProps {
+  peer: DiscoveredPeer
+  isTarget: boolean
+  airDropStatus: string
+  isTransferring: boolean
+  hasFiles: boolean
+  onSelect: (peer: DiscoveredPeer) => void
+}
+
+function getPeerButtonBadge(isTarget: boolean, airDropStatus: string, hasFiles: boolean) {
+  if (isTarget && airDropStatus === 'waiting') {
+    return {
+      classes: 'bg-amber-400/20 text-amber-300 border border-amber-400/40 animate-pulse',
+      label: 'Waiting...',
+    }
+  }
+  if (isTarget && airDropStatus === 'accepted') {
+    return {
+      classes: 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/40',
+      label: 'Connected',
+    }
+  }
+  return {
+    classes: 'bg-[#0071e3] text-white hover:bg-[#0077ed] shadow-xs',
+    label: hasFiles ? 'AirDrop File' : 'Choose & Send',
+  }
+}
+
+const NearbyPeerCard: React.FC<NearbyPeerCardProps> = ({
+  peer,
+  isTarget,
+  airDropStatus,
+  isTransferring,
+  hasFiles,
+  onSelect,
+}) => {
+  const isMobile = peer.os?.toLowerCase().includes('android') || peer.os?.toLowerCase().includes('ios')
+  const badge = getPeerButtonBadge(isTarget, airDropStatus, hasFiles)
+
+  return (
+    <button
+      key={peer.deviceId}
+      type="button"
+      onClick={() => onSelect(peer)}
+      disabled={isTransferring && !isTarget}
+      className={`p-3.5 rounded-2xl border transition-all text-center flex flex-col items-center gap-2 group cursor-pointer relative overflow-hidden ${
+        isTarget
+          ? 'border-[#0071e3] bg-[#0071e3]/10 shadow-lg shadow-[#0071e3]/20 ring-2 ring-[#0071e3]/30'
+          : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+      }`}
+    >
+      <div className="relative w-12 h-12 flex items-center justify-center">
+        <div className={`absolute inset-0 rounded-full border border-[#0071e3]/40 ${isTarget ? 'animate-ping' : 'group-hover:scale-110 transition-transform'}`} />
+        <div className="w-10 h-10 rounded-full bg-[#0071e3]/20 border border-[#0071e3]/40 flex items-center justify-center text-[#0071e3]">
+          {isMobile ? <DeviceMobileIcon className="w-5 h-5" /> : <DesktopIcon className="w-5 h-5" />}
+        </div>
+      </div>
+
+      <div className="min-w-0 w-full">
+        <div className="text-xs font-bold text-white truncate">
+          {peer.deviceName || 'Nearby Device'}
+        </div>
+        <div className="text-[10px] text-steel font-mono truncate">
+          {peer.os || 'AirDrop Peer'}
+        </div>
+      </div>
+
+      <div className={`w-full py-1 px-2 rounded-full text-[10px] font-semibold transition-all ${badge.classes}`}>
+        {badge.label}
+      </div>
+    </button>
+  )
+}
+
+function renderSessionStatusIndicator(transferDone: boolean, isTransferring: boolean) {
+  if (transferDone) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-[#7089ba] font-mono">
+        <CheckCircleIcon className="w-4 h-4" weight="bold" />
+        <span>Payload ready on local network. Receiver can claim PIN.</span>
+      </div>
+    )
+  }
+  if (isTransferring) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-steel font-mono">
+        <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-[#7089ba]" />
+        <span>Live streaming payload directly to peer...</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 text-xs text-amber-300 font-mono">
+      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+      <span>Waiting for receiver to connect and claim PIN...</span>
+    </div>
+  )
+}
+
+function useFileStaging() {
+  const [files, setFiles] = useState<SelectedFileItem[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+
+  const addFiles = useCallback((newFiles: File[]) => {
+    setFiles((prev) => [...prev, ...mapFilesToSelectedItems(newFiles)])
+  }, [])
+
+  const handleFileDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const collected = await extractDroppedItems(e.dataTransfer.items)
+      if (collected.length > 0) {
+        setFiles((prev) => [...prev, ...collected])
+        return
+      }
+    }
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFiles(Array.from(e.dataTransfer.files))
+    }
+  }, [addFiles])
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(Array.from(e.target.files))
+    }
+  }, [addFiles])
+
+  const handleFolderInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const targetFiles = e.target.files
+    if (targetFiles && targetFiles.length > 0) {
+      setFiles((prev) => [...prev, ...mapFilesToSelectedItems(targetFiles)])
+    }
+  }, [])
+
+  const removeFile = useCallback((index: number) => {
+    setFiles((prev) => {
+      const item = prev[index]
+      if (item?.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl)
+      }
+      return prev.filter((_, i) => i !== index)
+    })
+  }, [])
+
+  const clearFiles = useCallback(() => {
+    setFiles((prev) => {
+      prev.forEach((f) => {
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl)
+      })
+      return []
+    })
+  }, [])
+
+  const totalBytes = useMemo(() => files.reduce((acc, f) => acc + f.size, 0), [files])
+
+  return {
+    files,
+    setFiles,
+    fileInputRef,
+    folderInputRef,
+    cameraInputRef,
+    handleFileDrop,
+    handleFileInput,
+    handleFolderInput,
+    removeFile,
+    clearFiles,
+    totalBytes,
+  }
+}
+
+function useAirDropDiscovery(targetPeer?: DiscoveredPeer | null) {
+  const [nearbyPeers, setNearbyPeers] = useState<DiscoveredPeer[]>([])
+  const [selectedAirDropPeer, setSelectedAirDropPeer] = useState<DiscoveredPeer | null>(null)
+  const [airDropStatus, setAirDropStatus] = useState<'idle' | 'waiting' | 'accepted' | 'declined' | 'transferring'>('idle')
+  const airDropTargetPeer = selectedAirDropPeer || targetPeer
+
+  useEffect(() => {
+    let cancelled = false
+    const pollPeers = async () => {
+      try {
+        const peers = await api.getDiscoveredPeers()
+        if (!cancelled) setNearbyPeers(peers)
+      } catch {
+        // Non-blocking discovery
+      }
+    }
+    void pollPeers()
+    const timer = setInterval(pollPeers, 3000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [])
+
+  return {
+    nearbyPeers,
+    selectedAirDropPeer,
+    setSelectedAirDropPeer,
+    airDropStatus,
+    setAirDropStatus,
+    airDropTargetPeer,
+  }
+}
+
+interface StagedFilesQueueProps {
+  files: SelectedFileItem[]
+  totalBytes: number
+  burnAfter: boolean
+  setBurnAfter: (v: boolean) => void
+  persistVault: boolean
+  setPersistVault: (v: boolean) => void
+  enableCompression: boolean
+  setEnableCompression: (v: boolean) => void
+  setExpiryMinutes: (v: number) => void
+  activePresetIndex: number
+  activePreset: ExpiryPreset
+  getVaultButtonClass: () => string
+  onClearFiles: () => void
+  onRemoveFile: (idx: number) => void
+  onStartTransfer: () => void
+  isTransferring: boolean
+}
+
+const StagedFilesQueue: React.FC<StagedFilesQueueProps> = ({
+  files,
+  totalBytes,
+  burnAfter,
+  setBurnAfter,
+  persistVault,
+  setPersistVault,
+  enableCompression,
+  setEnableCompression,
+  setExpiryMinutes,
+  activePresetIndex,
+  activePreset,
+  getVaultButtonClass,
+  onClearFiles,
+  onRemoveFile,
+  onStartTransfer,
+  isTransferring,
+}) => {
+  return (
+    <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-carbon relative space-y-5">
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
+
+      <div className="relative z-10 space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between dashed-divider-b pb-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="font-mono text-xs text-white font-bold tracking-tight">
+              BATCH QUEUE ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})
+            </span>
+            <span className="font-mono text-xs text-steel">
+              · {formatBytes(totalBytes)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClearFiles}
+            className="text-xs font-mono text-steel hover:text-[#eb5757] transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <TrashIcon className="w-3.5 h-3.5" />
+            <span>Clear All</span>
+          </button>
+        </div>
+
+        {/* Staged File List */}
+        <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+          {files.map((item, idx) => (
+            <div
+              key={`${item.relativePath}-${item.size}-${item.file.lastModified}`}
+              className="flex items-center justify-between p-2.5 rounded-xl bg-carbon/70 border border-[#242424] text-xs hover:border-[#333] transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0 pr-2">
+                {item.previewUrl ? (
+                  <img
+                    src={item.previewUrl}
+                    alt={item.relativePath}
+                    className="w-10 h-10 rounded-lg object-cover border border-[#7089ba]/30 shrink-0 bg-black"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#282828] flex items-center justify-center shrink-0">
+                    {item.typeCategory === 'video' && <VideoCameraIcon className="w-5 h-5 text-purple-400" />}
+                    {item.typeCategory === 'audio' && <MusicNotesIcon className="w-5 h-5 text-pink-400" />}
+                    {item.typeCategory === 'archive' && <ArchiveIcon className="w-5 h-5 text-amber-400" />}
+                    {item.typeCategory === 'code' && <CodeIcon className="w-5 h-5 text-emerald-400" />}
+                    {item.typeCategory === 'document' && <FileIcon className="w-5 h-5 text-blue-400" />}
+                    {item.typeCategory === 'other' && <FileIcon className="w-5 h-5 text-[#7089ba]" />}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="truncate text-white font-mono font-medium">{item.relativePath}</div>
+                  <div className="flex items-center gap-2 text-[10px] text-steel font-mono mt-0.5">
+                    <span className="uppercase text-[#7089ba] font-bold">[{item.typeCategory}]</span>
+                    <span>·</span>
+                    <span>{formatBytes(item.size)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onRemoveFile(idx)}
+                  className="p-1.5 rounded-lg text-steel hover:text-[#eb5757] hover:bg-[#eb5757]/10 transition-colors cursor-pointer"
+                  title="Remove file"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Transfer Configurations */}
+        <div className="pt-2 dashed-divider-t space-y-4">
+          {/* Options Row */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !burnAfter
+                setBurnAfter(next)
+                if (next) setPersistVault(false)
+              }}
+              className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                burnAfter
+                  ? 'border-white bg-white text-black font-semibold shadow-xs'
+                  : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
+              }`}
+            >
+              <FlameIcon className={`w-3.5 h-3.5 ${burnAfter ? 'text-black' : 'text-[#7089ba]'}`} weight={burnAfter ? 'fill' : 'regular'} />
+              <span>Burn After Reading</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={burnAfter}
+              onClick={() => !burnAfter && setPersistVault(!persistVault)}
+              title={burnAfter ? 'Unavailable with Burn After Reading' : 'Retain encrypted file payload in local database for 7 days'}
+              className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 ${getVaultButtonClass()}`}
+            >
+              <ArchiveIcon className={`w-3.5 h-3.5 ${persistVault && !burnAfter ? 'text-black' : 'text-[#7089ba]'}`} weight={persistVault && !burnAfter ? 'fill' : 'regular'} />
+              <span>7-Day Vault</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEnableCompression(!enableCompression)}
+              className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                enableCompression
+                  ? 'border-white bg-white text-black font-semibold shadow-xs'
+                  : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
+              }`}
+            >
+              <LightningIcon className={`w-3.5 h-3.5 ${enableCompression ? 'text-black' : 'text-[#7089ba]'}`} weight={enableCompression ? 'fill' : 'regular'} />
+              <span>Gzip Pre-Compression</span>
+            </button>
+          </div>
+
+          {/* Slider for Expiration Window */}
+          <div className="p-4 rounded-2xl bg-carbon/50 dashed-container-subtle space-y-3">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba]">
+                  <TimerIcon className="w-3 h-3" />
+                </div>
+                <span className="text-steel">Expires:</span>
+                <span className="text-white font-bold">{activePreset.fullLabel}</span>
+              </div>
+              <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase tracking-wider">
+                {activePreset.tag}
+              </span>
+            </div>
+
+            {/* Slider Track */}
+            <div className="px-1 py-0.5">
+              <Slider
+                value={[activePresetIndex !== -1 ? activePresetIndex : 1]}
+                min={0}
+                max={EXPIRY_PRESETS.length - 1}
+                step={1}
+                onValueChange={(val) => {
+                  const preset = EXPIRY_PRESETS[val[0]]
+                  if (preset) {
+                    setExpiryMinutes(preset.minutes)
+                  }
+                }}
+                aria-label="Expires in"
+                className="w-full"
+              />
+            </div>
+
+            {/* Preset Buttons */}
+            <div className="flex items-center justify-between gap-1 p-0.5 rounded-full bg-[#141414] border border-[#242424]">
+              {EXPIRY_PRESETS.map((preset, idx) => {
+                const isSelected = (activePresetIndex !== -1 ? activePresetIndex : 1) === idx
+                return (
+                  <button
+                    key={preset.minutes}
+                    type="button"
+                    onClick={() => setExpiryMinutes(preset.minutes)}
+                    className={`flex-1 py-1 rounded-full text-center font-mono text-xs transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-white text-black font-semibold shadow-xs'
+                        : 'text-steel hover:text-white'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Trigger */}
+        <button
+          type="button"
+          onClick={onStartTransfer}
+          disabled={isTransferring}
+          className="w-full py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+        >
+          <ShieldCheckIcon className="w-4 h-4" />
+          <span>{persistVault ? 'Generate 7-Day Encrypted Vault' : 'Start Live Direct Transfer (P2P)'}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface ActiveTransferSessionViewProps {
+  pin: string
+  effectiveJoinUrl: string
+  peerConnected: boolean
+  isDirectP2p: boolean
+  files: SelectedFileItem[]
+  totalEncryptedBytes: number
+  totalBytes: number
+  uploadedBytes: number
+  transferSpeedMbps: number
+  transferEtaSeconds: number | null
+  progressPercent: number
+  statusMessage: string
+  transferDone: boolean
+  isTransferring: boolean
+  enableCompression: boolean
+  originalTotalBytes: number
+  currentChunkInfo: { current: number; total: number }
+  isScreenSharing: boolean
+  screenStream: MediaStream | null
+  liveNoteText: string
+  setLiveNoteText: (v: string) => void
+  liveNoteSent: boolean
+  linkCopied: boolean
+  liveFileInputRef: React.RefObject<HTMLInputElement | null>
+  liveFolderInputRef: React.RefObject<HTMLInputElement | null>
+  onOpenQrModal: () => void
+  onCopyLink: () => void
+  onNativeShare: () => void
+  onToggleScreenShare: () => void
+  onSendLiveNote: () => void
+  onLiveAddFiles: (files: File[]) => void
+  onLiveFileDrop: (e: React.DragEvent) => void
+  onCancelSession: () => void
+}
+
+const ActiveTransferSessionView: React.FC<ActiveTransferSessionViewProps> = ({
+  pin,
+  peerConnected,
+  isDirectP2p,
+  files,
+  totalEncryptedBytes,
+  totalBytes,
+  uploadedBytes,
+  transferSpeedMbps,
+  transferEtaSeconds,
+  progressPercent,
+  statusMessage,
+  transferDone,
+  isTransferring,
+  enableCompression,
+  originalTotalBytes,
+  currentChunkInfo,
+  isScreenSharing,
+  screenStream,
+  liveNoteText,
+  setLiveNoteText,
+  liveNoteSent,
+  linkCopied,
+  liveFileInputRef,
+  liveFolderInputRef,
+  onOpenQrModal,
+  onCopyLink,
+  onNativeShare,
+  onToggleScreenShare,
+  onSendLiveNote,
+  onLiveAddFiles,
+  onLiveFileDrop,
+  onCancelSession,
+}) => {
+  return (
+    <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-carbon relative space-y-6">
+      <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
+
+      {/* Top Banner: PIN Display & QR/Share Trigger */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 dashed-divider-b">
+        <div className="text-center sm:text-left">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
+              OFFLINE CLAIM PIN / ROOM CODE
+            </span>
+            <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-1.5 py-0.2 rounded border border-[#7089ba]/20 font-bold">
+              MANGO-P2P READY
+            </span>
+          </div>
+          <div className="font-mono text-3xl sm:text-4xl font-extrabold tracking-widest text-white mt-1">
+            {pin}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenQrModal}
+            className="p-2.5 rounded-full bg-carbon border border-[#282828] text-white hover:border-[#7089ba]/60 hover:text-[#7089ba] transition-all cursor-pointer"
+            title="Show QR Code"
+          >
+            <QrCodeIcon className="w-5 h-5" />
+          </button>
+
+          {typeof navigator !== 'undefined' && 'share' in navigator && (
+            <button
+              type="button"
+              onClick={onNativeShare}
+              className="px-3.5 py-2 rounded-full bg-[#7089ba]/15 text-[#7089ba] border border-[#7089ba]/30 hover:bg-[#7089ba]/25 text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Share PIN and link via mobile sheet"
+            >
+              <ShareNetworkIcon className="w-3.5 h-3.5" />
+              <span>Share PIN</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onCopyLink}
+            className="px-3.5 py-2 rounded-full bg-carbon border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            {linkCopied ? (
+              <>
+                <CheckIcon className="w-3.5 h-3.5 text-emerald-400" weight="bold" />
+                <span className="text-emerald-400">Copied</span>
+              </>
+            ) : (
+              <>
+                <CopyIcon className="w-3.5 h-3.5" />
+                <span>Copy Link</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Real-Time Peer Presence Banner (Inspired by MangoShare) */}
+      <div
+        className={`p-3.5 rounded-xl border font-mono text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-all ${
+          peerConnected
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-sm'
+            : 'bg-amber-400/10 border-amber-400/30 text-amber-300'
+        }`}
+      >
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+              peerConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
+            }`}
+          />
+          <div>
+            <div className="font-bold flex items-center gap-2">
+              <span>{peerConnected ? 'RECEIVER CONNECTED' : 'WAITING FOR RECEIVER TO JOIN...'}</span>
+              {isDirectP2p && (
+                <span className="text-[9px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-400/30">
+                  WEBRTC DIRECT P2P
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] text-steel mt-0.5">
+              {peerConnected
+                ? 'High-speed browser-to-browser encrypted pipe established.'
+                : 'Share PIN with recipient on this Wi-Fi / Hotspot to initiate transfer.'}
+            </div>
+          </div>
+        </div>
+        {peerConnected && (
+          <span className="text-[10px] text-emerald-400/80 font-mono self-end sm:self-center">
+            Zero Cloud Storage
+          </span>
+        )}
+      </div>
+
+      {/* Live Mango-style Dynamic Streaming Room Controls */}
+      <div className="p-4 rounded-2xl bg-carbon/50 border border-[#242424] space-y-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-mono font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#7089ba]" />
+            Live Room Utilities
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onToggleScreenShare}
+              className={`px-3 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                isScreenSharing
+                  ? 'border-purple-400 bg-purple-500/20 text-purple-300 shadow-sm'
+                  : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
+              }`}
+            >
+              <TelevisionSimpleIcon className="w-3.5 h-3.5" />
+              <span>{isScreenSharing ? 'Stop Screen Cast' : 'Cast Display'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => liveFileInputRef.current?.click()}
+              className="px-3 py-1.5 rounded-full border border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424] text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <PlusCircleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+              <span>Add Files</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => liveFolderInputRef.current?.click()}
+              className="px-3 py-1.5 rounded-full border border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424] text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <FolderSimpleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
+              <span>Add Folder</span>
+            </button>
+
+            <input
+              ref={liveFileInputRef}
+              type="file"
+              multiple
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  onLiveAddFiles(Array.from(e.target.files))
+                }
+              }}
+              className="hidden"
+            />
+            <input
+              ref={liveFolderInputRef}
+              type="file"
+              // @ts-expect-error non-standard webkitdirectory attribute
+              webkitdirectory=""
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  onLiveAddFiles(Array.from(e.target.files))
+                }
+              }}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {/* Live Drop Target Area */}
+        <button
+          type="button"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onLiveFileDrop}
+          onClick={() => liveFileInputRef.current?.click()}
+          className="w-full border border-dashed border-[#2e2e2e] hover:border-[#7089ba]/60 bg-[#121212] rounded-xl p-3 text-center cursor-pointer transition-colors"
+        >
+          <div className="flex items-center justify-center gap-2 text-xs font-mono text-steel">
+            <PlusCircleIcon className="w-4 h-4 text-[#7089ba]" />
+            <span>Drop files or folders here to dynamically stream to peer</span>
+          </div>
+        </button>
+
+        {/* Live Screen Casting Active Notice */}
+        {isScreenSharing && screenStream && (
+          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3 text-xs font-mono">
+            <div className="flex items-center gap-2 text-purple-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
+              <span className="font-bold">LIVE SCREEN CAST ACTIVE</span>
+              <span className="text-[10px] text-steel">· Streaming display to receiver via WebRTC</span>
+            </div>
+            <button
+              type="button"
+              onClick={onToggleScreenShare}
+              className="px-2.5 py-1 rounded-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 text-[11px] cursor-pointer"
+            >
+              Stop Screen Cast
+            </button>
+          </div>
+        )}
+
+        {/* Live Room Files Manifest */}
+        {files.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono text-steel">
+              <span>ROOM MANIFEST ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})</span>
+              <span>{formatBytes(totalEncryptedBytes || totalBytes)}</span>
+            </div>
+            <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+              {files.map((item, idx) => (
+                <div
+                  key={`${item.relativePath}-${idx}`}
+                  className="flex items-center justify-between p-2 rounded-lg bg-[#141414] border border-[#222] text-xs font-mono"
+                >
+                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                    <FileIcon className="w-3.5 h-3.5 text-[#7089ba] shrink-0" />
+                    <span className="truncate text-white">{item.relativePath}</span>
+                    <span className="text-[10px] text-steel shrink-0">· {formatBytes(item.size)}</span>
+                  </div>
+                  <span className="text-[9px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 px-1.5 py-0.5 rounded font-bold shrink-0">
+                    ACTIVE
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Live Quick Note / Clipboard Relay Input */}
+        <div className="pt-2 dashed-divider-t flex gap-2 items-center">
+          <input
+            type="text"
+            value={liveNoteText}
+            onChange={(e) => setLiveNoteText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSendLiveNote()}
+            placeholder="Type note or paste text/URL to beam instantly to receiver clipboard..."
+            className="flex-1 bg-[#121212] border border-[#282828] rounded-full px-3.5 py-1.5 text-xs text-white placeholder-graphite font-mono focus:outline-hidden focus:border-[#7089ba]/60"
+          />
+          <button
+            type="button"
+            onClick={onSendLiveNote}
+            disabled={!liveNoteText.trim()}
+            className="px-3 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-30 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            {liveNoteSent ? (
+              <>
+                <CheckIcon className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-bold">Beamed!</span>
+              </>
+            ) : (
+              <>
+                <PaperPlaneRightIcon className="w-3.5 h-3.5" />
+                <span>Beam</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Progress & Speed Telemetry Bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-xs font-mono">
+          <span className="text-paper flex items-center gap-2">
+            <span>Progress: {progressPercent}%</span>
+            {currentChunkInfo.total > 0 && (
+              <span className="text-steel text-[10px]">({currentChunkInfo.current}/{currentChunkInfo.total} chunks)</span>
+            )}
+          </span>
+          <span className="text-steel">
+            {formatBytes(uploadedBytes)} / {formatBytes(totalEncryptedBytes || totalBytes)}
+            {transferEtaSeconds !== null && transferEtaSeconds > 0 && (
+              <span className="text-[#7089ba] ml-2">ETA: {formatEta(transferEtaSeconds)}</span>
+            )}
+          </span>
+        </div>
+
+        {/* Segmented Progress Track */}
+        <div className="w-full bg-[#181818] h-2 rounded-full overflow-hidden border border-[#282828]">
+          <div
+            className="h-full bg-white transition-all duration-150 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between text-xs font-mono pt-1 text-steel">
+          <span className="truncate max-w-sm">
+            {transferDone
+              ? 'Transfer completed! Receiver claimed payload.'
+              : statusMessage}
+          </span>
+          {transferSpeedMbps > 0 && (
+            <span className="text-emerald-400 font-semibold">{transferSpeedMbps.toFixed(2)} MB/s</span>
+          )}
+        </div>
+      </div>
+
+      {/* Live Real-Time Telemetry & Throughput Chart */}
+      <TransferTelemetryChart
+        currentSpeedMbps={transferSpeedMbps}
+        totalBytes={totalEncryptedBytes || totalBytes}
+        transferredBytes={uploadedBytes}
+        isDirectP2p={isDirectP2p}
+        isCompressed={enableCompression}
+        originalSizeBytes={originalTotalBytes}
+        currentChunk={currentChunkInfo.current}
+        totalChunks={currentChunkInfo.total}
+      />
+
+      {/* Action buttons */}
+      <div className="flex items-center justify-between pt-2">
+        {renderSessionStatusIndicator(transferDone, isTransferring)}
+
+        <button
+          type="button"
+          onClick={onCancelSession}
+          className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-steel hover:text-[#eb5757] hover:border-[#eb5757]/40 transition-colors cursor-pointer"
+        >
+          Terminate Session
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export const SendPanel: React.FC<SendPanelProps> = ({
   selectedInterface,
   targetPeer,
   onClearTargetPeer,
   onSessionCreated,
 }) => {
-  const [files, setFiles] = useState<SelectedFileItem[]>([])
+  const {
+    files,
+    setFiles,
+    fileInputRef,
+    folderInputRef,
+    cameraInputRef,
+    handleFileDrop,
+    handleFileInput,
+    handleFolderInput,
+    removeFile,
+    clearFiles,
+    totalBytes,
+  } = useFileStaging()
+
+  const {
+    nearbyPeers,
+    setSelectedAirDropPeer,
+    airDropStatus,
+    setAirDropStatus,
+    airDropTargetPeer,
+  } = useAirDropDiscovery(targetPeer)
+
   const [burnAfter, setBurnAfter] = useState(false)
   const [expiryMinutes, setExpiryMinutes] = useState(15)
   const [enableCompression, setEnableCompression] = useState(true)
@@ -408,7 +1260,6 @@ export const SendPanel: React.FC<SendPanelProps> = ({
   const [pin, setPin] = useState<string | null>(null)
   const [joinUrl, setJoinUrl] = useState<string | null>(null)
   const [progressPercent, setProgressPercent] = useState(0)
-  const [currentFileName, setCurrentFileName] = useState('')
   const [currentChunkInfo, setCurrentChunkInfo] = useState<{ current: number; total: number }>({ current: 0, total: 0 })
   const [transferSpeedMbps, setTransferSpeedMbps] = useState(0)
   const [transferEtaSeconds, setTransferEtaSeconds] = useState<number | null>(null)
@@ -480,12 +1331,13 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     try {
       setStatusMessage('Streaming live encrypted chunks directly to peer...')
 
-      for (let fIdx = 0; fIdx < prepared.length; fIdx++) {
+      const streamSingleFile = async (fIdx: number): Promise<void> => {
+        if (fIdx >= prepared.length) return
         const p = prepared[fIdx]
-        setCurrentFileName(p.metadata.fileName)
         const totalChunks = p.metadata.totalChunks
 
-        for (let cIdx = 0; cIdx < totalChunks; cIdx++) {
+        const sendChunkStep = async (cIdx: number): Promise<void> => {
+          if (cIdx >= totalChunks) return
           const chunkData = await getChunkSlice(p, cIdx)
           const sent = rtc
             ? await rtc.sendChunk(fIdx, cIdx, totalChunks, chunkData, wsRef.current)
@@ -515,8 +1367,15 @@ export const SendPanel: React.FC<SendPanelProps> = ({
           )
           setProgressPercent(percent)
           setStatusMessage(`Live streaming chunk (${cIdx + 1}/${totalChunks}) - ${p.metadata.fileName}`)
+
+          return sendChunkStep(cIdx + 1)
         }
+
+        await sendChunkStep(0)
+        return streamSingleFile(fIdx + 1)
       }
+
+      await streamSingleFile(0)
 
       setProgressPercent(100)
       setTransferEtaSeconds(0)
@@ -598,7 +1457,8 @@ export const SendPanel: React.FC<SendPanelProps> = ({
             if (preparedFilesRef.current.length > 0) {
               void streamLiveToPeer(preparedFilesRef.current)
             }
-          }
+          },
+          (accepted) => setAirDropStatus(accepted ? 'accepted' : 'declined')
         )
       } catch (err) {
         console.warn('Signaling message error:', err)
@@ -621,73 +1481,9 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       }
       rtc.close()
     }
-  }, [sessionId, streamLiveToPeer, handleResendChunk])
+  }, [sessionId, streamLiveToPeer, handleResendChunk, setAirDropStatus])
 
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const folderInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
-
-  const handleFileDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      const collected = await extractDroppedItems(e.dataTransfer.items)
-      if (collected.length > 0) {
-        setFiles((prev) => [...prev, ...collected])
-        return
-      }
-    }
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addFiles(Array.from(e.dataTransfer.files))
-    }
-  }
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      addFiles(Array.from(e.target.files))
-    }
-  }
-
-  const handleFolderInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const targetFiles = e.target.files
-    if (targetFiles && targetFiles.length > 0) {
-      setFiles((prev) => [...prev, ...mapFilesToSelectedItems(targetFiles)])
-    }
-  }
-
-  const addFiles = (newFiles: File[]) => {
-    setFiles((prev) => [...prev, ...mapFilesToSelectedItems(newFiles)])
-  }
-
-  const removeFile = (index: number) => {
-    setFiles((prev) => {
-      const item = prev[index]
-      if (item?.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl)
-      }
-      return prev.filter((_, i) => i !== index)
-    })
-  }
-
-  const clearFiles = () => {
-    files.forEach((f) => {
-      if (f.previewUrl) URL.revokeObjectURL(f.previewUrl)
-    })
-    setFiles([])
-    setTransferDone(false)
-  }
-
-  const totalBytes = files.reduce((acc, f) => acc + f.size, 0)
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
-  }
-
-  const streamPreparedFiles = async (
+  const streamPreparedFiles = useCallback(async (
     targetSessionId: string,
     preparedFiles: PreparedFile[],
     baseFileIndex = 0
@@ -701,55 +1497,130 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     const startTime = Date.now()
     const UPLOAD_CONCURRENCY = 6
 
-    for (let i = 0; i < preparedFiles.length; i++) {
-      const prep = preparedFiles[i]
-      const fIdx = baseFileIndex + i
-      setCurrentFileName(prep.metadata.fileName)
+    const uploadFileSequential = async (fileIdx: number): Promise<void> => {
+      if (fileIdx >= preparedFiles.length) return
+      const prep = preparedFiles[fileIdx]
+      const fIdx = baseFileIndex + fileIdx
       const totalChunks = prep.metadata.totalChunks
 
       let nextChunkIdx = 0
       let completedChunks = 0
 
-      const uploadWorker = async () => {
-        while (true) {
-          const cIdx = nextChunkIdx++
-          if (cIdx >= totalChunks) break
+      const runWorker = async (): Promise<void> => {
+        const cIdx = nextChunkIdx++
+        if (cIdx >= totalChunks) return
 
-          // Slices and encrypts chunk on the fly
-          const chunkData = await getChunkSlice(prep, cIdx)
-          await sendSingleChunk(targetSessionId, fIdx, cIdx, totalChunks, chunkData, rtcManagerRef.current, wsRef.current)
+        // Slices and encrypts chunk on the fly
+        const chunkData = await getChunkSlice(prep, cIdx)
+        await sendSingleChunk(targetSessionId, fIdx, cIdx, chunkData)
 
-          completedChunks++
-          uploadedBytesTotal += chunkData.length
-          setUploadedBytes(uploadedBytesTotal)
-          setCurrentChunkInfo({ current: completedChunks, total: totalChunks })
+        completedChunks++
+        uploadedBytesTotal += chunkData.length
+        setUploadedBytes(uploadedBytesTotal)
+        setCurrentChunkInfo({ current: completedChunks, total: totalChunks })
 
-          const elapsedSec = (Date.now() - startTime) / 1000
-          if (elapsedSec > 0) {
-            const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
-            setTransferSpeedMbps(speed)
-            const remainingBytes = Math.max(0, totalBytesAllFiles - uploadedBytesTotal)
-            if (speed > 0) {
-              setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
-            }
+        const elapsedSec = (Date.now() - startTime) / 1000
+        if (elapsedSec > 0) {
+          const speed = uploadedBytesTotal / (1024 * 1024) / elapsedSec
+          setTransferSpeedMbps(speed)
+          const remainingBytes = Math.max(0, totalBytesAllFiles - uploadedBytesTotal)
+          if (speed > 0) {
+            setTransferEtaSeconds(Math.max(1, Math.round(remainingBytes / (speed * 1024 * 1024))))
           }
-
-          const percent = Math.min(
-            99,
-            Math.round((uploadedBytesTotal / totalBytesAllFiles) * 100)
-          )
-          setProgressPercent(percent)
-          setStatusMessage(`Streaming chunks (${completedChunks}/${totalChunks})`)
         }
+
+        const percent = Math.min(
+          99,
+          Math.round((uploadedBytesTotal / totalBytesAllFiles) * 100)
+        )
+        setProgressPercent(percent)
+        setStatusMessage(`Streaming chunks (${completedChunks}/${totalChunks})`)
+
+        return runWorker()
       }
 
       const workers = Array.from(
         { length: Math.min(UPLOAD_CONCURRENCY, totalChunks) },
-        () => uploadWorker()
+        () => runWorker()
       )
       await Promise.all(workers)
+      return uploadFileSequential(fileIdx + 1)
     }
+
+    await uploadFileSequential(0)
     setTransferEtaSeconds(0)
+  }, [])
+
+  const startAirDropToPeer = async (peer: DiscoveredPeer) => {
+    setSelectedAirDropPeer(peer)
+    setAirDropStatus('waiting')
+
+    if (files.length === 0) {
+      fileInputRef.current?.click()
+      return
+    }
+
+    try {
+      setIsTransferring(true)
+      setStatusMessage(`Requesting AirDrop to ${peer.deviceName}...`)
+      await acquireWakeLock()
+
+      const totalRaw = files.reduce((acc, f) => acc + f.size, 0)
+      setOriginalTotalBytes(totalRaw)
+
+      // 1. Create offline transfer session
+      const sessionRes = await api.createSession({
+        burnAfterReading: burnAfter,
+        expiresInSeconds: expiryMinutes * 60,
+      })
+      setSessionId(sessionRes.sessionId)
+      setPin(sessionRes.pin)
+      setJoinUrl(sessionRes.joinUrl)
+      onSessionCreated?.(sessionRes.sessionId, sessionRes.pin)
+
+      setStatusMessage('Deriving keys & encrypting session...')
+      const sessionSalt = cryptoEngine.generateSalt(16)
+      sessionSaltRef.current = sessionSalt
+
+      const preparedFiles = await Promise.all(
+        files.map((item) =>
+          prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression, sessionSalt)
+        )
+      )
+      const batchMetadata = preparedFiles.map((p) => p.metadata)
+      preparedFilesRef.current = preparedFiles
+      const totalBytesSum = preparedFiles.reduce((acc, p) => acc + p.metadata.fileSize, 0)
+      setTotalEncryptedBytes(totalBytesSum)
+
+      await api.offerBatch(sessionRes.sessionId, batchMetadata)
+
+      const localDevice = getLocalDeviceInfo()
+      const reqPayload = {
+        sessionId: sessionRes.sessionId,
+        pin: sessionRes.pin,
+        senderDeviceId: localDevice.deviceId,
+        senderDeviceName: localDevice.deviceName,
+        targetDeviceId: peer.deviceId,
+        files: files.map((f) => ({
+          fileName: f.file.name,
+          fileSize: f.size,
+          mimeType: f.file.type,
+        })),
+        totalBytes: totalRaw,
+      }
+
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'AIRDROP_REQUEST', payload: reqPayload }))
+      }
+      await api.requestAirDrop(reqPayload)
+
+      setStatusMessage(`AirDrop request sent to ${peer.deviceName}. Waiting for acceptance...`)
+    } catch (err: unknown) {
+      console.error(err)
+      setIsTransferring(false)
+      setAirDropStatus('idle')
+      setStatusMessage(`AirDrop failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
 
   const startTransfer = async () => {
@@ -780,18 +1651,15 @@ export const SendPanel: React.FC<SendPanelProps> = ({
       setStatusMessage('Deriving AES-256 keys & processing batch...')
 
       // 2. Encrypt File Batch with shared session salt (derives master key once, instant for 100+ files)
-      const batchMetadata: FileMetadata[] = []
-      const preparedFiles: PreparedFile[] = []
       const sessionSalt = cryptoEngine.generateSalt(16)
       sessionSaltRef.current = sessionSalt
 
-      for (const item of files) {
-        setCurrentFileName(item.relativePath)
-        setStatusMessage(`Hashing & preparing: ${item.relativePath}`)
-        const prepared = await prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression, sessionSalt)
-        batchMetadata.push(prepared.metadata)
-        preparedFiles.push(prepared)
-      }
+      const preparedFiles = await Promise.all(
+        files.map((item) =>
+          prepareSingleFile(item, sessionRes.pin, burnAfter, enableCompression, sessionSalt)
+        )
+      )
+      const batchMetadata = preparedFiles.map((p) => p.metadata)
 
       preparedFilesRef.current = preparedFiles
       const totalBytesSum = preparedFiles.reduce((acc, p) => acc + p.metadata.fileSize, 0)
@@ -848,13 +1716,11 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     await acquireWakeLock()
 
     try {
-      const newPrepared: PreparedFile[] = []
-      for (const item of newSelectedItems) {
-        setCurrentFileName(item.relativePath)
-        setStatusMessage(`Hashing & preparing: ${item.relativePath}`)
-        const prep = await prepareSingleFile(item, pin, burnAfter, enableCompression, salt)
-        newPrepared.push(prep)
-      }
+      const newPrepared = await Promise.all(
+        newSelectedItems.map((item) =>
+          prepareSingleFile(item, pin, burnAfter, enableCompression, salt)
+        )
+      )
 
       const baseFileIndex = preparedFilesRef.current.length
       preparedFilesRef.current = [...preparedFilesRef.current, ...newPrepared]
@@ -939,7 +1805,7 @@ export const SendPanel: React.FC<SendPanelProps> = ({
 
   // Instant Live Note / Clipboard relay
   const handleSendLiveNote = () => {
-    if (!liveNoteText.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+    if (!liveNoteText.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return
     wsRef.current.send(JSON.stringify({ type: 'TEXT_MESSAGE', payload: liveNoteText.trim() }))
     setLiveNoteSent(true)
     setTimeout(() => setLiveNoteSent(false), 2000)
@@ -993,6 +1859,12 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     } else {
       await copyLink()
     }
+  }
+
+  const getVaultButtonClass = () => {
+    if (burnAfter) return 'border-[#202020] bg-carbon/30 text-graphite cursor-not-allowed opacity-40'
+    if (persistVault) return 'border-white bg-white text-black font-semibold shadow-xs cursor-pointer'
+    return 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424] cursor-pointer'
   }
 
   return (
@@ -1102,543 +1974,113 @@ export const SendPanel: React.FC<SendPanelProps> = ({
         </div>
       )}
 
-      {/* Selected Files Staging List */}
-      {files.length > 0 && !pin && (
-        <div className="dashed-container p-4 sm:p-8 rounded-2xl bg-carbon relative space-y-5">
-          <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
-
-          <div className="relative z-10 space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-between dashed-divider-b pb-3.5">
-              <div className="flex items-center gap-2.5">
-                <span className="font-mono text-xs text-white font-bold tracking-tight">
-                  BATCH QUEUE ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})
-                </span>
-                <span className="font-mono text-xs text-steel">
-                  · {formatBytes(totalBytes)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={clearFiles}
-                className="text-xs font-mono text-steel hover:text-[#eb5757] transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <TrashIcon className="w-3.5 h-3.5" />
-                <span>Clear All</span>
-              </button>
+      {/* AirDrop to Nearby Devices (Apple AirDrop Experience) */}
+      {!pin && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-linear-to-b from-[#18181c] to-[#121214] border border-white/10 shadow-lg space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#0071e3] animate-ping" />
+              <span className="font-mono text-xs uppercase tracking-wider text-[#0071e3] font-bold">
+                AirDrop Nearby Devices
+              </span>
             </div>
+            <span className="text-[11px] font-mono text-steel">
+              {nearbyPeers.length} {nearbyPeers.length === 1 ? 'peer' : 'peers'} discovered
+            </span>
+          </div>
 
-            {/* Staged File List */}
-            <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-              {files.map((item, idx) => (
-                <div
-                  key={`${item.relativePath}-${item.size}-${item.file.lastModified}`}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-carbon/70 border border-[#242424] text-xs hover:border-[#333] transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0 pr-2">
-                    {item.previewUrl ? (
-                      <img
-                        src={item.previewUrl}
-                        alt={item.relativePath}
-                        className="w-10 h-10 rounded-lg object-cover border border-[#7089ba]/30 shrink-0 bg-black"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-[#141414] border border-[#282828] flex items-center justify-center shrink-0">
-                        {item.typeCategory === 'video' && <VideoCameraIcon className="w-5 h-5 text-purple-400" />}
-                        {item.typeCategory === 'audio' && <MusicNotesIcon className="w-5 h-5 text-pink-400" />}
-                        {item.typeCategory === 'archive' && <ArchiveIcon className="w-5 h-5 text-amber-400" />}
-                        {item.typeCategory === 'code' && <CodeIcon className="w-5 h-5 text-emerald-400" />}
-                        {item.typeCategory === 'document' && <FileIcon className="w-5 h-5 text-blue-400" />}
-                        {item.typeCategory === 'other' && <FileIcon className="w-5 h-5 text-[#7089ba]" />}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="truncate text-white font-mono font-medium">{item.relativePath}</div>
-                      <div className="flex items-center gap-2 text-[10px] text-steel font-mono mt-0.5">
-                        <span className="uppercase text-[#7089ba] font-bold">[{item.typeCategory}]</span>
-                        <span>·</span>
-                        <span>{formatBytes(item.size)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => removeFile(idx)}
-                      className="p-1.5 rounded-lg text-steel hover:text-[#eb5757] hover:bg-[#eb5757]/10 transition-colors cursor-pointer"
-                      title="Remove file"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+          {nearbyPeers.length === 0 ? (
+            <div className="py-5 px-4 rounded-xl bg-black/30 border border-white/5 text-center space-y-1.5">
+              <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-[#0071e3]">
+                <BroadcastIcon className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="text-xs font-semibold text-white">
+                Looking for nearby devices on your Wi-Fi...
+              </div>
+              <p className="text-[11px] text-steel max-w-sm mx-auto">
+                Open W2W Share on any phone, tablet, or PC on this network to AirDrop directly.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {nearbyPeers.map((peer) => (
+                <NearbyPeerCard
+                  key={peer.deviceId}
+                  peer={peer}
+                  isTarget={airDropTargetPeer?.deviceId === peer.deviceId}
+                  airDropStatus={airDropStatus}
+                  isTransferring={isTransferring}
+                  hasFiles={files.length > 0}
+                  onSelect={startAirDropToPeer}
+                />
               ))}
             </div>
-
-            {/* Transfer Configurations */}
-            <div className="pt-2 dashed-divider-t space-y-4">
-              {/* Options Row - Matching Drag & Drop pill buttons */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !burnAfter
-                    setBurnAfter(next)
-                    if (next) setPersistVault(false)
-                  }}
-                  className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
-                    burnAfter
-                      ? 'border-white bg-white text-black font-semibold shadow-xs'
-                      : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
-                  }`}
-                >
-                  <FlameIcon className={`w-3.5 h-3.5 ${burnAfter ? 'text-black' : 'text-[#7089ba]'}`} weight={burnAfter ? 'fill' : 'regular'} />
-                  <span>Burn After Reading</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={burnAfter}
-                  onClick={() => !burnAfter && setPersistVault(!persistVault)}
-                  title={burnAfter ? 'Unavailable with Burn After Reading' : 'Retain encrypted file payload in local database for 7 days'}
-                  className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 ${
-                    burnAfter
-                      ? 'border-[#202020] bg-carbon/30 text-graphite cursor-not-allowed opacity-40'
-                      : persistVault
-                        ? 'border-white bg-white text-black font-semibold shadow-xs cursor-pointer'
-                        : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424] cursor-pointer'
-                  }`}
-                >
-                  <ArchiveIcon className={`w-3.5 h-3.5 ${persistVault && !burnAfter ? 'text-black' : 'text-[#7089ba]'}`} weight={persistVault && !burnAfter ? 'fill' : 'regular'} />
-                  <span>7-Day Vault</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setEnableCompression(!enableCompression)}
-                  className={`px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
-                    enableCompression
-                      ? 'border-white bg-white text-black font-semibold shadow-xs'
-                      : 'border-[#282828] bg-carbon text-steel hover:text-white hover:bg-[#242424]'
-                  }`}
-                >
-                  <LightningIcon className={`w-3.5 h-3.5 ${enableCompression ? 'text-black' : 'text-[#7089ba]'}`} weight={enableCompression ? 'fill' : 'regular'} />
-                  <span>Gzip Pre-Compression</span>
-                </button>
-              </div>
-
-              {/* Slider for Expiration Window */}
-              <div className="p-4 rounded-2xl bg-carbon/50 dashed-container-subtle space-y-3">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba]">
-                      <TimerIcon className="w-3 h-3" />
-                    </div>
-                    <span className="text-steel">Expires:</span>
-                    <span className="text-white font-bold">{activePreset.fullLabel}</span>
-                  </div>
-                  <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase tracking-wider">
-                    {activePreset.tag}
-                  </span>
-                </div>
-
-                {/* Slider Track */}
-                <div className="px-1 py-0.5">
-                  <Slider
-                    value={[activePresetIndex !== -1 ? activePresetIndex : 1]}
-                    min={0}
-                    max={EXPIRY_PRESETS.length - 1}
-                    step={1}
-                    onValueChange={(val) => {
-                      const preset = EXPIRY_PRESETS[val[0]]
-                      if (preset) {
-                        setExpiryMinutes(preset.minutes)
-                      }
-                    }}
-                    aria-label="Expires in"
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Preset Buttons matching navigation pills */}
-                <div className="flex items-center justify-between gap-1 p-0.5 rounded-full bg-[#141414] border border-[#242424]">
-                  {EXPIRY_PRESETS.map((preset, idx) => {
-                    const isSelected = (activePresetIndex !== -1 ? activePresetIndex : 1) === idx
-                    return (
-                      <button
-                        key={preset.minutes}
-                        type="button"
-                        onClick={() => setExpiryMinutes(preset.minutes)}
-                        className={`flex-1 py-1 rounded-full text-center font-mono text-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-white text-black font-semibold shadow-xs'
-                            : 'text-steel hover:text-white'
-                        }`}
-                      >
-                        {preset.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Action Trigger */}
-            <button
-              type="button"
-              onClick={startTransfer}
-              disabled={isTransferring}
-              className="w-full py-3 rounded-full bg-white text-black font-semibold text-xs sm:text-sm hover:bg-white/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              <ShieldCheckIcon className="w-4 h-4" />
-              <span>{persistVault ? 'Generate 7-Day Encrypted Vault' : 'Start Live Direct Transfer (P2P)'}</span>
-            </button>
-          </div>
+          )}
         </div>
+      )}
+
+      {/* Selected Files Staging List */}
+      {files.length > 0 && !pin && (
+        <StagedFilesQueue
+          files={files}
+          totalBytes={totalBytes}
+          burnAfter={burnAfter}
+          setBurnAfter={setBurnAfter}
+          persistVault={persistVault}
+          setPersistVault={setPersistVault}
+          enableCompression={enableCompression}
+          setEnableCompression={setEnableCompression}
+          setExpiryMinutes={setExpiryMinutes}
+          activePresetIndex={activePresetIndex}
+          activePreset={activePreset}
+          getVaultButtonClass={getVaultButtonClass}
+          onClearFiles={() => {
+            clearFiles()
+            setTransferDone(false)
+          }}
+          onRemoveFile={removeFile}
+          onStartTransfer={startTransfer}
+          isTransferring={isTransferring}
+        />
       )}
 
       {/* Live Active Transfer Stream / PIN Display */}
       {pin && (
-        <div className="p-4 sm:p-8 rounded-2xl bg-[#141414] border border-carbon space-y-5 sm:space-y-6">
-          {/* PIN Banner */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-void border border-[#282828]">
-            <div className="text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[#7089ba]">
-                  OFFLINE CLAIM PIN / ROOM CODE
-                </span>
-                <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-1.5 py-0.2 rounded border border-[#7089ba]/20 font-bold">
-                  MANGO-P2P READY
-                </span>
-              </div>
-              <div className="font-mono text-3xl sm:text-4xl font-extrabold tracking-widest text-white mt-1">
-                {pin}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setQrModalOpen(true)}
-                className="p-2.5 rounded-full bg-carbon border border-[#282828] text-white hover:border-[#7089ba]/60 hover:text-[#7089ba] transition-all cursor-pointer"
-                title="Show QR Code"
-              >
-                <QrCodeIcon className="w-5 h-5" />
-              </button>
-
-              {typeof navigator !== 'undefined' && 'share' in navigator && (
-                <button
-                  type="button"
-                  onClick={handleNativeShare}
-                  className="px-3.5 py-2 rounded-full bg-[#7089ba]/15 text-[#7089ba] border border-[#7089ba]/30 hover:bg-[#7089ba]/25 text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  title="Share PIN and link via mobile sheet"
-                >
-                  <ShareNetworkIcon className="w-3.5 h-3.5" />
-                  <span>Share PIN</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={copyLink}
-                className="px-3.5 py-2 rounded-full bg-carbon border border-[#282828] text-white text-xs font-mono hover:border-white transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                {linkCopied ? (
-                  <>
-                    <CheckIcon className="w-3.5 h-3.5 text-emerald-400" weight="bold" />
-                    <span className="text-emerald-400">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="w-3.5 h-3.5" />
-                    <span>Copy Link</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Real-Time Peer Presence Banner (Inspired by MangoShare) */}
-          <div
-            className={`p-3.5 rounded-xl border font-mono text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-all ${
-              peerConnected
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-sm'
-                : 'bg-amber-400/10 border-amber-400/30 text-amber-300'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              <span
-                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                  peerConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
-                }`}
-              />
-              <div>
-                <div className="font-bold flex items-center gap-2">
-                  <span>{peerConnected ? 'RECEIVER CONNECTED' : 'WAITING FOR RECEIVER TO JOIN...'}</span>
-                  {isDirectP2p && (
-                    <span className="text-[9px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-400/30">
-                      WEBRTC P2P
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-steel mt-0.5">
-                  {peerConnected
-                    ? 'Direct peer data tunnel ready. Binary chunks streaming in real-time.'
-                    : 'Share 6-digit PIN code or QR with peer on local Wi-Fi / Hotspot.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-              <span className="text-[10px] px-2 py-0.5 rounded bg-surface-alt border border-carbon font-mono text-paper">
-                {peerConnected ? 'TUNNEL_READY' : 'LISTENING_PORT_8888'}
-              </span>
-            </div>
-          </div>
-
-          {/* Live Sharing Control Deck: Dynamic File Drops & Screen Sharing */}
-          <div className="p-4 rounded-xl bg-carbon/50 border border-carbon space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 dashed-divider-b pb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-mono text-xs font-bold text-paper tracking-wider">
-                  LIVE SHARING ROOM
-                </span>
-                <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase">
-                  DYNAMIC P2P INGESTION
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => liveFileInputRef.current?.click()}
-                  disabled={isTransferring}
-                  className="px-3 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-white/90 disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <PlusCircleIcon className="w-3.5 h-3.5" />
-                  <span>Add Files Live</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => liveFolderInputRef.current?.click()}
-                  disabled={isTransferring}
-                  className="px-3 py-1.5 rounded-full border border-[#333] bg-carbon text-white font-semibold text-xs hover:bg-[#282828] disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <FolderSimpleIcon className="w-3.5 h-3.5 text-[#7089ba]" />
-                  <span>Add Folder</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={toggleScreenShare}
-                  className={`px-3 py-1.5 rounded-full border text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isScreenSharing
-                      ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 animate-pulse'
-                      : 'border-[#333] bg-carbon text-steel hover:text-white hover:bg-[#282828]'
-                  }`}
-                  title="Share your screen directly with the connected peer via WebRTC"
-                >
-                  <TelevisionSimpleIcon className={`w-3.5 h-3.5 ${isScreenSharing ? 'text-purple-300' : 'text-[#7089ba]'}`} weight={isScreenSharing ? 'fill' : 'regular'} />
-                  <span>{isScreenSharing ? 'Stop Screen Cast' : 'Live Screen Share'}</span>
-                </button>
-
-                <input
-                  ref={liveFileInputRef}
-                  type="file"
-                  multiple
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      void handleLiveAddFiles(Array.from(e.target.files))
-                    }
-                  }}
-                  className="hidden"
-                />
-                <input
-                  ref={liveFolderInputRef}
-                  type="file"
-                  // @ts-expect-error non-standard webkitdirectory attribute
-                  webkitdirectory=""
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      void handleLiveAddFiles(Array.from(e.target.files))
-                    }
-                  }}
-                  className="hidden"
-                />
-              </div>
-            </div>
-
-            {/* Live Drop Target Area */}
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleLiveFileDrop}
-              onClick={() => liveFileInputRef.current?.click()}
-              className="border border-dashed border-[#2e2e2e] hover:border-[#7089ba]/60 bg-[#121212] rounded-xl p-3 text-center cursor-pointer transition-colors"
-            >
-              <div className="flex items-center justify-center gap-2 text-xs font-mono text-steel">
-                <PlusCircleIcon className="w-4 h-4 text-[#7089ba]" />
-                <span>Drop files or folders here to dynamically stream to peer</span>
-              </div>
-            </div>
-
-            {/* Live Screen Casting Active Notice */}
-            {isScreenSharing && screenStream && (
-              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3 text-xs font-mono">
-                <div className="flex items-center gap-2 text-purple-300">
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
-                  <span className="font-bold">LIVE SCREEN CAST ACTIVE</span>
-                  <span className="text-[10px] text-steel">· Streaming display to receiver via WebRTC</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleScreenShare}
-                  className="px-2.5 py-1 rounded-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 text-[11px] cursor-pointer"
-                >
-                  Stop Screen Cast
-                </button>
-              </div>
-            )}
-
-            {/* Live Room Files Manifest */}
-            {files.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono text-steel">
-                  <span>ROOM MANIFEST ({files.length} {files.length === 1 ? 'FILE' : 'FILES'})</span>
-                  <span>{formatBytes(totalEncryptedBytes || totalBytes)}</span>
-                </div>
-                <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
-                  {files.map((item, idx) => (
-                    <div
-                      key={`${item.relativePath}-${idx}`}
-                      className="flex items-center justify-between p-2 rounded-lg bg-[#141414] border border-[#222] text-xs font-mono"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 pr-2">
-                        <FileIcon className="w-3.5 h-3.5 text-[#7089ba] shrink-0" />
-                        <span className="truncate text-white">{item.relativePath}</span>
-                        <span className="text-[10px] text-steel shrink-0">· {formatBytes(item.size)}</span>
-                      </div>
-                      <span className="text-[9px] bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 px-1.5 py-0.5 rounded font-bold shrink-0">
-                        ACTIVE
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Instant Live Note Relay */}
-            <div className="p-3 rounded-xl bg-[#121212] border border-[#242424] space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-mono text-steel">
-                <span className="flex items-center gap-1.5">
-                  <ChatCircleTextIcon className="w-3.5 h-3.5 text-[#7089ba]" />
-                  <span>Instant Live Note Relay</span>
-                </span>
-                {liveNoteSent && (
-                  <span className="text-emerald-400 font-bold flex items-center gap-1">
-                    <CheckIcon className="w-3 h-3" /> Relayed to Peer
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={liveNoteText}
-                  onChange={(e) => setLiveNoteText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSendLiveNote()
-                  }}
-                  placeholder="Type note or paste text to relay live to receiver..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-[#0a0a0a] border border-[#282828] text-xs font-mono text-white placeholder-steel/60 focus:outline-none focus:border-[#7089ba]/50"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendLiveNote}
-                  disabled={!liveNoteText.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-[#7089ba]/20 hover:bg-[#7089ba]/30 border border-[#7089ba]/40 text-[#7089ba] text-xs font-mono font-semibold transition-colors disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                >
-                  <PaperPlaneRightIcon className="w-3.5 h-3.5" />
-                  <span>Send</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar & Status */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-steel truncate max-w-xs">{currentFileName || statusMessage}</span>
-              <div className="flex items-center gap-2 font-bold">
-                {transferEtaSeconds !== null && transferEtaSeconds > 0 && (
-                  <span className="text-[#7089ba] font-mono text-[11px]">
-                    ETA: ~{transferEtaSeconds < 60 ? `${transferEtaSeconds}s` : `${Math.floor(transferEtaSeconds / 60)}m ${transferEtaSeconds % 60}s`}
-                  </span>
-                )}
-                <span className="text-white">{progressPercent}%</span>
-              </div>
-            </div>
-
-            <div className="w-full h-2.5 bg-carbon rounded-full overflow-hidden border border-[#242424] relative">
-              <div
-                className="h-full bg-linear-to-r from-[#7089ba] to-[#9bb2e5] transition-all duration-300 relative"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] font-mono text-steel pt-1">
-              <span>
-                {currentChunkInfo.total > 0
-                  ? `Chunk ${currentChunkInfo.current} / ${currentChunkInfo.total} (2MB slices)`
-                  : statusMessage}
-              </span>
-              {transferSpeedMbps > 0 && (
-                <span className="text-emerald-400 font-semibold">{transferSpeedMbps.toFixed(2)} MB/s</span>
-              )}
-            </div>
-          </div>
-
-          {/* Live Real-Time Telemetry & Throughput Chart */}
-          <TransferTelemetryChart
-            currentSpeedMbps={transferSpeedMbps}
-            totalBytes={totalEncryptedBytes || (files.reduce((a, b) => a + b.size, 0))}
-            transferredBytes={uploadedBytes}
-            isDirectP2p={isDirectP2p}
-            isCompressed={enableCompression}
-            originalSizeBytes={originalTotalBytes}
-            currentChunk={currentChunkInfo.current}
-            totalChunks={currentChunkInfo.total}
-          />
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-between pt-2">
-            {transferDone ? (
-              <div className="flex items-center gap-2 text-xs text-[#7089ba] font-mono">
-                <CheckCircleIcon className="w-4 h-4" weight="bold" />
-                <span>Payload ready on local network. Receiver can claim PIN.</span>
-              </div>
-            ) : isTransferring ? (
-              <div className="flex items-center gap-2 text-xs text-steel font-mono">
-                <ArrowsClockwiseIcon className="w-4 h-4 animate-spin text-[#7089ba]" />
-                <span>Live streaming payload directly to peer...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-amber-300 font-mono">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                <span>Waiting for receiver to connect and claim PIN...</span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={cancelSession}
-              className="px-3.5 py-1.5 rounded-full border border-[#282828] text-xs text-steel hover:text-[#eb5757] hover:border-[#eb5757]/40 transition-colors cursor-pointer"
-            >
-              Terminate Session
-            </button>
-          </div>
-        </div>
+        <ActiveTransferSessionView
+          pin={pin}
+          effectiveJoinUrl={effectiveJoinUrl}
+          peerConnected={peerConnected}
+          isDirectP2p={isDirectP2p}
+          files={files}
+          totalEncryptedBytes={totalEncryptedBytes}
+          totalBytes={totalBytes}
+          uploadedBytes={uploadedBytes}
+          transferSpeedMbps={transferSpeedMbps}
+          transferEtaSeconds={transferEtaSeconds}
+          progressPercent={progressPercent}
+          statusMessage={statusMessage}
+          transferDone={transferDone}
+          isTransferring={isTransferring}
+          enableCompression={enableCompression}
+          originalTotalBytes={originalTotalBytes}
+          currentChunkInfo={currentChunkInfo}
+          isScreenSharing={isScreenSharing}
+          screenStream={screenStream}
+          liveNoteText={liveNoteText}
+          setLiveNoteText={setLiveNoteText}
+          liveNoteSent={liveNoteSent}
+          linkCopied={linkCopied}
+          liveFileInputRef={liveFileInputRef}
+          liveFolderInputRef={liveFolderInputRef}
+          onOpenQrModal={() => setQrModalOpen(true)}
+          onCopyLink={copyLink}
+          onNativeShare={handleNativeShare}
+          onToggleScreenShare={toggleScreenShare}
+          onSendLiveNote={handleSendLiveNote}
+          onLiveAddFiles={(newFiles) => void handleLiveAddFiles(newFiles)}
+          onLiveFileDrop={handleLiveFileDrop}
+          onCancelSession={cancelSession}
+        />
       )}
 
       {/* QR Code Modal */}

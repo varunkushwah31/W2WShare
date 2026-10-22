@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { SendPanel } from './SendPanel'
 import { ReceivePanel } from './ReceivePanel'
 import { PeerRadarPanel } from './PeerRadarPanel'
 import { ClipboardChatPanel } from './ClipboardChatPanel'
 import { AuditLedgerPanel } from './AuditLedgerPanel'
 import { OfflineNetworkModal } from './OfflineNetworkModal'
-import { api, type NetworkInterfaceDto } from '@/lib/api'
+import { AirDropModal, type AirDropRequestData } from './AirDropModal'
+import { api, getLocalDeviceInfo, getWebSocketUrl, type NetworkInterfaceDto } from '@/lib/api'
+import { soundEngine } from '@/lib/sound'
 import {
   UploadSimpleIcon,
   DownloadSimpleIcon,
@@ -51,12 +53,142 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [activePin, setActivePin] = useState<string | null>(null)
 
+  // Global AirDrop Receiver state
+  const [incomingAirDrop, setIncomingAirDrop] = useState<AirDropRequestData | null>(null)
+  const [airDropModalOpen, setAirDropModalOpen] = useState(false)
+  const [airDropModalStatus, setAirDropModalStatus] = useState<'prompt' | 'transferring' | 'completed' | 'declined' | 'error'>('prompt')
+  const presenceWsRef = useRef<WebSocket | null>(null)
+
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab)
   if (initialTab !== prevInitialTab) {
     setPrevInitialTab(initialTab)
     if (initialTab) {
       setActiveTab(initialTab)
     }
+  }
+
+  // AirDrop Presence and Signal Listener
+  useEffect(() => {
+    const localDevice = getLocalDeviceInfo()
+    api.announcePresence(localDevice).catch(() => {})
+
+    const wsUrl = getWebSocketUrl('/ws/signaling')
+    let ws: WebSocket | null = null
+    try {
+      ws = new WebSocket(wsUrl)
+      presenceWsRef.current = ws
+
+      ws.onopen = () => {
+        ws?.send(JSON.stringify({
+          type: 'REGISTER_DEVICE',
+          payload: localDevice,
+        }))
+      }
+
+      ws.onmessage = (event) => {
+        if (typeof event.data !== 'string') return
+        try {
+          const signal = JSON.parse(event.data)
+          if (signal.type === 'AIRDROP_REQUEST' && signal.payload) {
+            const req = signal.payload as AirDropRequestData
+            if (!req.targetDeviceId || req.targetDeviceId === localDevice.deviceId) {
+              soundEngine.peerConnect()
+              setIncomingAirDrop(req)
+              setAirDropModalStatus('prompt')
+              setAirDropModalOpen(true)
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const pollTimer = setInterval(async () => {
+      try {
+        const pending = await api.getPendingAirDropRequests(localDevice.deviceId)
+        if (pending && pending.length > 0 && !airDropModalOpen) {
+          const firstReq = pending[0] as AirDropRequestData
+          soundEngine.peerConnect()
+          setIncomingAirDrop(firstReq)
+          setAirDropModalStatus('prompt')
+          setAirDropModalOpen(true)
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000)
+
+    return () => {
+      clearInterval(pollTimer)
+      if (ws) {
+        try {
+          ws.close()
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [airDropModalOpen])
+
+  const handleAcceptAirDrop = async () => {
+    if (!incomingAirDrop) return
+    const localDevice = getLocalDeviceInfo()
+    try {
+      await api.respondAirDrop({
+        sessionId: incomingAirDrop.sessionId,
+        targetDeviceId: localDevice.deviceId,
+        accepted: true,
+      })
+      if (presenceWsRef.current?.readyState === WebSocket.OPEN) {
+        presenceWsRef.current.send(JSON.stringify({
+          type: 'AIRDROP_RESPONSE',
+          payload: {
+            sessionId: incomingAirDrop.sessionId,
+            senderDeviceId: incomingAirDrop.senderDeviceId,
+            accepted: true,
+          },
+        }))
+      }
+      setAirDropModalOpen(false)
+      setActivePin(incomingAirDrop.pin)
+      setActiveSessionId(incomingAirDrop.sessionId)
+      setActiveTab('receive')
+      soundEngine.peerConnect()
+    } catch (err) {
+      console.error('Failed to accept AirDrop:', err)
+    }
+  }
+
+  const handleDeclineAirDrop = async () => {
+    if (!incomingAirDrop) return
+    const localDevice = getLocalDeviceInfo()
+    try {
+      await api.respondAirDrop({
+        sessionId: incomingAirDrop.sessionId,
+        targetDeviceId: localDevice.deviceId,
+        accepted: false,
+      })
+      if (presenceWsRef.current?.readyState === WebSocket.OPEN) {
+        presenceWsRef.current.send(JSON.stringify({
+          type: 'AIRDROP_RESPONSE',
+          payload: {
+            sessionId: incomingAirDrop.sessionId,
+            senderDeviceId: incomingAirDrop.senderDeviceId,
+            accepted: false,
+          },
+        }))
+      }
+    } catch {
+      // ignore
+    }
+    setAirDropModalStatus('declined')
+    setTimeout(() => {
+      setAirDropModalOpen(false)
+      setIncomingAirDrop(null)
+    }, 700)
   }
 
   useEffect(() => {
@@ -234,6 +366,19 @@ export const W2WWorkspace: React.FC<W2WWorkspaceProps> = ({
           onClose={() => setIsNetworkModalOpen(false)}
           selectedInterface={selectedInterface}
           onSelectedInterfaceChange={setSelectedInterface}
+        />
+
+        {/* Global Apple-Style AirDrop Prompt Modal */}
+        <AirDropModal
+          isOpen={airDropModalOpen}
+          request={incomingAirDrop}
+          status={airDropModalStatus}
+          onAccept={handleAcceptAirDrop}
+          onDecline={handleDeclineAirDrop}
+          onClose={() => {
+            setAirDropModalOpen(false)
+            setIncomingAirDrop(null)
+          }}
         />
       </div>
 

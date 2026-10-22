@@ -1,0 +1,49 @@
+{
+  "properties": [
+    {
+      "name": "w2w.security.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Allowed origins for CORS."
+    },
+    {
+      "name": "w2w.frontend-url",
+      "type": "java.lang.String",
+      "description": "Frontend cloud URL."
+    },
+    {
+      "name": "w2w.public-url",
+      "type": "java.lang.String",
+      "description": "Public URL for sharing links."
+    },
+    {
+      "name": "server.tomcat.socket.tcp-no-delay",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable TCP_NODELAY on the Tomcat socket."
+    },
+    {
+      "name": "server.tomcat.socket.so-keepalive",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable SO_KEEPALIVE on the Tomcat socket."
+    },
+    {
+      "name": "w2w.storage.temp-dir",
+      "type": "java.lang.String",
+      "description": "Ephemeral directory for encrypted chunks."
+    },
+    {
+      "name": "w2w.session.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Session timeout in seconds."
+    },
+    {
+      "name": "w2w.storage.max-quota-bytes",
+      "type": "java.lang.Long",
+      "description": "Maximum disk storage quota in bytes."
+    },
+    {
+      "name": "w2w.storage.min-free-disk-bytes",
+      "type": "java.lang.Long",
+      "description": "Minimum required free disk space in bytes."
+    }
+  ]
+}

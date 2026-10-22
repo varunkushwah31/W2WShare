@@ -185,7 +185,7 @@ public class AuditLedgerService implements IAuditLedgerService {
         }
         return repository.findByTransactionId(transactionId)
                 .filter(entity -> !entity.isDeleted() && !entity.isExpired() && entity.getFileData() != null)
-                .map(AuditRecordEntity::getFileData);
+                .map(entity -> entity.getFileData());
     }
 
     @Override

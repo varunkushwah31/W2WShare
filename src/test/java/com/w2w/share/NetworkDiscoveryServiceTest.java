@@ -43,6 +43,7 @@ class NetworkDiscoveryServiceTest {
     }
 
     @Test
+    @SuppressWarnings("java:S1313")
     void testClassifyType() {
         assertEquals("LOOPBACK", NetworkDiscoveryService.classifyType("lo", "Loopback", "127.0.0.1", true, false));
         // Method 1: Smartphone Personal Hotspot & Windows Mobile Hotspot

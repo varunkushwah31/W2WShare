@@ -431,11 +431,11 @@ export class WebRtcPeerManager {
     const chunkKey = `${fileIndex}-${chunkIndex}`
     let assembly = this.inFlightChunks.get(chunkKey)
     if (!assembly) {
-      // Periodic cleanup of stale chunks older than 30s
-      if (this.inFlightChunks.size > 20) {
+      // Periodic cleanup of stale chunks older than 60s (scaled for 100MB+ large transfers)
+      if (this.inFlightChunks.size > 200) {
         const now = Date.now()
         for (const [key, item] of this.inFlightChunks) {
-          if (now - item.createdAt > 30000) {
+          if (now - item.createdAt > 60000) {
             this.inFlightChunks.delete(key)
           }
         }
@@ -571,6 +571,22 @@ export class WebRtcPeerManager {
   }
 
   /**
+   * Flow control backpressure for WebSocket binary relay.
+   * Prevents browser WebSocket buffer from overflowing during large (> 100MB) file transfers.
+   */
+  private async waitForWsBufferDrain(ws: WebSocket): Promise<void> {
+    const maxWaitMs = 15000
+    const start = Date.now()
+    while (ws.readyState === WebSocket.OPEN && ws.bufferedAmount > 256 * 1024) {
+      if (Date.now() - start > maxWaitMs) {
+        console.warn('[WebRTC] WebSocket buffer drain timeout')
+        break
+      }
+      await new Promise((r) => setTimeout(r, 20))
+    }
+  }
+
+  /**
    * SENDER: Streams a single chunk directly over RTCDataChannel
    * Slices chunk into 64KB SCTP packets with native backpressure flow control
    */
@@ -621,6 +637,15 @@ export class WebRtcPeerManager {
 
           this.dataChannel.send(packet.buffer)
         } else if (isWsOpen && fallbackWs) {
+          // Flow control backpressure: wait for WebSocket buffer drain on large payloads
+          if (fallbackWs.bufferedAmount > 512 * 1024) {
+            await this.waitForWsBufferDrain(fallbackWs)
+          }
+
+          if (fallbackWs.readyState !== WebSocket.OPEN) {
+            return false
+          }
+
           fallbackWs.send(packet.buffer)
         }
 

@@ -62,16 +62,18 @@ async function downloadAndDecryptChunk(
 ): Promise<ArrayBuffer> {
   const chunkKey = `${fIdx}-${cIdx}`
   let chunkData: ArrayBuffer | undefined = webrtcChunksRef.current.get(chunkKey)
+
   if (chunkData) {
-    // Release encrypted WebRTC chunk buffer immediately to prevent double memory storage
+    // Release encrypted WebRTC chunk buffer immediately to prevent duplicate memory usage
     webrtcChunksRef.current.delete(chunkKey)
   } else {
-    // Wait for incoming live chunk from peer (WebRTC or live WebSocket pipe)
+    // Wait for incoming live chunk from peer (WebRTC or live WebSocket pipe) with generous timeout for large (100MB+) files
     chunkData = await new Promise<ArrayBuffer | undefined>((resolve) => {
+      // 45-second generous inactivity timeout for large files / slower networks
       const timer = setTimeout(() => {
         chunkWaitersRef.current.delete(chunkKey)
         resolve(undefined)
-      }, 7000)
+      }, 45000)
 
       chunkWaitersRef.current.set(chunkKey, (buf) => {
         clearTimeout(timer)
@@ -87,7 +89,38 @@ async function downloadAndDecryptChunk(
     })
 
     if (!chunkData) {
-      // Live peer stream timed out; fallback to backend HTTP relay with retry
+      // Attempt selective retransmit via WebRTC or WebSocket before failing
+      if (rtcManagerRef.current?.sendResendRequest(fIdx, cIdx)) {
+        chunkData = await new Promise<ArrayBuffer | undefined>((res) => {
+          const resendTimer = setTimeout(() => {
+            chunkWaitersRef.current.delete(chunkKey)
+            res(undefined)
+          }, 8000)
+          chunkWaitersRef.current.set(chunkKey, (buf) => {
+            clearTimeout(resendTimer)
+            res(buf)
+          })
+        })
+      } else if (wsRef?.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'RESEND_CHUNK',
+          payload: { fileIndex: fIdx, chunkIndex: cIdx },
+        }))
+        chunkData = await new Promise<ArrayBuffer | undefined>((res) => {
+          const resendTimer = setTimeout(() => {
+            chunkWaitersRef.current.delete(chunkKey)
+            res(undefined)
+          }, 8000)
+          chunkWaitersRef.current.set(chunkKey, (buf) => {
+            clearTimeout(resendTimer)
+            res(buf)
+          })
+        })
+      }
+    }
+
+    if (!chunkData) {
+      // Fallback to backend HTTP relay with retry (for vault sessions or HTTP fallback)
       let attempt = 0
       let lastErr: unknown
       while (attempt < 3) {
@@ -98,12 +131,12 @@ async function downloadAndDecryptChunk(
           lastErr = err
           attempt++
           if (attempt < 3) {
-            await new Promise((res) => setTimeout(res, attempt * 150))
+            await new Promise((res) => setTimeout(res, attempt * 200))
           }
         }
       }
       if (!chunkData) {
-        throw lastErr
+        throw new Error(`Failed to receive chunk ${cIdx + 1}/${meta.totalChunks} for ${meta.fileName}: ${lastErr instanceof Error ? lastErr.message : 'Transfer interrupted'}`)
       }
     }
   }
@@ -132,7 +165,7 @@ async function downloadAndDecryptChunk(
       const timer = setTimeout(() => {
         chunkWaitersRef.current.delete(chunkKey)
         resolve(undefined)
-      }, 3000)
+      }, 8000)
       chunkWaitersRef.current.set(chunkKey, (buf) => {
         clearTimeout(timer)
         resolve(buf)
@@ -157,12 +190,12 @@ async function downloadAndDecryptChunk(
       relayErr = err
       attempt++
       if (attempt < 3) {
-        await new Promise((res) => setTimeout(res, attempt * 150))
+        await new Promise((res) => setTimeout(res, attempt * 200))
       }
     }
   }
   if (!relayChunk) {
-    throw relayErr
+    throw new Error(`Decryption failed for chunk ${cIdx + 1}/${meta.totalChunks}: ${relayErr instanceof Error ? relayErr.message : 'Retransmission failed'}`)
   }
   const dec = await cryptoEngine.decryptChunk(relayChunk, keyObj, cIdx, meta.iv)
   return dec.buffer as ArrayBuffer
@@ -302,11 +335,13 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
   const batchMetadataRef = useRef<FileMetadata[]>([])
   const isDownloadingRef = useRef<boolean>(false)
 
-  sessionIdRef.current = sessionId
-  activePinRef.current = activePin
-  burnAfterReadingRef.current = burnAfterReading
-  batchMetadataRef.current = batchMetadata
-  isDownloadingRef.current = downloading
+  useEffect(() => {
+    sessionIdRef.current = sessionId
+    activePinRef.current = activePin
+    burnAfterReadingRef.current = burnAfterReading
+    batchMetadataRef.current = batchMetadata
+    isDownloadingRef.current = downloading
+  }, [sessionId, activePin, burnAfterReading, batchMetadata, downloading])
 
   // Screen WakeLock API to prevent mobile phone sleep while receiving large files
   const { acquireWakeLock, releaseWakeLock } = useWakeLock(downloading)
@@ -579,6 +614,11 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
     })
   }, [downloadNewlyAddedFiles])
 
+  const handleIncomingBatchOfferRef = useRef(handleIncomingBatchOffer)
+  useEffect(() => {
+    handleIncomingBatchOfferRef.current = handleIncomingBatchOffer
+  }, [handleIncomingBatchOffer])
+
   const handleLookup = React.useCallback(async (lookupPin: string) => {
     const cleanPin = lookupPin.trim()
     if (cleanPin.length !== 6) {
@@ -770,9 +810,9 @@ export const ReceivePanel: React.FC<ReceivePanelProps> = ({
         } else if (signal.type === 'WEBRTC_ICE_CANDIDATE' && signal.payload) {
           await rtc.handleRemoteIceCandidate(signal.payload)
         } else if (signal.type === 'BATCH_OFFER' && Array.isArray(signal.payload)) {
-          handleIncomingBatchOffer(signal.payload as FileMetadata[])
+          handleIncomingBatchOfferRef.current(signal.payload as FileMetadata[])
         } else if (signal.type === 'FILE_OFFER' && signal.payload) {
-          handleIncomingBatchOffer([signal.payload as FileMetadata])
+          handleIncomingBatchOfferRef.current([signal.payload as FileMetadata])
         } else if (signal.type === 'SCREEN_SHARE_STOP') {
           rtc.handleRemoteScreenShareStop()
           setRemoteScreenStream(null)

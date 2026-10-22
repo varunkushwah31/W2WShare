@@ -548,10 +548,66 @@ public class TransferController {
                 .contentType(MediaType.IMAGE_PNG)
                 .body(qrBytes);
     }
+    private final Map<String, List<Map<String, Object>>> pendingAirDropRequests = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, String> airDropSessionStatus = new java.util.concurrent.ConcurrentHashMap<>();
+
     @DeleteMapping("/session/{sessionId}")
     public ResponseEntity<Map<String, String>> cancelSession(@PathVariable String sessionId) {
         log.info("[TRANSFER-CANCEL] Session [{}] cancelled by user", sessionId);
         sessionService.cancelSession(sessionId);
         return ResponseEntity.ok(Map.of(PARAM_STATUS, "SESSION_CLOSED"));
+    }
+
+    @PostMapping("/airdrop/request")
+    public ResponseEntity<Map<String, Object>> requestAirDrop(@RequestBody Map<String, Object> request) {
+        String targetDeviceId = request.get("targetDeviceId") != null ? String.valueOf(request.get("targetDeviceId")).trim() : "";
+        String sessionId = request.get("sessionId") != null ? String.valueOf(request.get("sessionId")).trim() : "";
+
+        if (!sessionId.isBlank()) {
+            airDropSessionStatus.put(sessionId, "PENDING");
+        }
+
+        if (!targetDeviceId.isBlank()) {
+            pendingAirDropRequests.computeIfAbsent(targetDeviceId, _ -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(request);
+        }
+
+        if (signalingHandler != null) {
+            signalingHandler.relayAirDropRequestFromRest(request);
+        }
+
+        log.info("[AIRDROP-API] Created AirDrop request for target [{}] (session: {})", targetDeviceId, sessionId);
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "REQUEST_QUEUED", "sessionId", sessionId));
+    }
+
+    @GetMapping("/airdrop/pending")
+    public ResponseEntity<List<Map<String, Object>>> getPendingAirDropRequests(@RequestParam String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<Map<String, Object>> requests = pendingAirDropRequests.remove(deviceId);
+        return ResponseEntity.ok(requests != null ? requests : List.of());
+    }
+
+    @PostMapping("/airdrop/respond")
+    public ResponseEntity<Map<String, Object>> respondAirDrop(@RequestBody Map<String, Object> response) {
+        String sessionId = response.get("sessionId") != null ? String.valueOf(response.get("sessionId")).trim() : "";
+        boolean accepted = Boolean.TRUE.equals(response.get("accepted"));
+
+        if (!sessionId.isBlank()) {
+            airDropSessionStatus.put(sessionId, accepted ? "ACCEPTED" : "DECLINED");
+        }
+
+        if (signalingHandler != null) {
+            signalingHandler.relayAirDropResponseFromRest(response);
+        }
+
+        log.info("[AIRDROP-API] Recipient responded to AirDrop session [{}]: accepted={}", sessionId, accepted);
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, "RESPONSE_RECORDED", "accepted", accepted));
+    }
+
+    @GetMapping("/airdrop/status/{sessionId}")
+    public ResponseEntity<Map<String, Object>> getAirDropStatus(@PathVariable String sessionId) {
+        String status = airDropSessionStatus.getOrDefault(sessionId, "UNKNOWN");
+        return ResponseEntity.ok(Map.of(PARAM_STATUS, status, "sessionId", sessionId));
     }
 }

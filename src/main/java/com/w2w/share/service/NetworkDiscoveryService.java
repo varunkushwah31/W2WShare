@@ -296,7 +296,7 @@ public class NetworkDiscoveryService implements INetworkDiscoveryService {
         String primaryUrl = getPrimaryNetworkUrl();
         String localIp = interfaces.stream()
                 .filter(i -> !i.isLoopback())
-                .map(InterfaceAddressInfo::getIp)
+                .map(info -> info.getIp())
                 .findFirst()
                 .orElse("127.0.0.1");
 
