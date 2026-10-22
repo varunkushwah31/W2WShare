@@ -404,19 +404,25 @@ interface NearbyPeerCardProps {
 function getPeerButtonBadge(isTarget: boolean, airDropStatus: string, hasFiles: boolean) {
   if (isTarget && airDropStatus === 'waiting') {
     return {
-      classes: 'bg-amber-400/20 text-amber-300 border border-amber-400/40 animate-pulse',
-      label: 'Waiting...',
+      classes: 'border border-amber-400/30 bg-amber-400/10 text-amber-300 font-mono text-[10px]',
+      label: 'WAITING...',
     }
   }
   if (isTarget && airDropStatus === 'accepted') {
     return {
-      classes: 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/40',
-      label: 'Connected',
+      classes: 'border border-emerald-400/30 bg-emerald-400/10 text-emerald-400 font-mono text-[10px]',
+      label: 'CONNECTED',
+    }
+  }
+  if (isTarget && airDropStatus === 'declined') {
+    return {
+      classes: 'border border-rose-400/30 bg-rose-400/10 text-rose-400 font-mono text-[10px]',
+      label: 'DECLINED',
     }
   }
   return {
-    classes: 'bg-[#0071e3] text-white hover:bg-[#0077ed] shadow-xs',
-    label: hasFiles ? 'AirDrop File' : 'Choose & Send',
+    classes: 'border border-[#282828] bg-carbon text-steel font-mono text-[10px] group-hover:text-black group-hover:bg-white group-hover:border-white shadow-xs',
+    label: hasFiles ? 'AirDrop Now' : 'Select Peer',
   }
 }
 
@@ -437,30 +443,37 @@ const NearbyPeerCard: React.FC<NearbyPeerCardProps> = ({
       type="button"
       onClick={() => onSelect(peer)}
       disabled={isTransferring && !isTarget}
-      className={`p-3.5 rounded-2xl border transition-all text-center flex flex-col items-center gap-2 group cursor-pointer relative overflow-hidden ${
+      className={`p-3.5 rounded-xl border transition-all text-left flex flex-col justify-between gap-3 group cursor-pointer relative overflow-hidden ${
         isTarget
-          ? 'border-[#0071e3] bg-[#0071e3]/10 shadow-lg shadow-[#0071e3]/20 ring-2 ring-[#0071e3]/30'
-          : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+          ? 'border-white bg-[#1c1c1c] shadow-sm ring-1 ring-white/20'
+          : 'border-[#242424] bg-surface-alt/70 hover:border-[#7089ba]/60 hover:bg-carbon-hover'
       }`}
     >
-      <div className="relative w-12 h-12 flex items-center justify-center">
-        <div className={`absolute inset-0 rounded-full border border-[#0071e3]/40 ${isTarget ? 'animate-ping' : 'group-hover:scale-110 transition-transform'}`} />
-        <div className="w-10 h-10 rounded-full bg-[#0071e3]/20 border border-[#0071e3]/40 flex items-center justify-center text-[#0071e3]">
-          {isMobile ? <DeviceMobileIcon className="w-5 h-5" /> : <DesktopIcon className="w-5 h-5" />}
+      <div className="flex items-center justify-between w-full">
+        <div className="w-8 h-8 rounded-lg bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:text-white transition-colors">
+          {isMobile ? <DeviceMobileIcon className="w-4 h-4" /> : <DesktopIcon className="w-4 h-4" />}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-mono text-[9px] text-steel uppercase">ONLINE</span>
         </div>
       </div>
 
-      <div className="min-w-0 w-full">
-        <div className="text-xs font-bold text-white truncate">
+      <div className="min-w-0 w-full space-y-0.5">
+        <div className="text-xs font-mono font-bold text-white truncate">
           {peer.deviceName || 'Nearby Device'}
         </div>
-        <div className="text-[10px] text-steel font-mono truncate">
-          {peer.os || 'AirDrop Peer'}
+        <div className="text-[10px] text-steel font-mono truncate flex items-center gap-1">
+          <span>{peer.os || 'AirDrop Peer'}</span>
+          <span>·</span>
+          <span>{peer.ip}</span>
         </div>
       </div>
 
-      <div className={`w-full py-1 px-2 rounded-full text-[10px] font-semibold transition-all ${badge.classes}`}>
-        {badge.label}
+      <div className={`w-full py-1 px-2 rounded-full font-medium transition-all text-center flex items-center justify-center gap-1.5 ${badge.classes}`}>
+        {isTarget && airDropStatus === 'waiting' && <ArrowsClockwiseIcon className="w-3 h-3 animate-spin" />}
+        {isTarget && airDropStatus === 'accepted' && <CheckCircleIcon className="w-3 h-3" />}
+        <span>{badge.label}</span>
       </div>
     </button>
   )
@@ -1974,48 +1987,64 @@ export const SendPanel: React.FC<SendPanelProps> = ({
         </div>
       )}
 
-      {/* AirDrop to Nearby Devices (Apple AirDrop Experience) */}
+      {/* AirDrop to Nearby Devices */}
       {!pin && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-linear-to-b from-[#18181c] to-[#121214] border border-white/10 shadow-lg space-y-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#0071e3] animate-ping" />
-              <span className="font-mono text-xs uppercase tracking-wider text-[#0071e3] font-bold">
-                AirDrop Nearby Devices
+        <div className="dashed-container p-4 sm:p-6 rounded-2xl bg-carbon relative space-y-4">
+          <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
+
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between pb-3 dashed-divider-b">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="font-mono text-xs uppercase tracking-wider text-white font-bold">
+                  Nearby Subnet Devices
+                </span>
+                <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-2 py-0.5 rounded-full border border-[#7089ba]/20 font-bold uppercase tracking-wider">
+                  AirDrop Radar
+                </span>
+              </div>
+              <span className="font-mono text-[11px] text-steel">
+                {nearbyPeers.length} {nearbyPeers.length === 1 ? 'peer' : 'peers'} active
               </span>
             </div>
-            <span className="text-[11px] font-mono text-steel">
-              {nearbyPeers.length} {nearbyPeers.length === 1 ? 'peer' : 'peers'} discovered
-            </span>
-          </div>
 
-          {nearbyPeers.length === 0 ? (
-            <div className="py-5 px-4 rounded-xl bg-black/30 border border-white/5 text-center space-y-1.5">
-              <div className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-[#0071e3]">
-                <BroadcastIcon className="w-5 h-5 animate-pulse" />
+            {nearbyPeers.length === 0 ? (
+              <div className="py-4 px-4 rounded-xl bg-surface-alt/60 border border-[#242424] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] shrink-0">
+                    <BroadcastIcon className="w-4 h-4 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-mono font-bold text-white">
+                      Subnet Peer Radar Active
+                    </div>
+                    <p className="text-[11px] text-steel font-mono mt-0.5">
+                      Open W2W Share on any phone, tablet, or PC on this local Wi-Fi / Hotspot to AirDrop directly.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-[9px] text-steel bg-carbon px-2.5 py-1 rounded-full border border-[#282828]">
+                    UDP PORT 8888
+                  </span>
+                </div>
               </div>
-              <div className="text-xs font-semibold text-white">
-                Looking for nearby devices on your Wi-Fi...
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {nearbyPeers.map((peer) => (
+                  <NearbyPeerCard
+                    key={peer.deviceId}
+                    peer={peer}
+                    isTarget={airDropTargetPeer?.deviceId === peer.deviceId}
+                    airDropStatus={airDropStatus}
+                    isTransferring={isTransferring}
+                    hasFiles={files.length > 0}
+                    onSelect={startAirDropToPeer}
+                  />
+                ))}
               </div>
-              <p className="text-[11px] text-steel max-w-sm mx-auto">
-                Open W2W Share on any phone, tablet, or PC on this network to AirDrop directly.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {nearbyPeers.map((peer) => (
-                <NearbyPeerCard
-                  key={peer.deviceId}
-                  peer={peer}
-                  isTarget={airDropTargetPeer?.deviceId === peer.deviceId}
-                  airDropStatus={airDropStatus}
-                  isTransferring={isTransferring}
-                  hasFiles={files.length > 0}
-                  onSelect={startAirDropToPeer}
-                />
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

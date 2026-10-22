@@ -1,5 +1,12 @@
 import React from 'react'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import {
   DesktopIcon,
   DeviceMobileIcon,
   DownloadSimpleIcon,
@@ -74,51 +81,76 @@ export const AirDropModal: React.FC<AirDropModalProps> = ({
   const renderFileIcon = () => {
     switch (fileCategory) {
       case 'image':
-        return <ImageIcon className="w-8 h-8 text-sky-400" />
+        return <ImageIcon className="w-5 h-5 text-sky-400" />
       case 'video':
-        return <VideoCameraIcon className="w-8 h-8 text-purple-400" />
+        return <VideoCameraIcon className="w-5 h-5 text-purple-400" />
       case 'audio':
-        return <MusicNotesIcon className="w-8 h-8 text-pink-400" />
+        return <MusicNotesIcon className="w-5 h-5 text-pink-400" />
       case 'archive':
-        return <ArchiveIcon className="w-8 h-8 text-amber-400" />
+        return <ArchiveIcon className="w-5 h-5 text-amber-400" />
       case 'code':
-        return <CodeIcon className="w-8 h-8 text-emerald-400" />
+        return <CodeIcon className="w-5 h-5 text-emerald-400" />
       default:
-        return <FileIcon className="w-8 h-8 text-blue-400" />
+        return <FileIcon className="w-5 h-5 text-[#7089ba]" />
     }
   }
 
-  // Circular progress calculations for AirDrop ring
-  const radius = 54
+  // Circular progress calculations for radar progress ring
+  const radius = 50
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (progressPercent / 100) * circumference
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-sm rounded-3xl bg-[#18181b]/95 border border-white/10 shadow-2xl p-6 text-center text-white overflow-hidden backdrop-blur-2xl">
-        {/* Subtle background ambient pulse glow */}
-        <div className="absolute -top-16 -left-16 w-36 h-36 bg-[#0071e3]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -right-16 w-36 h-36 bg-[#30d158]/15 rounded-full blur-3xl pointer-events-none" />
+  const isMobile = request.senderDeviceName.toLowerCase().includes('iphone') ||
+    request.senderDeviceName.toLowerCase().includes('android') ||
+    request.senderDeviceName.toLowerCase().includes('mobile')
 
-        {/* Top AirDrop Radar Symbol */}
-        <div className="relative flex items-center justify-center mb-4">
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-sm sm:max-w-md border border-carbon bg-carbon text-paper p-5 sm:p-6 rounded-2xl relative shadow-2xl space-y-4 overflow-hidden">
+        {/* Subtle CAD grid pattern and ambient glow */}
+        <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none rounded-2xl" />
+        <div className="absolute -top-16 -left-16 w-36 h-36 bg-[#7089ba]/10 rounded-full blur-3xl pointer-events-none" />
+
+        <DialogHeader className="text-center sm:text-center space-y-2">
+          <div className="mx-auto font-mono text-[9px] uppercase tracking-wider text-periwinkle bg-periwinkle/10 px-2.5 py-0.5 rounded-full border border-periwinkle/20 font-bold inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>DIRECT AIRDROP TRANSFER</span>
+          </div>
+          <DialogTitle className="text-lg sm:text-xl font-bold font-sans text-paper">
+            {status === 'prompt' && 'Incoming Peer Transfer'}
+            {status === 'transferring' && 'Receiving Encrypted Payload'}
+            {status === 'completed' && 'Transfer Completed'}
+            {status === 'declined' && 'Transfer Declined'}
+            {status === 'error' && 'Transfer Failed'}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-steel font-mono">
+            {status === 'prompt' && `${request.senderDeviceName} wants to send ${request.files.length} file(s) via offline P2P tunnel.`}
+            {status === 'transferring' && `Streaming live encrypted binary chunks directly from ${request.senderDeviceName}...`}
+            {status === 'completed' && `Payload delivered and decrypted successfully from ${request.senderDeviceName}.`}
+            {status === 'declined' && 'You declined the incoming peer transfer request.'}
+            {status === 'error' && (errorMsg || 'Connection interrupted during transfer.')}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Center Visual Deck */}
+        <div className="relative flex items-center justify-center py-2">
           {status === 'transferring' ? (
-            <div className="relative w-32 h-32 flex items-center justify-center">
+            <div className="relative w-28 h-28 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90">
                 <circle
-                  cx="64"
-                  cy="64"
+                  cx="56"
+                  cy="56"
                   r={radius}
-                  className="stroke-white/10"
-                  strokeWidth="5"
+                  className="stroke-[#222]"
+                  strokeWidth="4"
                   fill="transparent"
                 />
                 <circle
-                  cx="64"
-                  cy="64"
+                  cx="56"
+                  cy="56"
                   r={radius}
-                  className="stroke-[#0071e3] transition-all duration-300 ease-linear"
-                  strokeWidth="5"
+                  className="stroke-white transition-all duration-300 ease-linear"
+                  strokeWidth="4"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
                   strokeLinecap="round"
@@ -126,67 +158,45 @@ export const AirDropModal: React.FC<AirDropModalProps> = ({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-bold font-mono tracking-tight">{progressPercent}%</span>
+                <span className="text-xl font-bold font-mono tracking-tight text-white">{progressPercent}%</span>
                 {speedMbps > 0 && (
-                  <span className="text-[10px] text-steel font-mono">{speedMbps.toFixed(1)} MB/s</span>
+                  <span className="text-[10px] text-emerald-400 font-mono font-semibold">{speedMbps.toFixed(1)} MB/s</span>
                 )}
               </div>
             </div>
           ) : status === 'completed' ? (
-            <div className="w-20 h-20 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-in zoom-in-90 duration-300">
-              <CheckCircleIcon className="w-10 h-10" />
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <CheckCircleIcon className="w-8 h-8" />
             </div>
           ) : status === 'declined' ? (
-            <div className="w-20 h-20 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
-              <XCircleIcon className="w-10 h-10" />
+            <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <XCircleIcon className="w-8 h-8" />
             </div>
           ) : (
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full border border-[#0071e3]/30 animate-ping duration-3000" />
-              <div className="absolute inset-2 rounded-full border border-[#0071e3]/40" />
-              <div className="w-16 h-16 rounded-full bg-[#0071e3]/15 border border-[#0071e3]/50 flex items-center justify-center shadow-lg shadow-[#0071e3]/10">
-                {request.senderDeviceName.toLowerCase().includes('iphone') || request.senderDeviceName.toLowerCase().includes('android') ? (
-                  <DeviceMobileIcon className="w-8 h-8 text-[#0071e3]" />
-                ) : (
-                  <DesktopIcon className="w-8 h-8 text-[#0071e3]" />
-                )}
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-[#7089ba]/30 animate-ping duration-3000" />
+              <div className="w-14 h-14 rounded-full bg-surface-alt border border-carbon flex items-center justify-center text-[#7089ba] shadow-sm">
+                {isMobile ? <DeviceMobileIcon className="w-7 h-7" /> : <DesktopIcon className="w-7 h-7" />}
               </div>
             </div>
           )}
         </div>
 
-        {/* Sender & Context Header */}
-        <div className="space-y-1 mb-5">
-          <div className="text-[11px] font-mono uppercase tracking-widest text-[#0071e3] font-semibold">
-            AirDrop
-          </div>
-          <h3 className="text-base font-bold text-white tracking-tight line-clamp-1">
-            {request.senderDeviceName}
-          </h3>
-          <p className="text-xs text-white/60">
-            {status === 'prompt' && 'would like to share with you'}
-            {status === 'transferring' && 'Sending file via direct encrypted peer tunnel...'}
-            {status === 'completed' && 'File transfer complete! Decrypted & verified.'}
-            {status === 'declined' && 'AirDrop request was declined.'}
-            {status === 'error' && (errorMsg || 'Transfer interrupted')}
-          </p>
-        </div>
-
         {/* File Preview Card */}
-        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 mb-6 text-left flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0">
+        <div className="p-3 rounded-xl bg-surface-alt border border-carbon text-left flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-carbon border border-carbon flex items-center justify-center shrink-0">
             {renderFileIcon()}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-white truncate">
+            <div className="text-xs font-mono font-bold text-white truncate">
               {firstFile ? firstFile.fileName : 'Incoming Payload'}
             </div>
-            <div className="text-[11px] font-mono text-white/50 flex items-center gap-1.5 mt-0.5">
+            <div className="text-[10px] font-mono text-steel flex items-center gap-1.5 mt-0.5">
               <span>{formatBytes(request.totalBytes)}</span>
               {request.files.length > 1 && (
                 <>
                   <span>·</span>
-                  <span className="text-[#0071e3]">+{request.files.length - 1} more</span>
+                  <span className="text-[#7089ba]">+{request.files.length - 1} more file(s)</span>
                 </>
               )}
             </div>
@@ -195,34 +205,34 @@ export const AirDropModal: React.FC<AirDropModalProps> = ({
 
         {/* Dynamic Action Buttons */}
         {status === 'prompt' && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
             <button
               type="button"
               onClick={onDecline}
-              className="py-2.5 px-4 rounded-full bg-white/10 hover:bg-white/15 text-white/80 font-medium text-xs transition-colors cursor-pointer"
+              className="py-2 px-4 rounded-full border border-[#282828] bg-carbon hover:bg-[#242424] text-steel hover:text-white font-mono text-xs font-semibold transition-all cursor-pointer"
             >
               Decline
             </button>
             <button
               type="button"
               onClick={onAccept}
-              className="py-2.5 px-4 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold text-xs shadow-lg shadow-[#0071e3]/25 transition-all cursor-pointer active:scale-95"
+              className="py-2 px-4 rounded-full bg-white hover:bg-white/90 text-black font-semibold text-xs shadow-sm transition-all cursor-pointer"
             >
-              Accept
+              Accept & Receive
             </button>
           </div>
         )}
 
         {status === 'transferring' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-mono text-white/50">
-              <span>{speedMbps > 0 ? `${speedMbps.toFixed(1)} MB/s` : 'Connecting...'}</span>
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-[11px] font-mono text-steel">
+              <span>{speedMbps > 0 ? `${speedMbps.toFixed(1)} MB/s` : 'Direct tunnel syncing...'}</span>
               <span>{etaSeconds && etaSeconds > 0 ? `ETA ~${formatEta(etaSeconds)}` : 'In progress'}</span>
             </div>
             <button
               type="button"
               onClick={onDecline}
-              className="w-full py-2 rounded-full bg-white/5 hover:bg-white/10 text-white/60 text-xs font-medium transition-colors cursor-pointer"
+              className="w-full py-1.5 rounded-full border border-[#282828] bg-carbon hover:bg-[#242424] text-steel hover:text-[#eb5757] hover:border-[#eb5757]/40 font-mono text-xs transition-colors cursor-pointer"
             >
               Cancel Transfer
             </button>
@@ -230,21 +240,21 @@ export const AirDropModal: React.FC<AirDropModalProps> = ({
         )}
 
         {status === 'completed' && (
-          <div className="space-y-3">
+          <div className="space-y-2 pt-1">
             {receivedFiles.length > 0 && receivedFiles[0] && (
               <a
                 href={receivedFiles[0].blobUrl}
                 download={receivedFiles[0].fileName}
-                className="w-full py-2.5 px-4 rounded-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-500/20"
+                className="w-full py-2 px-4 rounded-full bg-white hover:bg-white/90 text-black font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
               >
-                <DownloadSimpleIcon className="w-4 h-4" />
+                <DownloadSimpleIcon className="w-3.5 h-3.5" />
                 <span>Save {receivedFiles[0].fileName}</span>
               </a>
             )}
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2 rounded-full bg-white/10 hover:bg-white/15 text-white font-medium text-xs transition-colors cursor-pointer"
+              className="w-full py-2 rounded-full border border-[#282828] bg-carbon hover:bg-[#242424] text-paper font-mono text-xs transition-colors cursor-pointer"
             >
               Done
             </button>
@@ -252,15 +262,17 @@ export const AirDropModal: React.FC<AirDropModalProps> = ({
         )}
 
         {(status === 'declined' || status === 'error') && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-medium text-xs transition-colors cursor-pointer"
-          >
-            Dismiss
-          </button>
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2 rounded-full border border-[#282828] bg-carbon hover:bg-[#242424] text-paper font-mono text-xs transition-colors cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
