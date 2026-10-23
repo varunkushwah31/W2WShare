@@ -181,20 +181,28 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({
               return (
                 <div
                   key={peer.deviceId}
-                  className="p-4 rounded-xl bg-[#141414] border border-carbon hover:border-[#2a2a2a] transition-all flex items-center justify-between gap-4 group"
+                  className="p-4 rounded-xl bg-[#141414] border border-[#242424] hover:border-[#7089ba]/60 hover:bg-[#181818] transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:text-white transition-colors shrink-0">
                       {isMobile ? <DeviceMobileIcon className="w-5 h-5" /> : <DesktopIcon className="w-5 h-5" />}
                     </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-bold text-white font-sans">
-                        {peer.deviceName || 'Local Device'}
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="truncate text-sm font-bold text-white font-mono">
+                          {peer.deviceName || 'Local Device'}
+                        </div>
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-carbon border border-[#282828] shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="font-mono text-[8px] text-steel font-bold uppercase tracking-wider">ONLINE</span>
+                        </div>
                       </div>
-                      <div className="text-[11px] text-steel font-mono flex items-center gap-2">
-                        <span>{peer.ip}</span>
+                      <div className="text-[10px] text-steel font-mono flex items-center gap-1.5">
+                        <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-1.5 py-0.2 rounded border border-[#7089ba]/20 font-bold uppercase tracking-wider">
+                          {peer.os || 'PEER'}
+                        </span>
                         <span>·</span>
-                        <span>{peer.os || 'OS Unknown'}</span>
+                        <span>{peer.ip}</span>
                       </div>
                     </div>
                   </div>
@@ -202,7 +210,7 @@ export const PeerRadarPanel: React.FC<PeerRadarPanelProps> = ({
                   <button
                     onClick={() => onSelectPeer?.(peer)}
                     type='button'
-                    className="px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-semibold hover:bg-white/90 transition-all flex items-center gap-1 shrink-0"
+                    className="px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-mono font-semibold hover:bg-white/90 transition-all flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
                   >
                     <span>Connect</span>
                     <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

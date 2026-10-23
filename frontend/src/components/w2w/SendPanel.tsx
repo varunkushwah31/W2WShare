@@ -404,25 +404,31 @@ interface NearbyPeerCardProps {
 function getPeerButtonBadge(isTarget: boolean, airDropStatus: string, hasFiles: boolean) {
   if (isTarget && airDropStatus === 'waiting') {
     return {
-      classes: 'border border-amber-400/30 bg-amber-400/10 text-amber-300 font-mono text-[10px]',
-      label: 'WAITING...',
+      classes: 'border border-amber-400/40 bg-amber-400/10 text-amber-300 font-mono text-[10px]',
+      label: '[WAITING...]',
     }
   }
   if (isTarget && airDropStatus === 'accepted') {
     return {
-      classes: 'border border-emerald-400/30 bg-emerald-400/10 text-emerald-400 font-mono text-[10px]',
-      label: 'CONNECTED',
+      classes: 'border border-emerald-400/40 bg-emerald-400/10 text-emerald-400 font-mono text-[10px]',
+      label: '[CONNECTED]',
     }
   }
   if (isTarget && airDropStatus === 'declined') {
     return {
-      classes: 'border border-rose-400/30 bg-rose-400/10 text-rose-400 font-mono text-[10px]',
-      label: 'DECLINED',
+      classes: 'border border-rose-400/40 bg-rose-400/10 text-rose-400 font-mono text-[10px]',
+      label: '[DECLINED]',
+    }
+  }
+  if (isTarget) {
+    return {
+      classes: 'border border-[#7089ba] bg-[#7089ba]/20 text-white font-mono text-[10px] shadow-[0_0_10px_rgba(112,137,186,0.2)]',
+      label: hasFiles ? 'TRANSMIT FILES →' : 'TARGET ACTIVE',
     }
   }
   return {
     classes: 'border border-[#282828] bg-carbon text-steel font-mono text-[10px] group-hover:text-black group-hover:bg-white group-hover:border-white shadow-xs',
-    label: hasFiles ? 'AirDrop Now' : 'Select Peer',
+    label: hasFiles ? 'TRANSMIT FILES →' : 'SELECT TARGET',
   }
 }
 
@@ -445,32 +451,34 @@ const NearbyPeerCard: React.FC<NearbyPeerCardProps> = ({
       disabled={isTransferring && !isTarget}
       className={`p-3.5 rounded-xl border transition-all text-left flex flex-col justify-between gap-3 group cursor-pointer relative overflow-hidden ${
         isTarget
-          ? 'border-white bg-[#1c1c1c] shadow-sm ring-1 ring-white/20'
-          : 'border-[#242424] bg-surface-alt/70 hover:border-[#7089ba]/60 hover:bg-carbon-hover'
+          ? 'border-[#7089ba] bg-[#161616] shadow-[0_0_15px_rgba(112,137,186,0.15)] ring-1 ring-[#7089ba]/50'
+          : 'border-[#242424] bg-surface-alt/70 hover:border-[#7089ba]/60 hover:bg-[#181818]'
       }`}
     >
       <div className="flex items-center justify-between w-full">
         <div className="w-8 h-8 rounded-lg bg-carbon border border-[#282828] flex items-center justify-center text-[#7089ba] group-hover:text-white transition-colors">
           {isMobile ? <DeviceMobileIcon className="w-4 h-4" /> : <DesktopIcon className="w-4 h-4" />}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-carbon border border-[#242424]">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-mono text-[9px] text-steel uppercase">ONLINE</span>
+          <span className="font-mono text-[9px] text-steel font-bold uppercase tracking-wider">ONLINE</span>
         </div>
       </div>
 
-      <div className="min-w-0 w-full space-y-0.5">
-        <div className="text-xs font-mono font-bold text-white truncate">
+      <div className="min-w-0 w-full space-y-1">
+        <div className="text-xs font-mono font-bold text-white truncate group-hover:text-white">
           {peer.deviceName || 'Nearby Device'}
         </div>
-        <div className="text-[10px] text-steel font-mono truncate flex items-center gap-1">
-          <span>{peer.os || 'AirDrop Peer'}</span>
+        <div className="text-[10px] text-steel font-mono truncate flex items-center gap-1.5">
+          <span className="font-mono text-[9px] text-[#7089ba] bg-[#7089ba]/10 px-1.5 py-0.5 rounded border border-[#7089ba]/20 font-bold uppercase tracking-wider">
+            {peer.os || 'PEER'}
+          </span>
           <span>·</span>
           <span>{peer.ip}</span>
         </div>
       </div>
 
-      <div className={`w-full py-1 px-2 rounded-full font-medium transition-all text-center flex items-center justify-center gap-1.5 ${badge.classes}`}>
+      <div className={`w-full py-1.5 px-2 rounded-full font-medium transition-all text-center flex items-center justify-center gap-1.5 ${badge.classes}`}>
         {isTarget && airDropStatus === 'waiting' && <ArrowsClockwiseIcon className="w-3 h-3 animate-spin" />}
         {isTarget && airDropStatus === 'accepted' && <CheckCircleIcon className="w-3 h-3" />}
         <span>{badge.label}</span>
@@ -1884,15 +1892,18 @@ export const SendPanel: React.FC<SendPanelProps> = ({
     <div className="space-y-6">
       {/* Target Peer Radar Beacon Banner */}
       {targetPeer && !pin && (
-        <div className="p-4 rounded-xl bg-[#7089ba]/10 border border-[#7089ba]/30 flex items-center justify-between gap-4">
+        <div className="p-3.5 rounded-xl bg-carbon border border-[#7089ba]/40 flex items-center justify-between gap-4 shadow-[0_0_15px_rgba(112,137,186,0.08)]">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <div className="w-8 h-8 rounded-lg bg-[#7089ba]/10 border border-[#7089ba]/30 flex items-center justify-center text-[#7089ba] shrink-0">
+              <DesktopIcon className="w-4 h-4" />
+            </div>
             <div className="min-w-0">
-              <div className="text-xs font-mono text-[#7089ba] uppercase tracking-wider">
-                Direct Target Peer Selected
+              <div className="text-[10px] font-mono text-[#7089ba] uppercase tracking-wider flex items-center gap-1.5 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>[TARGET_LOCKED :: P2P_TUNNEL]</span>
               </div>
-              <div className="text-sm font-bold text-white truncate">
-                {targetPeer.deviceName} <span className="font-mono text-steel text-xs font-normal">({targetPeer.ip}:{targetPeer.port})</span>
+              <div className="text-xs font-mono font-bold text-white truncate mt-0.5">
+                {targetPeer.deviceName} <span className="font-mono text-steel text-[11px] font-normal">({targetPeer.ip}:{targetPeer.port})</span>
               </div>
             </div>
           </div>
@@ -1900,9 +1911,9 @@ export const SendPanel: React.FC<SendPanelProps> = ({
             <button
               type="button"
               onClick={onClearTargetPeer}
-              className="px-2.5 py-1 rounded-lg bg-carbon hover:bg-[#282828] text-[11px] font-mono text-steel hover:text-white transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-full border border-[#282828] bg-surface-alt hover:bg-[#242424] text-[11px] font-mono text-steel hover:text-white transition-colors cursor-pointer"
             >
-              Clear Peer
+              Change Target
             </button>
           )}
         </div>
