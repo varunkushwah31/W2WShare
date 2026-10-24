@@ -88,6 +88,7 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
           strokeDasharray="4 2"
           fill="rgba(28, 28, 28, 0.85)"
         />
+
         {/* Outer Bezel Rim */}
         <rect
           x="108"
