@@ -136,6 +136,7 @@ export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ cla
             <circle cx="28" cy="-28" r="1.5" fill="#ffffff" />
             <circle cx="-28" cy="28" r="1.5" fill="#ffffff" />
             <circle cx="28" cy="28" r="1.5" fill="#ffffff" />
+
           </g>
 
           {/* Stationary Hub Core */}
