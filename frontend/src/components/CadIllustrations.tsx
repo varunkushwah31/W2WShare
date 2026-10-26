@@ -10,6 +10,7 @@ interface CadIllustrationProps {
 export const GearChassisCadIllustration: React.FC<CadIllustrationProps> = ({ className = '' }) => {
   return (
     <div className={`relative w-full aspect-square max-w-105 rounded-2xl bg-carbon p-6 flex items-center justify-center overflow-hidden border border-carbon group cursor-crosshair transition-all duration-300 hover:border-[#2a2a2a] ${className}`}>
+
       {/* Stippled dot grid matrix background */}
       <div className="absolute inset-0 bg-stipple-grid opacity-20 pointer-events-none" />
 
